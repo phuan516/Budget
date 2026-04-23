@@ -97,6 +97,13 @@ export function useGoogleOAuth() {
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+        error_callback: (err: { type: string; message?: string }) => {
+          clearTimeout(timeout);
+          setIsLoading(false);
+          if (err.type !== 'popup_closed') {
+            alert(`Authentication failed: ${err.message ?? err.type}`);
+          }
+        },
         callback: async (tokenResponse: TokenResponse) => {
           clearTimeout(timeout);
 
