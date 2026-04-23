@@ -10,77 +10,36 @@ export default function SheetSelectionPage() {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true); 
-  const { accessToken, user, logout, isConfigError } = useGoogleOAuth(); 
-  const selectedSheet = useStore((state) => state.selectedSheet);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const { accessToken, user, logout, isConfigError } = useGoogleOAuth();
   const setSelectedSheet = useStore((state) => state.setSelectedSheet);
 
   useEffect(() => {
-    // Give the hook time to load from localStorage
-    const timer = setTimeout(() => {
-      setIsInitializing(false);
-    }, 100);
+    const timer = setTimeout(() => setIsInitializing(false), 100);
     return () => clearTimeout(timer);
   }, []);
 
-  // Check if not configured and redirect to home
   useEffect(() => {
-    if (isConfigError) {
-      router.push('/');
-    }
+    if (isConfigError) router.push('/');
   }, [isConfigError, router]);
 
   useEffect(() => {
-    if (!isInitializing && !accessToken) {
-      console.log('Not authenticated, redirecting to home...');
-      router.push('/');
-    }
+    if (!isInitializing && !accessToken) router.push('/');
   }, [isInitializing, accessToken, router]);
 
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-zinc-500 dark:text-zinc-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!accessToken || !user) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-zinc-500 dark:text-zinc-400">Redirecting...</p>
-        </div>
-      </div>
-    );
-  }
-
   const handleSelectSheet = async (sheetId: string) => {
+    setError(null);
     try {
       const response = await fetch('/api/sheets/select', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ sheetId }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        if (response.status === 401) {
-          setError('Session expired. Please sign in again.');
-          logout();
-          return;
-        }
+        if (response.status === 401) { setError('Session expired. Please sign in again.'); logout(); return; }
         throw new Error(data.error || 'Failed to select sheet');
       }
-
       if (data.valid && data.sheet) {
         setSelectedSheet(data.sheet);
         router.push('/dashboard');
@@ -95,33 +54,18 @@ export default function SheetSelectionPage() {
   const handleCreateNew = async () => {
     setIsCreating(true);
     setError(null);
-
     try {
       const response = await fetch('/api/sheets/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ name: 'My Budget Tracker' }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ name: `Ledger — ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}` }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        if (response.status === 401) {
-          setError('Session expired. Please sign in again.');
-          logout();
-          return;
-        }
+        if (response.status === 401) { setError('Session expired. Please sign in again.'); logout(); return; }
         throw new Error(data.error || 'Failed to create sheet');
       }
-
-      setSelectedSheet({
-        id: data.id,
-        name: data.name,
-        url: data.url,
-      });
+      setSelectedSheet({ id: data.id, name: data.name, url: data.url });
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create sheet');
@@ -130,46 +74,59 @@ export default function SheetSelectionPage() {
     }
   };
 
+  if (isInitializing || !accessToken || !user) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const emailShort = user.email.includes('@')
+    ? user.email.split('@')[0] + '@…'
+    : user.email;
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col">
-      <div className="max-w-4xl mx-auto w-full">
-        <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-4 sticky top-0 z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">$</span>
-              </div>
-              <h1 className="text-xl font-bold text-zinc-900 dark:text-white">
-                Budget Tracker
-              </h1>
-            </div>
+    <div className="min-h-[100svh] bg-white text-[#1a1a1a] flex flex-col">
+
+      {/* ── HEADER ── */}
+      <header style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
+        {/* Desktop */}
+        <div className="hidden sm:flex justify-between items-center px-12 py-7">
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Ledger · Choose sheet</span>
+          <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span>{user.email}</span>
+            <span>·</span>
             <button
               onClick={logout}
-              className="text-sm text-zinc-500 hover:text-red-600 transition-colors flex items-center gap-1"
+              style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, padding: 0 }}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
               Sign out
             </button>
           </div>
-        </header>
+        </div>
+        {/* Mobile */}
+        <div className="sm:hidden flex justify-between items-center px-5 pt-3 pb-[14px]">
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Choose sheet</span>
+          <span style={{ fontSize: 11, color: '#888' }}>{emailShort}</span>
+        </div>
+      </header>
 
-        <main className="py-8 px-6">
-          {error && (
-            <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-              <p className="text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
+      {/* ── ERROR BANNER ── */}
+      {error && (
+        <div style={{ margin: '12px 48px 0', padding: '10px 14px', background: '#fafafa', border: '1px solid #d8d8d8', borderRadius: 8, fontSize: 13, color: '#1a1a1a' }}
+          className="max-sm:mx-4">
+          {error}
+        </div>
+      )}
 
-          <SheetSelector
-            accessToken={accessToken}
-            onSelectSheet={handleSelectSheet}
-            onCreateSheet={handleCreateNew}
-            isCreating={isCreating}
-          />
-        </main>
-      </div>
+      {/* ── SHEET SELECTOR ── */}
+      <SheetSelector
+        accessToken={accessToken!}
+        onSelectSheet={handleSelectSheet}
+        onCreateSheet={handleCreateNew}
+        isCreating={isCreating}
+      />
     </div>
   );
 }

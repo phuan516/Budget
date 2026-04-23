@@ -1,27 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
 
+function GoogleG({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09 0-.73.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+  );
+}
+
 export default function LandingPage() {
   const router = useRouter();
-  const { isLoading, login, isConfigError, accessToken, user } = useGoogleOAuth(); // ✅ Add these
-  const [showSetup, setShowSetup] = useState(false);
+  const { isLoading, login, isConfigError, accessToken, user } = useGoogleOAuth();
 
-   useEffect(() => {
+  useEffect(() => {
     if (accessToken && user) {
-      console.log('✅ User authenticated, redirecting to dashboard...');
-      router.push('/sheets/select'); 
+      router.push('/sheets/select');
     }
   }, [accessToken, user, router]);
 
-  const handleManualLogin = async () => {
+  const handleLogin = async () => {
     try {
       await login();
-    } catch (error) {
-      console.error('Login failed:', error);
-      setShowSetup(true);
+    } catch {
+      // errors handled within the hook
     }
   };
 
@@ -43,21 +51,10 @@ export default function LandingPage() {
           <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-6 border border-amber-200 dark:border-amber-800">
             <h3 className="font-semibold text-amber-800 dark:text-amber-400 mb-3">Setup Steps:</h3>
             <ol className="list-decimal list-inside text-sm text-amber-700 dark:text-amber-500 space-y-2">
-              <li>
-                <strong>Create a project:</strong> Go to <a href="https://console.cloud.google.com" target="_blank" className="underline text-amber-600 dark:text-amber-400">Google Cloud Console</a>
-              </li>
-              <li>
-                <strong>Enable APIs:</strong> Enable Google Sheets API and Google Drive API
-              </li>
-              <li>
-                <strong>Create OAuth credentials:</strong> Create OAuth 2.0 Client ID
-              </li>
-              <li>
-                <strong>Add redirect URIs:</strong> Add <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">http://localhost:3000</code>
-              </li>
-              <li>
-                <strong>Configure .env.local:</strong> Add <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id</code>
-              </li>
+              <li><strong>Create a project:</strong> Go to Google Cloud Console</li>
+              <li><strong>Enable APIs:</strong> Enable Google Sheets API and Google Drive API</li>
+              <li><strong>Create OAuth credentials:</strong> Create OAuth 2.0 Client ID</li>
+              <li><strong>Configure .env.local:</strong> Add <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id</code></li>
             </ol>
           </div>
           <div className="text-xs text-zinc-400 dark:text-zinc-500 text-center">
@@ -68,53 +65,91 @@ export default function LandingPage() {
     );
   }
 
+  const spinner = (
+    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+  );
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-4">
-        <div className="max-w-md w-full text-center space-y-8">
-          <div className="space-y-4">
-            <div className="w-20 h-20 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-primary-600/20">
-              <span className="text-4xl font-bold text-white">$</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Budget Tracker
-            </h1>
-            <p className="text-lg text-zinc-600 dark:text-zinc-400">
-              Track your spending with Google Sheets. Simple, private, and yours.
-            </p>
-          </div>
+    <div className="min-h-[100svh] bg-white text-[#1a1a1a] relative overflow-hidden flex flex-col">
 
-          <div className="space-y-4">
-            <button
-              onClick={handleManualLogin}
-              disabled={isLoading}
-              className="w-full flex items-center justify-center gap-3 bg-[#4285F4] hover:bg-[#357AE8] text-white px-6 py-4 rounded-xl font-semibold transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-[#4285F4]/20 hover:shadow-[#4285F4]/30 active:scale-[0.98]"
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26l5.92-2.86-2.84-2.84A8.91 8.91 0 0 1 12 6.6c-2.44 0-4.68.9-6.36 2.4L5.44 8.34C7.16 9.35 9.39 10 12 10c1.62 0 3.13-.56 4.25-1.5L12 7.74l7.07-3.43c.58-.6 1.34-1.03 2.24-1.23V5.5h2.5v2.5h2.5v1.5h-2.5v2.5h2.5v1.5h-2.5v2.5h2.5v1.5h-2.5v2.5c1.42-.86 2.5-2.3 2.5-4.25" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.61-2.82c-1.02.86-2.34 1.38-3.87 1.38-2.99 0-5.53-2.03-6.46-4.83L3.3 18.06C4.74 20.4 7.64 23 12 23" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.12-1.43.35-2.09V7.07L2.81 9.88 2.25 9.88A8.91 8.91 0 0 1 2 12c0 2.54 1.02 4.86 2.56 6.57l3.38-2.62" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.1.56 4.25 1.5l3.18-3.18C17.45 2.52 15.24 1.6 12 1.6 9.39 1.6 6.96 2.53 5.15 4.16l3.61 2.82C6.5 6.56 9.03 5.38 12 5.38" fill="#EA4335"/>
-                  </svg>
-                  Sign in with Google
-                </>
-              )}
-            </button>
-          </div>
+      {/* ── HEADER ── */}
+      <header className="flex justify-between items-center shrink-0 px-14 py-8 max-sm:px-[22px] max-sm:py-3">
+        <div className="flex items-center gap-[10px]">
+          <div className="w-[22px] h-[22px] rounded-full bg-[#1a1a1a] shrink-0 max-sm:w-[18px] max-sm:h-[18px]" />
+          <span className="text-[15px] font-semibold tracking-[-0.2px] max-sm:text-[13px]">Ledger</span>
+        </div>
+        <button
+          onClick={handleLogin}
+          disabled={isLoading}
+          className="border border-[#d8d8d8] bg-transparent text-[#1a1a1a] px-4 py-[9px] rounded-full text-[13px] font-medium cursor-pointer transition-colors hover:bg-[#f5f5f5] hover:border-[#1a1a1a] disabled:opacity-50 max-sm:text-[11px] max-sm:px-3 max-sm:py-[6px]"
+        >
+          Sign in
+        </button>
+      </header>
 
-          <div className="pt-8 border-t border-zinc-200 dark:border-zinc-800">
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              By signing in, you agree to our Terms of Service and Privacy Policy.
-              <br />
-              Your budget data stays in your own Google Sheet.
-            </p>
-          </div>
+      {/* ── MOBILE LAYOUT (< 640px) ── */}
+      <div className="sm:hidden flex-1 flex flex-col px-[22px] pb-5">
+        <div className="flex-1 pt-[48px]">
+          <p className="text-[10px] text-[#888] mb-[18px] uppercase tracking-[0.3px]">
+            Budget tracking · Your spreadsheet
+          </p>
+          <h1 className="font-semibold leading-[0.95] tracking-[-1.6px] mb-5 mt-0" style={{ fontSize: 52 }}>
+            Your money,<br /><span style={{ color: '#0F9D58' }}>your sheet.</span>
+          </h1>
+          <p className="text-[14px] text-[#444] leading-[1.45] mb-8 max-w-[260px]">
+            Connect a Google Sheet. Track spending. Own your data.
+          </p>
+        </div>
+
+        <div>
+          <button
+            onClick={handleLogin}
+            disabled={isLoading}
+            className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
+          >
+            {isLoading ? spinner : <GoogleG size={16} />}
+            Continue with Google
+          </button>
+          <p className="text-[10px] text-[#888] text-center mt-[10px]">
+            We only request access to sheets you pick.
+          </p>
+          <p className="text-[10px] text-[#888] text-center mt-[6px]">
+            No server storage · End-to-end with your Drive
+          </p>
         </div>
       </div>
+
+      {/* ── DESKTOP HERO (640px+) ── */}
+      <div className="hidden sm:block pt-[60px] px-14 max-w-[900px]">
+        <p className="text-[13px] text-[#888] mb-7 uppercase tracking-[0.3px]">
+          Budget tracking · Your spreadsheet
+        </p>
+        <h1
+          className="font-semibold leading-[0.95] mb-7 mt-0"
+          style={{ fontSize: 'clamp(52px, 7vw, 88px)', letterSpacing: '-2.5px' }}
+        >
+          Your money,<br /><span style={{ color: '#0F9D58' }}>your sheet.</span>
+        </h1>
+        <p className="text-[17px] text-[#444] max-w-[420px] leading-[1.4] mb-11">
+          Connect a Google Sheet. Track spending. Own your data.
+        </p>
+        <button
+          onClick={handleLogin}
+          disabled={isLoading}
+          className="inline-flex items-center gap-2 bg-[#1a1a1a] text-white px-[22px] py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
+        >
+          {isLoading ? spinner : <GoogleG size={16} />}
+          Continue with Google
+        </button>
+        <p className="text-[12px] text-[#888] mt-[14px]">
+          We only request access to the sheets you pick.
+        </p>
+      </div>
+
+      {/* ── DESKTOP: footer note (absolute) ── */}
+      <p className="hidden sm:block absolute left-14 bottom-8 text-[11px] text-[#888]">
+        No server storage · End-to-end with your Drive
+      </p>
     </div>
   );
 }

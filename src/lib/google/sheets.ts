@@ -6,6 +6,7 @@ export interface SheetMetadata {
   name: string;
   modifiedTime?: string;
   thumbnailLink?: string;
+  ownedByMe?: boolean;
 }
 
 export class SheetsService {
@@ -22,7 +23,7 @@ export class SheetsService {
       const drive = google.drive({ version: 'v3', auth: this.auth });
       const response = await drive.files.list({
         q: "mimeType='application/vnd.google-apps.spreadsheet'",
-        fields: 'files(id, name, modifiedTime, thumbnailLink)',
+        fields: 'files(id, name, modifiedTime, thumbnailLink, ownedByMe)',
         orderBy: 'modifiedTime desc',
       });
 
@@ -31,6 +32,7 @@ export class SheetsService {
         name: file.name!,
         modifiedTime: file.modifiedTime ?? undefined,
         thumbnailLink: file.thumbnailLink ?? undefined,
+        ownedByMe: file.ownedByMe ?? undefined,
       })) || [];
     } catch (error) {
       console.error('Error listing sheets:', error);
