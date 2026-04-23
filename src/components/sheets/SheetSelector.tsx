@@ -119,6 +119,20 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Refresh */}
+            <button
+              onClick={loadSheets}
+              disabled={isLoading}
+              title="Refresh sheets"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, border: '1px solid #d8d8d8', borderRadius: 10, background: 'transparent', cursor: isLoading ? 'not-allowed' : 'pointer', color: '#888', flexShrink: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'animate-spin' : ''} aria-hidden="true">
+                <path d="M13 2v4H9"/>
+                <path d="M1 12v-4h4"/>
+                <path d="M11.6 8.5a5 5 0 1 1-.8-5.1L13 6"/>
+                <path d="M2.4 5.5a5 5 0 1 1 .8 5.1L1 8"/>
+              </svg>
+            </button>
             {/* Search */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d8d8d8', borderRadius: 10, padding: '9px 12px', minWidth: 200 }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
@@ -321,18 +335,33 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d8d8d8', borderRadius: 10, padding: '9px 12px', marginTop: 14 }}>
-            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
-              <circle cx="6" cy="6" r="4.5"/>
-              <path d="M10 10l3 3"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Search your Drive…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ fontSize: 12, color: '#1a1a1a', flex: 1, border: 'none', outline: 'none', background: 'transparent' }}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
+            <button
+              onClick={loadSheets}
+              disabled={isLoading}
+              title="Refresh sheets"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, border: '1px solid #d8d8d8', borderRadius: 10, background: 'transparent', cursor: isLoading ? 'not-allowed' : 'pointer', color: '#888', flexShrink: 0 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'animate-spin' : ''} aria-hidden="true">
+                <path d="M13 2v4H9"/>
+                <path d="M1 12v-4h4"/>
+                <path d="M11.6 8.5a5 5 0 1 1-.8-5.1L13 6"/>
+                <path d="M2.4 5.5a5 5 0 1 1 .8 5.1L1 8"/>
+              </svg>
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d8d8d8', borderRadius: 10, padding: '9px 12px', flex: 1 }}>
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
+                <circle cx="6" cy="6" r="4.5"/>
+                <path d="M10 10l3 3"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search your Drive…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ fontSize: 12, color: '#1a1a1a', flex: 1, border: 'none', outline: 'none', background: 'transparent' }}
+              />
+            </div>
           </div>
 
           {/* Ownership filter */}

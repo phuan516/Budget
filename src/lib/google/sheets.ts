@@ -9,6 +9,44 @@ export interface SheetMetadata {
   ownedByMe?: boolean;
 }
 
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_TAB_REGEX = /^[A-Z][a-z]{2} \d{4}$/;
+
+// Config section labels (must match exactly what's written to the sheet)
+const CONFIG_SECTIONS = ['INCOME', 'SAVING GOALS', 'CATEGORIES', 'CARDS', 'FIXED EXPENSES'] as const;
+const CONFIG_SECTION_SET = new Set<string>(CONFIG_SECTIONS);
+
+const TYPE_TO_SECTION: Record<string, string> = {
+  income: 'INCOME',
+  saving_goal: 'SAVING GOALS',
+  category: 'CATEGORIES',
+  card: 'CARDS',
+  fixed_expense: 'FIXED EXPENSES',
+};
+
+// Returns 0-based index of the first row that is blank or starts a new section,
+// starting the scan from `fromIdx`. This marks the exclusive end of a section's data.
+function sectionDataEnd(rows: string[][], fromIdx: number): number {
+  let i = fromIdx;
+  while (i < rows.length) {
+    const cell = (rows[i]?.[0] ?? '').toString().trim().toUpperCase();
+    if (cell === '' || CONFIG_SECTION_SET.has(cell)) break;
+    i++;
+  }
+  return i;
+}
+
+function quoteSheet(name: string): string {
+  return `'${name.replace(/'/g, "''")}'`;
+}
+
+function getMonthLabel(dateStr: string): string {
+  const parts = dateStr.split('-');
+  const year = parseInt(parts[0]);
+  const month = parseInt(parts[1]);
+  return `${MONTH_NAMES[month - 1]} ${year}`;
+}
+
 export class SheetsService {
   private auth: Auth.OAuth2Client;
   private sheets: sheets_v4.Sheets;
@@ -22,7 +60,7 @@ export class SheetsService {
     try {
       const drive = google.drive({ version: 'v3', auth: this.auth });
       const response = await drive.files.list({
-        q: "mimeType='application/vnd.google-apps.spreadsheet'",
+        q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed = false",
         fields: 'files(id, name, modifiedTime, thumbnailLink, ownedByMe)',
         orderBy: 'modifiedTime desc',
       });
@@ -35,8 +73,9 @@ export class SheetsService {
         ownedByMe: file.ownedByMe ?? undefined,
       })) || [];
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
       console.error('Error listing sheets:', error);
-      throw new Error('Failed to load sheets');
+      throw new Error(`Failed to load sheets: ${msg}`);
     }
   }
 
@@ -44,22 +83,9 @@ export class SheetsService {
     try {
       const response = await this.sheets.spreadsheets.create({
         requestBody: {
-          properties: {
-            title: name,
-          },
+          properties: { title: name },
           sheets: [
-            {
-              properties: {
-                sheetId: 0,
-                title: 'Config',
-              },
-            },
-            {
-              properties: {
-                sheetId: 1,
-                title: 'Transactions',
-              },
-            },
+            { properties: { sheetId: 0, title: 'Config' } },
           ],
         },
       });
@@ -67,15 +93,42 @@ export class SheetsService {
       const spreadsheetId = response.data.spreadsheetId!;
       const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
 
-      // Write headers using A1 notation so we don't depend on internal sheetId values
-      await this.sheets.spreadsheets.values.batchUpdate({
+      const configLayout: (string | number)[][] = [
+        ['INCOME'],
+        ['Amount'],
+        [],
+        ['SAVING GOALS'],
+        ['Name', 'Amount'],
+        [],
+        ['CATEGORIES'],
+        ['Name'],
+        [],
+        ['CARDS'],
+        ['Name'],
+        [],
+        ['FIXED EXPENSES'],
+        ['Name', 'Amount'],
+      ];
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Config!A1',
+        valueInputOption: 'RAW',
+        requestBody: { values: configLayout },
+      });
+
+      // Bold section labels and column headers
+      const boldRowIdxs = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13]; // 0-based
+      await this.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
-          valueInputOption: 'RAW',
-          data: [
-            { range: 'Config!A1:C1', values: [['Type', 'Name', 'Value']] },
-            { range: 'Transactions!A1:E1', values: [['Date', 'Amount', 'Category', 'Card', 'Note']] },
-          ],
+          requests: boldRowIdxs.map(rowIdx => ({
+            repeatCell: {
+              range: { sheetId: 0, startRowIndex: rowIdx, endRowIndex: rowIdx + 1 },
+              cell: { userEnteredFormat: { textFormat: { bold: true } } },
+              fields: 'userEnteredFormat.textFormat.bold',
+            },
+          })),
         },
       });
 
@@ -90,50 +143,12 @@ export class SheetsService {
     try {
       const response = await this.sheets.spreadsheets.get({
         spreadsheetId: sheetId,
-        ranges: ['Config', 'Transactions'],
         fields: 'sheets.properties.title',
       });
 
       const sheetTitles = response.data.sheets?.map(s => s.properties?.title) || [];
-      const requiredSheets = ['Config', 'Transactions'];
-      const missing = requiredSheets.filter(sheet => !sheetTitles.includes(sheet));
-
-      if (missing.length > 0) {
-        return { valid: false, missing };
-      }
-
-      // Check headers in Config sheet
-      const configRange = 'Config!A1:C1';
-      const configResponse = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: configRange,
-      });
-
-      const configHeaders = configResponse.data.values?.[0] || [];
-      const requiredConfigHeaders = ['Type', 'Name', 'Value'];
-      const hasConfigHeaders = requiredConfigHeaders.every(
-        (h, i) => configHeaders[i]?.toString().toLowerCase() === h.toLowerCase()
-      );
-
-      if (!hasConfigHeaders) {
-        return { valid: false, missing: ['Config headers'] };
-      }
-
-      // Check headers in Transactions sheet
-      const txnRange = 'Transactions!A1:E1';
-      const txnResponse = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: txnRange,
-      });
-
-      const txnHeaders = txnResponse.data.values?.[0] || [];
-      const requiredTxnHeaders = ['Date', 'Amount', 'Category', 'Card', 'Note'];
-      const hasTxnHeaders = requiredTxnHeaders.every(
-        (h, i) => txnHeaders[i]?.toString().toLowerCase() === h.toLowerCase()
-      );
-
-      if (!hasTxnHeaders) {
-        return { valid: false, missing: ['Transactions headers'] };
+      if (!sheetTitles.includes('Config')) {
+        return { valid: false, missing: ['Config'] };
       }
 
       return { valid: true };
@@ -170,34 +185,51 @@ export class SheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: 'Config!A2:C',
+        range: 'Config!A:B',
       });
 
-      const rows = response.data.values || [];
-      const result = {
-        categories: [] as { id: string; name: string }[],
-        cards: [] as { id: string; name: string }[],
-        fixedExpenses: [] as { id: string; name: string; amount: number }[],
-        monthlyIncome: 0,
-        incomeRowIndex: null as number | null,
-        savingGoals: [] as { id: string; name: string; amount: number }[],
+      const rows = (response.data.values || []) as string[][];
+
+      // Locate each section label (0-based row index)
+      const sectionIdx: Partial<Record<string, number>> = {};
+      rows.forEach((row, i) => {
+        const cell = (row[0] ?? '').toString().trim().toUpperCase();
+        if (CONFIG_SECTION_SET.has(cell)) sectionIdx[cell] = i;
+      });
+
+      // Collect data rows for a section: skip label row + column-header row, stop at blank/next section
+      const getDataRows = (label: string) => {
+        const labelIdx = sectionIdx[label];
+        if (labelIdx == null) return [] as { row: string[]; rowNum: number }[];
+        const dataStart = labelIdx + 2;
+        const dataEnd = sectionDataEnd(rows, dataStart);
+        const result: { row: string[]; rowNum: number }[] = [];
+        for (let i = dataStart; i < dataEnd; i++) {
+          if (rows[i] && (rows[i][0] ?? '').toString().trim() !== '') {
+            result.push({ row: rows[i], rowNum: i + 1 }); // rowNum is 1-based
+          }
+        }
+        return result;
       };
 
-      rows.forEach((row, idx) => {
-        const type = (row[0] ?? '').toString().toLowerCase().trim();
-        const name = (row[1] ?? '').toString();
-        const value = (row[2] ?? '').toString();
-        const rowIndex = idx + 2; // 1-based, skipping header at row 1
-        const id = String(rowIndex);
+      const incomeRows = getDataRows('INCOME');
+      const monthlyIncome = incomeRows.length > 0 ? parseFloat(incomeRows[0].row[0] ?? '') || 0 : 0;
+      const incomeRowIndex = incomeRows.length > 0 ? incomeRows[0].rowNum : null;
 
-        if (type === 'category') result.categories.push({ id, name });
-        else if (type === 'card') result.cards.push({ id, name });
-        else if (type === 'fixed_expense') result.fixedExpenses.push({ id, name, amount: parseFloat(value) || 0 });
-        else if (type === 'income') { result.monthlyIncome = parseFloat(value) || 0; result.incomeRowIndex = rowIndex; }
-        else if (type === 'saving_goal') result.savingGoals.push({ id, name, amount: parseFloat(value) || 0 });
-      });
+      const categories = getDataRows('CATEGORIES').map(({ row, rowNum }) => ({
+        id: String(rowNum), name: (row[0] ?? '').toString(),
+      }));
+      const cards = getDataRows('CARDS').map(({ row, rowNum }) => ({
+        id: String(rowNum), name: (row[0] ?? '').toString(),
+      }));
+      const fixedExpenses = getDataRows('FIXED EXPENSES').map(({ row, rowNum }) => ({
+        id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0,
+      }));
+      const savingGoals = getDataRows('SAVING GOALS').map(({ row, rowNum }) => ({
+        id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0,
+      }));
 
-      return result;
+      return { categories, cards, fixedExpenses, monthlyIncome, incomeRowIndex, savingGoals };
     } catch (error) {
       console.error('Error reading config:', error);
       throw new Error('Failed to read config');
@@ -206,11 +238,62 @@ export class SheetsService {
 
   async addConfigItem(sheetId: string, type: string, name: string, value = ''): Promise<void> {
     try {
-      await this.sheets.spreadsheets.values.append({
+      const sectionLabel = TYPE_TO_SECTION[type];
+      if (!sectionLabel) throw new Error(`Unknown config type: ${type}`);
+
+      // Read current layout to find insertion point
+      const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: 'Config!A:C',
+        range: 'Config!A:B',
+      });
+      const rows = (response.data.values || []) as string[][];
+
+      const labelIdx = rows.findIndex(
+        r => (r[0] ?? '').toString().trim().toUpperCase() === sectionLabel
+      );
+      if (labelIdx === -1) throw new Error(`Config section "${sectionLabel}" not found`);
+
+      // Data starts two rows after the label (skip label + column header)
+      const insertAt = sectionDataEnd(rows, labelIdx + 2); // 0-based
+
+      // Get the numeric sheet ID for insertDimension
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties',
+      });
+      const configNumericId = spreadsheet.data.sheets?.find(
+        s => s.properties?.title === 'Config'
+      )?.properties?.sheetId ?? 0;
+
+      // Insert a blank row at the insertion point
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          requests: [{
+            insertDimension: {
+              range: { sheetId: configNumericId, dimension: 'ROWS', startIndex: insertAt, endIndex: insertAt + 1 },
+              inheritFromBefore: true,
+            },
+          }],
+        },
+      });
+
+      // Write data into the newly inserted row (1-based: insertAt + 1)
+      const newRowNum = insertAt + 1;
+      let rowData: (string | number)[];
+      if (type === 'income') {
+        rowData = [parseFloat(value) || 0];
+      } else if (type === 'category' || type === 'card') {
+        rowData = [name];
+      } else {
+        rowData = [name, parseFloat(value) || 0];
+      }
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `Config!A${newRowNum}:B${newRowNum}`,
         valueInputOption: 'RAW',
-        requestBody: { values: [[type, name, value]] },
+        requestBody: { values: [rowData] },
       });
     } catch (error) {
       console.error('Error adding config item:', error);
@@ -220,11 +303,20 @@ export class SheetsService {
 
   async updateConfigItem(sheetId: string, rowIndex: number, type: string, name: string, value = ''): Promise<void> {
     try {
+      let rowData: (string | number)[];
+      if (type === 'income') {
+        rowData = [parseFloat(value) || 0];
+      } else if (type === 'category' || type === 'card') {
+        rowData = [name];
+      } else {
+        rowData = [name, parseFloat(value) || 0];
+      }
+
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `Config!A${rowIndex}:C${rowIndex}`,
+        range: `Config!A${rowIndex}:B${rowIndex}`,
         valueInputOption: 'RAW',
-        requestBody: { values: [[type, name, value]] },
+        requestBody: { values: [rowData] },
       });
     } catch (error) {
       console.error('Error updating config item:', error);
@@ -263,26 +355,129 @@ export class SheetsService {
     }
   }
 
-  async readTransactions(sheetId: string): Promise<{
+  // Creates a monthly tab with a Fixed Expenses table and a Transactions table.
+  private async createMonthSheet(
+    spreadsheetId: string,
+    monthLabel: string,
+    fixedExpenses: { name: string; amount: number }[],
+  ): Promise<void> {
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title: monthLabel } } }],
+      },
+    });
+
+    const expenseRows = fixedExpenses.map(fe => [fe.name, fe.amount]);
+    const rows: (string | number)[][] = [
+      [`${monthLabel} Budget`],
+      [],
+      ['FIXED EXPENSES'],
+      ['Name', 'Amount'],
+      ...expenseRows,
+      [],
+      ['TRANSACTIONS'],
+      ['Date', 'Amount', 'Category', 'Card', 'Note'],
+    ];
+
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${quoteSheet(monthLabel)}!A1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: rows },
+    });
+
+    // Bold the title, section labels, and column headers
+    const sheetMetadata = await this.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const numericSheetId = sheetMetadata.data.sheets?.find(
+      s => s.properties?.title === monthLabel
+    )?.properties?.sheetId;
+
+    if (numericSheetId == null) return;
+
+    const boldRows = [
+      0,                              // title (row 1)
+      2,                              // FIXED EXPENSES (row 3)
+      3,                              // Name | Amount header (row 4)
+      4 + expenseRows.length,         // blank row separator
+      5 + expenseRows.length,         // TRANSACTIONS (row N+6)
+      6 + expenseRows.length,         // Date | Amount | … header (row N+7)
+    ];
+
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: boldRows.map(rowIdx => ({
+          repeatCell: {
+            range: {
+              sheetId: numericSheetId,
+              startRowIndex: rowIdx,
+              endRowIndex: rowIdx + 1,
+            },
+            cell: { userEnteredFormat: { textFormat: { bold: true } } },
+            fields: 'userEnteredFormat.textFormat.bold',
+          },
+        })),
+      },
+    });
+  }
+
+  async readTransactions(spreadsheetId: string): Promise<{
     id: string; date: string; amount: number; category: string; card: string; note: string;
   }[]> {
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: 'Transactions!A2:E',
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties',
       });
 
-      const rows = response.data.values || [];
-      return rows
-        .map((row, idx) => ({
-          id: String(idx + 2),
-          date: (row[0] ?? '').toString(),
-          amount: parseFloat((row[1] ?? '').toString()) || 0,
-          category: (row[2] ?? '').toString(),
-          card: (row[3] ?? '').toString(),
-          note: (row[4] ?? '').toString(),
-        }))
-        .filter((t) => t.date || t.amount);
+      const monthTabs = (spreadsheet.data.sheets || [])
+        .map(s => s.properties?.title ?? '')
+        .filter(title => MONTH_TAB_REGEX.test(title));
+
+      const transactions: { id: string; date: string; amount: number; category: string; card: string; note: string }[] = [];
+
+      for (const tabName of monthTabs) {
+        const response = await this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: `${quoteSheet(tabName)}!A:E`,
+        });
+
+        const rows = response.data.values || [];
+
+        // Find the "TRANSACTIONS" marker row
+        let txnLabelIdx = -1;
+        for (let i = 0; i < rows.length; i++) {
+          if ((rows[i][0] ?? '').toString().toUpperCase() === 'TRANSACTIONS') {
+            txnLabelIdx = i;
+            break;
+          }
+        }
+        if (txnLabelIdx === -1) continue;
+
+        // Row after label is the column header; data starts two rows after the label
+        const dataRows = rows.slice(txnLabelIdx + 2);
+        dataRows.forEach((row, idx) => {
+          const date = (row[0] ?? '').toString();
+          const amount = parseFloat((row[1] ?? '').toString()) || 0;
+          if (!date && !amount) return;
+          // 1-based row index within the sheet
+          const sheetRowNum = txnLabelIdx + 2 + idx + 1;
+          transactions.push({
+            id: `${tabName}|${sheetRowNum}`,
+            date,
+            amount,
+            category: (row[2] ?? '').toString(),
+            card: (row[3] ?? '').toString(),
+            note: (row[4] ?? '').toString(),
+          });
+        });
+      }
+
+      return transactions;
     } catch (error) {
       console.error('Error reading transactions:', error);
       throw new Error('Failed to read transactions');
@@ -290,7 +485,7 @@ export class SheetsService {
   }
 
   async addTransaction(
-    sheetId: string,
+    spreadsheetId: string,
     date: string,
     amount: number,
     category: string,
@@ -298,10 +493,27 @@ export class SheetsService {
     note: string,
   ): Promise<void> {
     try {
+      const monthLabel = getMonthLabel(date);
+
+      // Check if the month tab already exists
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties',
+      });
+      const tabExists = (spreadsheet.data.sheets || []).some(
+        s => s.properties?.title === monthLabel
+      );
+
+      if (!tabExists) {
+        const config = await this.readConfig(spreadsheetId);
+        await this.createMonthSheet(spreadsheetId, monthLabel, config.fixedExpenses);
+      }
+
       await this.sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId,
-        range: 'Transactions!A:E',
+        spreadsheetId,
+        range: `${quoteSheet(monthLabel)}!A:E`,
         valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
         requestBody: { values: [[date, amount, category, card, note]] },
       });
     } catch (error) {
@@ -310,23 +522,26 @@ export class SheetsService {
     }
   }
 
-  async deleteTransaction(sheetId: string, rowIndex: number): Promise<void> {
+  // transactionId format: "Apr 2026|8"
+  async deleteTransaction(spreadsheetId: string, tabName: string, rowIndex: number): Promise<void> {
     try {
       const spreadsheet = await this.sheets.spreadsheets.get({
-        spreadsheetId: sheetId,
+        spreadsheetId,
         fields: 'sheets.properties',
       });
-      const txnSheetId = spreadsheet.data.sheets?.find(
-        (s) => s.properties?.title === 'Transactions'
+      const tabSheetId = spreadsheet.data.sheets?.find(
+        s => s.properties?.title === tabName
       )?.properties?.sheetId;
 
+      if (tabSheetId == null) throw new Error(`Month tab "${tabName}" not found`);
+
       await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId: sheetId,
+        spreadsheetId,
         requestBody: {
           requests: [{
             deleteDimension: {
               range: {
-                sheetId: txnSheetId,
+                sheetId: tabSheetId,
                 dimension: 'ROWS',
                 startIndex: rowIndex - 1,
                 endIndex: rowIndex,

@@ -22,9 +22,10 @@ export async function GET(req: NextRequest) {
       const sheets = await sheetsService.listSheets();
       return NextResponse.json(sheets);
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
       console.error('Google API error:', error);
       return NextResponse.json(
-        { error: 'Failed to load sheets' },
+        { error: msg },
         { status: 500 }
       );
     }

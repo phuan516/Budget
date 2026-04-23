@@ -130,7 +130,7 @@ export default function DashboardPage() {
     await fetch('/api/transactions/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, rowIndex: parseInt(id) }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: id }),
     });
     await loadTransactions();
   }
