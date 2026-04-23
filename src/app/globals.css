@@ -3,13 +3,19 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary: #5B3FFF;
+  --primary-hover: #4A2FE8;
+  --primary-light: #E6E0FF;
+  --primary-dark: #4132CC;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --font-sans: var(--font-inter);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,4 +29,42 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom utilities */
+.text-primary {
+  color: var(--primary);
+}
+.text-primary-hover:hover {
+  color: var(--primary-hover);
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+.bg-primary-hover:hover {
+  background-color: var(--primary-hover);
+}
+
+.border-primary {
+  border-color: var(--primary);
+}
+.border-primary-hover:hover {
+  border-color: var(--primary-hover);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  transform: scale(1.02);
+}
+.btn-primary:active {
+  transform: scale(0.98);
 }

@@ -15,9 +15,8 @@ A mobile-first web application that uses Google Sheets as a backend database for
 
 ### Backend
 - **API:** Next.js API Routes
-- **Authentication:** Google OAuth 2.0
+- **Authentication:** Google OAuth 2.0 (Client-side)
 - **Data Storage:** Google Sheets API v4
-- **Session Management:** NextAuth.js
 
 ## Features
 
@@ -53,14 +52,8 @@ npm install
 3. Create `.env.local` file:
 
 ```bash
-# Google OAuth
-GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_client_secret_here
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback
-
-# NextAuth
-NEXTAUTH_SECRET=generate_random_string_here
-NEXTAUTH_URL=http://localhost:3000
+# Google OAuth (required)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
 
 # App Config
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -80,27 +73,21 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 src/
 ├── app/                    # Next.js App Router pages
 │   ├── api/               # API routes
-│   │   ├── auth/         # Google OAuth endpoints
 │   │   ├── sheets/       # Sheet management endpoints
-│   │   ├── config/       # Configuration endpoints
-│   │   └── transactions/ # Transaction endpoints
+│   │   └── ...           # Other API routes
 │   ├── dashboard/        # Main dashboard page
 │   ├── sheets/           # Sheet selector page
-│   └── settings/         # Settings page
+│   └── ...               # Other pages
 ├── components/           # React components
-│   ├── ui/              # shadcn/ui components
-│   ├── auth/            # Authentication components
 │   ├── sheets/          # Sheet selector components
 │   ├── transactions/    # Transaction components
 │   ├── dashboard/       # Dashboard components
-│   ├── settings/        # Settings components
-│   └── layout/          # Layout components
+│   └── ...              # Other components
 ├── lib/                 # Library code
 │   ├── google/          # Google API wrappers
-│   ├── services/        # Business logic services
+│   ├── hooks/           # React hooks
 │   ├── store/           # Zustand state store
-│   ├── utils/           # Utility functions
-│   └── types/           # TypeScript types
+│   └── ...              # Other utilities
 └── styles/
     └── globals.css      # Global styles
 ```
@@ -110,11 +97,11 @@ src/
 1. Create a Google Cloud Project
 2. Enable Google Sheets API and Google Drive API
 3. Create OAuth 2.0 credentials
-4. Add authorized redirect URIs:
-   - `http://localhost:3000/api/auth/callback` (development)
-   - `https://yourapp.vercel.app/api/auth/callback` (production)
+4. Add authorized JavaScript origins:
+   - `http://localhost:3000` (development)
+   - `https://yourapp.vercel.app` (production)
 
-See `SPEC.md` for full setup instructions.
+See `GOOGLE_SETUP.md` for full setup instructions.
 
 ## Deployment
 
