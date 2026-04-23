@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useStore } from '@/lib/store/useStore';
 
 interface GoogleUser {
   id: string;
@@ -9,24 +10,39 @@ interface GoogleUser {
   picture: string;
 }
 
+const TOKEN_EXPIRY_KEY = 'budget_token_expiry';
+const USER_KEY = 'budget_user';
+const TOKEN_KEY = 'budget_access_token';
+
 export function useGoogleOAuth() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<GoogleUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfigError, setIsConfigError] = useState(false);
+  const clearSelectedSheet = useStore((state) => state.clearSelectedSheet);
+  const setAvailableSheets = useStore((state) => state.setAvailableSheets);
 
   useEffect(() => {
-    // Check for existing session in localStorage
-    const storedUser = localStorage.getItem('budget_user');
-    const storedToken = localStorage.getItem('budget_access_token');
+    const storedUser = localStorage.getItem(USER_KEY);
+    const storedToken = localStorage.getItem(TOKEN_KEY);
+    const storedExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
+
+    const isExpired = storedExpiry && Date.now() > parseInt(storedExpiry, 10);
+    if (isExpired) {
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_EXPIRY_KEY);
+      return;
+    }
 
     if (storedUser && storedToken) {
       try {
         setUser(JSON.parse(storedUser));
         setAccessToken(storedToken);
-      } catch (e) {
-        localStorage.removeItem('budget_user');
-        localStorage.removeItem('budget_access_token');
+      } catch {
+        localStorage.removeItem(USER_KEY);
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(TOKEN_EXPIRY_KEY);
       }
     }
   }, []);
@@ -34,12 +50,14 @@ export function useGoogleOAuth() {
   const logout = useCallback(() => {
     setAccessToken(null);
     setUser(null);
-    localStorage.removeItem('budget_user');
-    localStorage.removeItem('budget_access_token');
-  }, []);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    clearSelectedSheet();
+    setAvailableSheets([]);
+  }, [clearSelectedSheet, setAvailableSheets]);
 
   const initializeGoogleLogin = useCallback(async () => {
-    // Check if Google Client ID is configured
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
     if (!clientId) {
@@ -47,7 +65,6 @@ export function useGoogleOAuth() {
       throw new Error('Google Client ID not configured. Please ask the administrator to set it up.');
     }
 
-    // Load Google Identity Services script if not already loaded
     if (!window.google) {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement('script');
@@ -64,70 +81,69 @@ export function useGoogleOAuth() {
   }, []);
 
   const handleGoogleLogin = useCallback(async () => {
-  setIsLoading(true);
-  
-  // Auto-reset loading after 2 minutes if no response
-  const timeout = setTimeout(() => {
-    setIsLoading(false);
-  }, 120000); // 2 minutes
+    setIsLoading(true);
 
-  try {
-    const clientId = await initializeGoogleLogin();
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+    }, 120000);
 
-    if (!window.google?.accounts?.oauth2) {
-      throw new Error('Google OAuth not loaded yet. Please wait a moment.');
-    }
+    try {
+      const clientId = await initializeGoogleLogin();
 
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-      callback: async (tokenResponse: any) => {
-        clearTimeout(timeout); // Clear timeout when callback fires
-        
-        try {
-          if (tokenResponse.error) {
-            console.error('OAuth error:', tokenResponse.error);
-            alert(`Authentication failed: ${tokenResponse.error}`);
-            setIsLoading(false);
-            return;
-          }
+      if (!window.google?.accounts?.oauth2) {
+        throw new Error('Google OAuth not loaded yet. Please wait a moment.');
+      }
 
-          if (tokenResponse && tokenResponse.access_token) {
-            const token = tokenResponse.access_token;
-            setAccessToken(token);
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+        callback: async (tokenResponse: TokenResponse) => {
+          clearTimeout(timeout);
 
-            const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-
-            if (!res.ok) {
-              throw new Error('Failed to fetch user info');
+          try {
+            if (tokenResponse.error) {
+              console.error('OAuth error:', tokenResponse.error);
+              alert(`Authentication failed: ${tokenResponse.error}`);
+              setIsLoading(false);
+              return;
             }
 
-            const userInfo = await res.json();
-            setUser(userInfo);
-            localStorage.setItem('budget_user', JSON.stringify(userInfo));
-            localStorage.setItem('budget_access_token', token);
-            
+            if (tokenResponse.access_token) {
+              const token = tokenResponse.access_token;
+              setAccessToken(token);
+
+              const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+
+              if (!res.ok) throw new Error('Failed to fetch user info');
+
+              const userInfo = await res.json();
+              setUser(userInfo);
+
+              const expiresIn = tokenResponse.expires_in ?? 3600;
+              localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+              localStorage.setItem(TOKEN_KEY, token);
+              localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + expiresIn * 1000));
+
+              setIsLoading(false);
+            }
+          } catch (err) {
+            console.error('Error in OAuth callback:', err);
+            alert(`Login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setIsLoading(false);
           }
-        } catch (err) {
-          console.error('Error in OAuth callback:', err);
-          alert(`Login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-          setIsLoading(false);
-        }
-      },
-    });
+        },
+      });
 
-    tokenClient.requestAccessToken({ prompt: 'select_account' });
-
-  } catch (error) {
-    clearTimeout(timeout);
-    console.error('Login initialization failed:', error);
-    alert(`Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    setIsLoading(false);
-  }
-}, [initializeGoogleLogin]);
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
+    } catch (error) {
+      clearTimeout(timeout);
+      console.error('Login initialization failed:', error);
+      alert(`Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsLoading(false);
+    }
+  }, [initializeGoogleLogin]);
 
   return {
     accessToken,
@@ -135,6 +151,6 @@ export function useGoogleOAuth() {
     isLoading,
     isConfigError,
     login: handleGoogleLogin,
-    logout
+    logout,
   };
 }

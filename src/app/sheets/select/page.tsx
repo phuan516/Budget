@@ -166,6 +166,7 @@ export default function SheetSelectionPage() {
             accessToken={accessToken}
             onSelectSheet={handleSelectSheet}
             onCreateSheet={handleCreateNew}
+            isCreating={isCreating}
           />
         </main>
       </div>

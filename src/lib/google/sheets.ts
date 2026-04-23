@@ -1,5 +1,5 @@
 // Google Sheets API wrapper
-import { google } from 'googleapis';
+import { google, sheets_v4, Auth} from 'googleapis';
 
 export interface SheetMetadata {
   id: string;
@@ -9,10 +9,10 @@ export interface SheetMetadata {
 }
 
 export class SheetsService {
-  private auth: google.auth.OAuth2;
-  private sheets: google.sheets_v4.Sheets;
+  private auth: Auth.OAuth2Client;
+  private sheets: sheets_v4.Sheets;
 
-  constructor(auth: google.auth.OAuth2) {
+  constructor(auth: Auth.OAuth2Client) {
     this.auth = auth;
     this.sheets = google.sheets({ version: 'v4', auth });
   }
@@ -29,8 +29,8 @@ export class SheetsService {
       return response.data.files?.map(file => ({
         id: file.id!,
         name: file.name!,
-        modifiedTime: file.modifiedTime,
-        thumbnailLink: file.thumbnailLink,
+        modifiedTime: file.modifiedTime ?? undefined,
+        thumbnailLink: file.thumbnailLink ?? undefined,
       })) || [];
     } catch (error) {
       console.error('Error listing sheets:', error);
@@ -38,7 +38,7 @@ export class SheetsService {
     }
   }
 
-  async createBudgetSheet(name: string): Promise<{ id: string; url: string }> {
+  async createBudgetSheet(name: string): Promise<{ id: string; url: string; name: string }> {
     try {
       const response = await this.sheets.spreadsheets.create({
         requestBody: {
@@ -64,30 +64,6 @@ export class SheetsService {
 
       const spreadsheetId = response.data.spreadsheetId!;
       const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
-
-      // Add headers to sheets
-      const batchUpdateRequest = {
-        requests: [
-          {
-            updateSheetProperties: {
-              properties: {
-                sheetId: 0,
-                title: 'Config',
-              },
-              fields: 'title',
-            },
-          },
-          {
-            updateSheetProperties: {
-              properties: {
-                sheetId: 1,
-                title: 'Transactions',
-              },
-              fields: 'title',
-            },
-          },
-        ],
-      };
 
       // Add headers to Config sheet
       await this.sheets.spreadsheets.batchUpdate({
@@ -139,7 +115,7 @@ export class SheetsService {
         },
       });
 
-      return { id: spreadsheetId, url: spreadsheetUrl };
+      return { id: spreadsheetId, url: spreadsheetUrl, name };
     } catch (error) {
       console.error('Error creating sheet:', error);
       throw new Error('Failed to create budget sheet');

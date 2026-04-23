@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, Plus, Search, FileSpreadsheet } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useStore } from '@/lib/store/useStore';
 import { SheetMetadata } from '@/lib/google/sheets';
 
@@ -9,53 +9,44 @@ interface SheetSelectorProps {
   onSelectSheet: (sheetId: string) => void;
   onCreateSheet: () => void;
   accessToken: string;
+  isCreating?: boolean;
 }
 
-export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToken }: SheetSelectorProps) {
+export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToken, isCreating }: SheetSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [loadTrigger, setLoadTrigger] = useState(0);
   const availableSheets = useStore((state) => state.availableSheets);
   const setAvailableSheets = useStore((state) => state.setAvailableSheets);
   const selectedSheet = useStore((state) => state.selectedSheet);
 
-  const loadSheets = async () => {
+  const loadSheets = useCallback(async () => {
+    if (!accessToken) return;
     setIsLoading(true);
     try {
-      const sheets: SheetMetadata[] = []
-      // const response = await fetch('/api/sheets/list', {
-      //   headers: {
-      //     'Authorization': `Bearer ${accessToken}`,
-      //   },
-      // });
-      // const sheets = await response.json();
+      const response = await fetch('/api/sheets/list', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!response.ok) {
+        console.error('Failed to load sheets:', await response.json());
+        return;
+      }
+      const sheets: SheetMetadata[] = await response.json();
       setAvailableSheets(sheets);
     } catch (error) {
       console.error('Failed to load sheets:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [accessToken, setAvailableSheets]);
 
   useEffect(() => {
-    if (selectedSheet) {
-      // If already have a selected sheet, don't load
-      return;
-    }
+    if (selectedSheet) return;
     loadSheets();
-  }, [selectedSheet, loadTrigger]);
+  }, [selectedSheet, loadSheets]);
 
   const filteredSheets = availableSheets.filter(sheet =>
     sheet.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleSelectSheet = (sheet: typeof availableSheets[0]) => {
-    onSelectSheet(sheet.id);
-  };
-
-  const handleCreateNew = () => {
-    onCreateSheet();
-  };
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -71,15 +62,20 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
       {/* Create New Section */}
       <div className="mb-8">
         <button
-          onClick={handleCreateNew}
-          className="w-full border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl p-8 hover:border-primary-600 dark:hover:border-primary-500 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all duration-200 group flex flex-col items-center justify-center gap-4"
+          onClick={onCreateSheet}
+          disabled={isCreating}
+          className="w-full border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl p-8 hover:border-primary-600 dark:hover:border-primary-500 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all duration-200 group flex flex-col items-center justify-center gap-4 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <div className="p-4 bg-zinc-100 dark:bg-zinc-800 rounded-full group-hover:bg-primary-100 dark:group-hover:bg-primary-900/30 transition-colors">
-            <Plus className="w-8 h-8 text-zinc-600 dark:text-zinc-400 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
+            {isCreating ? (
+              <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Plus className="w-8 h-8 text-zinc-600 dark:text-zinc-400 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
+            )}
           </div>
           <div className="text-center">
             <p className="text-lg font-semibold text-zinc-900 dark:text-white">
-              Create New Budget Sheet
+              {isCreating ? 'Creating sheet...' : 'Create New Budget Sheet'}
             </p>
             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
               Start fresh with a new budget tracker
@@ -123,7 +119,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
             {filteredSheets.map((sheet) => (
               <button
                 key={sheet.id}
-                onClick={() => handleSelectSheet(sheet)}
+                onClick={() => onSelectSheet(sheet.id)}
                 className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-md transition-all duration-200 text-left"
               >
                 {sheet.thumbnailLink ? (
@@ -147,7 +143,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
                     {sheet.modifiedTime
                       ? `Modified ${new Date(sheet.modifiedTime).toLocaleDateString()}`
-                      : 'Last modified Unknown'}
+                      : 'Last modified unknown'}
                   </p>
                 </div>
                 {selectedSheet?.id === sheet.id && (

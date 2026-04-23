@@ -9,19 +9,18 @@ A mobile-first web application that uses Google Sheets as a backend database for
 ## Tech Stack
 
 ### Frontend
-- **Framework:** Next.js 14+ (App Router) with TypeScript
-- **Styling:** Tailwind CSS
-- **State Management:** Zustand or React Context
-- **UI Components:** shadcn/ui (optional, for pre-built components)
+- **Framework:** Next.js 16 (App Router) with TypeScript
+- **Styling:** Tailwind CSS v4
+- **State Management:** Zustand (with `persist` middleware for selected sheet)
 - **Date Handling:** date-fns
-- **Charts:** recharts or Chart.js
+- **Charts:** recharts
 - **Icons:** lucide-react
 
 ### Backend
 - **API:** Next.js API Routes
-- **Authentication:** Google OAuth 2.0
+- **Authentication:** Google Identity Services (client-side implicit token flow)
 - **Data Storage:** Google Sheets API v4
-- **Session Management:** NextAuth.js or custom JWT
+- **Session Management:** Access token stored in localStorage with expiry tracking; no server-side sessions
 
 ### Infrastructure
 - **Hosting:** Vercel (recommended) or Netlify
@@ -33,39 +32,40 @@ A mobile-first web application that uses Google Sheets as a backend database for
 ## Core Features
 
 ### 1. Authentication & Setup
-- [x] Sign in with Google
+- [x] Sign in with Google (Google Identity Services implicit token flow)
 - [x] OAuth 2.0 consent with Sheets + Drive permissions
 - [x] Sheet selection from user's Google Drive
-- [x] Create new budget sheet from template
-- [x] Switch between multiple sheets
-- [x] Persist selected sheet (localStorage + optional backend)
+- [x] Create new budget sheet from template (Config + Transactions tabs with headers)
+- [x] Persist selected sheet (Zustand persist middleware → localStorage)
+- [x] Token expiry tracking — expired tokens are cleared on page load rather than failing silently
+- [ ] Switch between multiple sheets (UI not yet built)
 
 ### 2. Transaction Management
-- [x] Add new transactions (mobile-optimized form)
-- [x] View recent transactions (list view)
-- [x] Edit existing transactions
-- [x] Delete transactions
-- [x] Search and filter transactions
-- [x] Quick-add common expenses
+- [ ] Add new transactions (mobile-optimized form)
+- [ ] View recent transactions (list view)
+- [ ] Edit existing transactions
+- [ ] Delete transactions
+- [ ] Search and filter transactions
+- [ ] Quick-add common expenses
 
 ### 3. Configuration
-- [x] Manage spending categories
-- [x] Manage payment cards/methods
-- [x] Set up fixed expenses (rent, subscriptions, etc.)
-- [x] All config stored in Google Sheet
+- [ ] Manage spending categories
+- [ ] Manage payment cards/methods
+- [ ] Set up fixed expenses (rent, subscriptions, etc.)
+- [ ] All config stored in Google Sheet
 
 ### 4. Dashboard & Analytics
-- [x] Current month spending overview
-- [x] Category breakdown (chart)
-- [x] Fixed expenses summary
-- [x] Spending trends
-- [x] Remaining budget indicators
+- [ ] Current month spending overview
+- [ ] Category breakdown (chart)
+- [ ] Fixed expenses summary
+- [ ] Spending trends
+- [ ] Remaining budget indicators
 
 ### 5. Mobile Experience
 - [x] Mobile-first responsive design
-- [x] PWA support (optional)
-- [x] Touch-optimized interactions
-- [x] Offline capability (future enhancement)
+- [ ] PWA support
+- [ ] Touch-optimized interactions (swipe gestures)
+- [ ] Offline capability (future enhancement)
 
 ---
 
@@ -84,16 +84,14 @@ A mobile-first web application that uses Google Sheets as a backend database for
 │                  │                       │
 │  ┌───────────────▼───────────────────┐  │
 │  │      State Management (Zustand)   │  │
-│  │  - User session                   │  │
-│  │  - Selected sheet                 │  │
+│  │  - Selected sheet (persisted)     │  │
+│  │  - Available sheets list          │  │
 │  │  - Config (categories, cards)     │  │
 │  │  - Transactions cache             │  │
 │  └───────────────┬───────────────────┘  │
 │                  │                       │
 │  ┌───────────────▼───────────────────┐  │
 │  │       API Routes (/api/*)         │  │
-│  │  - /auth/google (OAuth)           │  │
-│  │  - /auth/callback                 │  │
 │  │  - /sheets/list                   │  │
 │  │  - /sheets/create                 │  │
 │  │  - /transactions/*                │  │
@@ -119,6 +117,26 @@ A mobile-first web application that uses Google Sheets as a backend database for
          │  Sheet 3: Summary   │
          └─────────────────────┘
 ```
+
+---
+
+## Implementation Notes
+
+### Authentication
+Auth is handled entirely client-side using the Google Identity Services (GSI) JavaScript SDK — there are no server-side OAuth callback routes or refresh tokens. The access token is requested via the implicit token flow, stored in localStorage alongside the user profile and an expiry timestamp. On page load, expired tokens are detected and cleared before they can cause silent API failures.
+
+Auth state is managed by `useGoogleOAuth` (the single source of truth for `accessToken` and `user`). Zustand is used only for app-level state (selected sheet, config, etc.). Logging out clears both.
+
+### State Persistence
+`selectedSheet` is persisted via Zustand's `persist` middleware (`budget-store` key in localStorage). Users return directly to the dashboard after a page reload without re-selecting their sheet.
+
+### Color System
+Tailwind v4 requires explicit CSS variable definitions for custom color scales. A full 11-stop `primary` scale (`primary-50` → `primary-950`) is defined in `globals.css` so that all `bg-primary-{n}`, `text-primary-{n}`, `border-primary-{n}`, and opacity modifier classes (`bg-primary-900/30`) resolve correctly.
+
+### API Shape
+`POST /api/sheets/create` returns `{ id, url, name }` (the `name` field was added so the client can populate the selected sheet state without a separate lookup).
+
+`POST /api/sheets/select` returns `{ valid: true, sheet: { id, name, url } }` on success or `{ valid: false, error: string }` on failure.
 
 ---
 
@@ -274,19 +292,7 @@ Auto-calculated aggregations and formulas.
 
 ### Authentication
 
-**POST /api/auth/google**
-- Initiates OAuth flow
-- Redirects to Google consent screen
-
-**GET /api/auth/callback**
-- Handles OAuth callback
-- Exchanges code for access/refresh tokens
-- Creates user session
-- Redirects to sheet selector
-
-**POST /api/auth/logout**
-- Clears user session
-- Revokes tokens (optional)
+Authentication is handled client-side by the Google Identity Services SDK (`useGoogleOAuth` hook). There are no `/api/auth/*` routes. The access token is passed as a `Bearer` header on every API request.
 
 ### Sheets
 
@@ -296,14 +302,14 @@ Auto-calculated aggregations and formulas.
 - Returns: Array of {id, name, modifiedTime, thumbnailLink}
 
 **POST /api/sheets/create**
-- Creates new budget sheet from template
-- Requires: Auth token
-- Returns: {spreadsheetId, spreadsheetUrl}
+- Creates new budget sheet with Config and Transactions tabs (including headers)
+- Requires: `{ name: string }` body, Auth token
+- Returns: `{ id, url, name }`
 
 **POST /api/sheets/select**
-- Validates and stores selected sheet
-- Requires: sheetId, auth token
-- Returns: {valid: boolean, config, error?}
+- Validates sheet structure (checks required tabs and header rows)
+- Requires: `{ sheetId: string }` body, Auth token
+- Returns: `{ valid: true, sheet: { id, name, url } }` or `{ valid: false, error: string }`
 
 **GET /api/sheets/validate/:sheetId**
 - Validates sheet structure
@@ -363,87 +369,34 @@ Auto-calculated aggregations and formulas.
 ```
 src/
 ├── app/
-│   ├── page.tsx                    # Landing page
-│   ├── auth/
-│   │   └── callback/page.tsx       # OAuth callback handler
+│   ├── page.tsx                    # Landing / sign-in page
 │   ├── sheets/
-│   │   └── select/page.tsx         # Sheet selector
-│   ├── dashboard/
-│   │   └── page.tsx                # Main dashboard
-│   ├── settings/
-│   │   └── page.tsx                # Settings page
+│   │   └── select/page.tsx         # Sheet selector page
+│   ├── dashboard/                  # (planned)
+│   │   └── page.tsx
+│   ├── settings/                   # (planned)
+│   │   └── page.tsx
+│   ├── globals.css                 # Tailwind v4 theme + global styles
 │   └── api/
-│       ├── auth/
-│       │   ├── google/route.ts
-│       │   ├── callback/route.ts
-│       │   └── logout/route.ts
-│       ├── sheets/
-│       │   ├── list/route.ts
-│       │   ├── create/route.ts
-│       │   ├── select/route.ts
-│       │   └── validate/[id]/route.ts
-│       ├── config/
-│       │   ├── route.ts
-│       │   ├── category/route.ts
-│       │   ├── card/route.ts
-│       │   └── fixed-expense/route.ts
-│       └── transactions/
-│           ├── route.ts
-│           ├── [id]/route.ts
-│           └── summary/route.ts
+│       └── sheets/
+│           ├── list/route.ts       # GET  — list user's spreadsheets
+│           ├── create/route.ts     # POST — create budget sheet from template
+│           └── select/route.ts     # POST — validate and return sheet details
 │
 ├── components/
-│   ├── ui/                         # shadcn/ui components
-│   │   ├── button.tsx
-│   │   ├── input.tsx
-│   │   ├── dialog.tsx
-│   │   ├── select.tsx
-│   │   └── ...
-│   ├── auth/
-│   │   └── GoogleSignInButton.tsx
-│   ├── sheets/
-│   │   ├── SheetSelector.tsx
-│   │   ├── SheetListItem.tsx
-│   │   └── CreateSheetButton.tsx
-│   ├── transactions/
-│   │   ├── TransactionList.tsx
-│   │   ├── TransactionItem.tsx
-│   │   ├── TransactionModal.tsx
-│   │   └── QuickAddButtons.tsx
-│   ├── dashboard/
-│   │   ├── SpendingSummary.tsx
-│   │   ├── CategoryChart.tsx
-│   │   ├── RecentTransactions.tsx
-│   │   └── FixedExpensesCard.tsx
-│   ├── settings/
-│   │   ├── CategoryManager.tsx
-│   │   ├── CardManager.tsx
-│   │   └── FixedExpenseManager.tsx
-│   └── layout/
-│       ├── Header.tsx
-│       ├── MobileNav.tsx
-│       └── FAB.tsx
+│   └── sheets/
+│       └── SheetSelector.tsx       # Sheet list + create button
 │
 ├── lib/
 │   ├── google/
-│   │   ├── auth.ts                 # OAuth helpers
-│   │   ├── sheets.ts               # Sheets API wrapper
-│   │   └── drive.ts                # Drive API wrapper
-│   ├── services/
-│   │   ├── SheetService.ts         # High-level sheet operations
-│   │   ├── TransactionService.ts   # Transaction CRUD
-│   │   └── ConfigService.ts        # Config CRUD
-│   ├── store/
-│   │   └── useStore.ts             # Zustand store
-│   ├── utils/
-│   │   ├── date.ts
-│   │   ├── currency.ts
-│   │   └── validation.ts
-│   └── types/
-│       └── index.ts                # TypeScript types
+│   │   └── sheets.ts               # SheetsService class (list, create, validate, details)
+│   ├── hooks/
+│   │   └── useGoogleOAuth.ts       # Auth state, GSI login/logout, token expiry
+│   └── store/
+│       └── useStore.ts             # Zustand store (selectedSheet persisted, config, UI)
 │
-└── styles/
-    └── globals.css                 # Tailwind + custom styles
+└── types/
+    └── google-identity.d.ts        # Window.google / GSI type declarations
 ```
 
 ---
@@ -451,14 +404,14 @@ src/
 ## Data Models (TypeScript)
 
 ```typescript
-// User & Auth
-interface User {
+// User & Auth (managed by useGoogleOAuth hook, not persisted in Zustand)
+interface GoogleUser {
   id: string;
   email: string;
   name: string;
   picture: string;
-  accessToken: string;
-  refreshToken: string;
+  // accessToken held separately in hook state + localStorage
+  // no refreshToken — implicit flow issues short-lived access tokens only
 }
 
 // Sheets
@@ -534,24 +487,25 @@ interface SpendingSummary {
 
 **Color Palette:**
 ```css
-/* Primary */
---primary: #5B3FFF;           /* Deep purple */
---primary-hover: #4A2FE8;
---primary-light: #E6E0FF;
+/* Primary scale (defined in globals.css @theme) */
+--color-primary-50:  #f4f3ff;
+--color-primary-100: #ece9fe;
+--color-primary-200: #ddd6fd;
+--color-primary-300: #c4b5fc;
+--color-primary-400: #a387fa;
+--color-primary-500: #7c56f8;
+--color-primary-600: #5B3FFF;   /* main brand color */
+--color-primary-700: #4A2FE8;   /* hover state */
+--color-primary-800: #3b21c4;
+--color-primary-900: #2d1899;
+--color-primary-950: #1c0f63;
 
-/* Neutral */
---background: #FFFFFF;
---surface: #F8F9FA;
---border: #E5E7EB;
---text-primary: #1F2937;
---text-secondary: #6B7280;
---text-muted: #9CA3AF;
-
+/* Neutral (Tailwind zinc scale) */
 /* Semantic */
 --success: #10B981;
---error: #EF4444;
+--error:   #EF4444;
 --warning: #F59E0B;
---info: #3B82F6;
+--info:    #3B82F6;
 ```
 
 **Typography:**
@@ -731,22 +685,22 @@ font-variant-numeric: tabular-nums;
 ### Phase 1: Foundation (Week 1)
 **Goal:** Basic auth and sheet connection
 
-- [ ] Set up Next.js project with TypeScript + Tailwind
-- [ ] Configure Google Cloud Project
+- [x] Set up Next.js project with TypeScript + Tailwind v4
+- [x] Configure Google Cloud Project
   - Enable Sheets API, Drive API
   - Create OAuth 2.0 credentials
-  - Set up authorized redirect URIs
-- [ ] Implement Google OAuth flow
+- [x] Implement Google OAuth flow (client-side GSI)
   - Sign in button
-  - Callback handler
-  - Session management
-- [ ] Build sheet selector UI
-  - List user's sheets
-  - Select sheet functionality
-  - Store sheet ID
-- [ ] Create basic layout (header, mobile nav)
+  - Token storage with expiry
+  - Logout clears all state
+- [x] Build sheet selector UI
+  - List user's sheets via Drive API
+  - Validate sheet structure on select
+  - Create new sheet from template
+  - Persist selected sheet across reloads
+- [ ] Create basic layout (mobile nav, sidebar)
 
-**Deliverable:** User can sign in and select a sheet
+**Deliverable:** User can sign in and select a sheet ✓
 
 ---
 
@@ -848,9 +802,9 @@ font-variant-numeric: tabular-nums;
 3. **Create OAuth 2.0 Credentials**
    - Application type: Web application
    - Name: "Budget Tracker Web"
-   - Authorized redirect URIs:
-     - http://localhost:3000/api/auth/callback (dev)
-     - https://yourapp.vercel.app/api/auth/callback (prod)
+   - Authorized JavaScript origins (not redirect URIs — GSI uses implicit flow):
+     - http://localhost:3000 (dev)
+     - https://yourapp.vercel.app (prod)
 
 4. **Configure OAuth Consent Screen**
    - User type: External
@@ -873,18 +827,11 @@ font-variant-numeric: tabular-nums;
 ```bash
 # .env.local
 
-# Google OAuth
-GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_client_secret_here
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback
-
-# NextAuth (for session encryption)
-NEXTAUTH_SECRET=generate_random_string_here
-NEXTAUTH_URL=http://localhost:3000
-
-# App Config
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Google OAuth (client-side GSI — no server secret needed)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 ```
+
+> Auth uses the Google Identity Services implicit token flow. There is no server-side client secret, redirect URI, or NextAuth dependency.
 
 ---
 
@@ -1116,7 +1063,7 @@ export async function POST(req: Request) {
 - **Version:** 1.0.0
 - **Author:** [Your Name]
 - **Created:** April 2026
-- **Last Updated:** April 2026
+- **Last Updated:** April 2026 (Phase 1 complete)
 - **Status:** In Development
 
 ---

@@ -1,12 +1,6 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { SheetMetadata } from '../google/sheets';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  picture: string;
-}
 
 interface SelectedSheet {
   id: string;
@@ -21,56 +15,47 @@ interface Config {
 }
 
 interface BudgetStore {
-  // User state
-  user: User | null;
-  setUser: (user: User | null) => void;
-  logout: () => void;
-
-  // Sheet selection state
   selectedSheet: SelectedSheet | null;
   setSelectedSheet: (sheet: SelectedSheet | null) => void;
   clearSelectedSheet: () => void;
 
-  // Sheets list
   availableSheets: SheetMetadata[];
   setAvailableSheets: (sheets: SheetMetadata[]) => void;
 
-  // Config state
   config: Config;
   setConfig: (config: Config) => void;
   updateConfig: (config: Partial<Config>) => void;
 
-  // UI state
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   closeSidebar: () => void;
 }
 
-export const useStore = create<BudgetStore>((set) => ({
-  user: null,
-  setUser: (user) => set({ user }),
-  logout: () => {
-    localStorage.removeItem('budget_user');
-    localStorage.removeItem('budget_access_token');
-    set({ user: null, selectedSheet: null });
-  },
+export const useStore = create<BudgetStore>()(
+  persist(
+    (set) => ({
+      selectedSheet: null,
+      setSelectedSheet: (sheet) => set({ selectedSheet: sheet }),
+      clearSelectedSheet: () => set({ selectedSheet: null }),
 
-  selectedSheet: null,
-  setSelectedSheet: (sheet) => set({ selectedSheet: sheet }),
-  clearSelectedSheet: () => set({ selectedSheet: null }),
+      availableSheets: [],
+      setAvailableSheets: (sheets) => set({ availableSheets: sheets }),
 
-  availableSheets: [],
-  setAvailableSheets: (sheets) => set({ availableSheets: sheets }),
+      config: {
+        categories: [],
+        cards: [],
+        fixedExpenses: [],
+      },
+      setConfig: (config) => set({ config }),
+      updateConfig: (config) => set((state) => ({ config: { ...state.config, ...config } })),
 
-  config: {
-    categories: [],
-    cards: [],
-    fixedExpenses: [],
-  },
-  setConfig: (config) => set({ config }),
-  updateConfig: (config) => set((state) => ({ config: { ...state.config, ...config } })),
-
-  isSidebarOpen: false,
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-  closeSidebar: () => set({ isSidebarOpen: false }),
-}));
+      isSidebarOpen: false,
+      toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+      closeSidebar: () => set({ isSidebarOpen: false }),
+    }),
+    {
+      name: 'budget-store',
+      partialize: (state) => ({ selectedSheet: state.selectedSheet }),
+    }
+  )
+);
