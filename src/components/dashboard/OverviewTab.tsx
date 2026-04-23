@@ -117,7 +117,7 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#888' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#888', fontFamily: MONO }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
                 <Tooltip
-                  formatter={(v: number) => [fmt(v), 'Spent']}
+                  formatter={(v) => [fmt(Number(v)), 'Spent']}
                   contentStyle={{ border: '1px solid #ececec', borderRadius: 8, fontSize: 12, boxShadow: 'none' }}
                   cursor={{ fill: '#f5f5f5' }}
                 />
