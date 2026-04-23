@@ -3,6 +3,7 @@
 import { Check, Plus, Search, FileSpreadsheet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store/useStore';
+import { SheetMetadata } from '@/lib/google/sheets';
 
 interface SheetSelectorProps {
   onSelectSheet: (sheetId: string) => void;
@@ -21,7 +22,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
   const loadSheets = async () => {
     setIsLoading(true);
     try {
-      const sheets = []
+      const sheets: SheetMetadata[] = []
       // const response = await fetch('/api/sheets/list', {
       //   headers: {
       //     'Authorization': `Bearer ${accessToken}`,
