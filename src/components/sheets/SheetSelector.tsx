@@ -9,6 +9,7 @@ interface SheetSelectorProps {
   onCreateSheet: () => void;
   accessToken: string;
   isCreating?: boolean;
+  isSelecting?: boolean;
 }
 
 function SheetsIcon({ size = 15 }: { size?: number }) {
@@ -48,7 +49,7 @@ const FILTER_OPTIONS: { value: OwnerFilter; label: string }[] = [
   { value: 'shared', label: 'Shared' },
 ];
 
-export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToken, isCreating }: SheetSelectorProps) {
+export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToken, isCreating, isSelecting }: SheetSelectorProps) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,7 +106,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
   ));
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col max-sm:min-h-0">
 
       {/* ── DESKTOP LAYOUT (640px+) ── */}
       <div className="hidden sm:block" style={{ padding: '48px 48px 0' }}>
@@ -180,12 +181,12 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                 return (
                   <button
                     key={sheet.id}
-                    onClick={() => setPendingId(sheet.id)}
+                    onClick={() => !isSelecting && setPendingId(sheet.id)}
                     style={{
                       border: selected ? '1.5px solid #1a1a1a' : '1px solid #d8d8d8',
                       borderRadius: 10,
                       padding: 16,
-                      cursor: 'pointer',
+                      cursor: isSelecting ? 'not-allowed' : 'pointer',
                       background: '#fff',
                       minHeight: 140,
                       textAlign: 'left',
@@ -198,9 +199,13 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                       <SheetsIcon size={15} />
                       <span style={{ fontSize: 10, color: '#888', fontFamily: MONO }}>— rows</span>
                       {selected && (
-                        <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                          ● Selected
-                        </span>
+                        isSelecting ? (
+                          <div className="ml-auto w-3 h-3 border-[1.5px] border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                            ● Selected
+                          </span>
+                        )
                       )}
                     </div>
                     <MiniSheetPreview height={52} />
@@ -240,14 +245,14 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 32, paddingBottom: 48 }}>
           <button
-            onClick={() => setPendingId(null)}
-            style={{ border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+            onClick={() => !isSelecting && setPendingId(null)}
+            style={{ border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: isSelecting ? 'not-allowed' : 'pointer' }}
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!pendingId}
+            disabled={!pendingId || isSelecting}
             style={{
               border: 'none',
               background: pendingId ? '#1a1a1a' : '#d8d8d8',
@@ -256,31 +261,92 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
               borderRadius: 999,
               fontSize: 13,
               fontWeight: 500,
-              cursor: pendingId ? 'pointer' : 'not-allowed',
+              cursor: pendingId && !isSelecting ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
-            Use this sheet →
+            {isSelecting && <div className="w-3 h-3 border-[1.5px] border-white border-t-transparent rounded-full animate-spin" />}
+            {isSelecting ? 'Opening…' : 'Use this sheet →'}
           </button>
         </div>
       </div>
 
       {/* ── MOBILE LAYOUT (< 640px) ── */}
-      <div className="sm:hidden flex-1 flex flex-col">
-        <div style={{ padding: '24px 20px 8px' }}>
-          <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.4, margin: '0 0 4px', color: '#1a1a1a' }}>
+      <div className="sm:hidden flex-1 flex flex-col overflow-hidden">
+
+        {/* Top bar — locked */}
+        <div style={{ flexShrink: 0, padding: '20px 16px 12px', borderBottom: '1px solid #ececec' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.4, margin: '0 0 2px', color: '#1a1a1a' }}>
             Where should we write?
           </h1>
-          <p style={{ fontSize: 12, color: '#888' }}>Pick an existing sheet or start fresh.</p>
+          <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>Pick an existing sheet or start fresh.</p>
+
+          {/* Refresh + Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <button
+              onClick={loadSheets}
+              disabled={isLoading}
+              title="Refresh sheets"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, border: '1px solid #d8d8d8', borderRadius: 10, background: 'transparent', cursor: isLoading ? 'not-allowed' : 'pointer', color: '#888', flexShrink: 0 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'animate-spin' : ''} aria-hidden="true">
+                <path d="M13 2v4H9"/>
+                <path d="M1 12v-4h4"/>
+                <path d="M11.6 8.5a5 5 0 1 1-.8-5.1L13 6"/>
+                <path d="M2.4 5.5a5 5 0 1 1 .8 5.1L1 8"/>
+              </svg>
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d8d8d8', borderRadius: 10, padding: '9px 12px', flex: 1 }}>
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
+                <circle cx="6" cy="6" r="4.5"/>
+                <path d="M10 10l3 3"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search your Drive…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ fontSize: 12, color: '#1a1a1a', flex: 1, border: 'none', outline: 'none', background: 'transparent' }}
+              />
+            </div>
+          </div>
+
+          {/* Ownership filter */}
+          <div style={{ display: 'flex', border: '1px solid #d8d8d8', borderRadius: 999, overflow: 'hidden' }}>
+            {FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleFilterChange(opt.value)}
+                style={{
+                  flex: 1,
+                  padding: '7px 0',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderRight: opt.value !== 'shared' ? '1px solid #d8d8d8' : 'none',
+                  background: ownerFilter === opt.value ? '#1a1a1a' : 'transparent',
+                  color: ownerFilter === opt.value ? '#fff' : '#888',
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="flex-1" style={{ padding: '14px 16px', overflowY: 'auto' }}>
+        {/* Scrollable sheet grid */}
+        <div className="flex-1 min-h-0" style={{ overflowY: 'auto', padding: '14px 16px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
             {filteredSheets.map((sheet) => {
               const selected = pendingId === sheet.id;
               return (
                 <button
                   key={sheet.id}
-                  onClick={() => setPendingId(sheet.id)}
+                  onClick={() => !isSelecting && setPendingId(sheet.id)}
                   style={{
                     border: selected ? '1.5px solid #1a1a1a' : '1px solid #d8d8d8',
                     borderRadius: 10,
@@ -289,7 +355,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                     minHeight: 128,
                     background: '#fff',
                     textAlign: 'left',
-                    cursor: 'pointer',
+                    cursor: isSelecting ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                   }}
@@ -301,7 +367,11 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                   <MiniSheetPreview height={42} />
                   <div style={{ fontSize: 12, fontWeight: 500, color: '#1a1a1a', lineHeight: 1.2 }}>{sheet.name}</div>
                   {selected && (
-                    <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 8, fontWeight: 700, color: ACCENT }}>●</div>
+                    isSelecting ? (
+                      <div className="absolute top-2 right-2 w-3 h-3 border-[1.5px] border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <div style={{ position: 'absolute', top: 8, right: 8, fontSize: 8, fontWeight: 700, color: ACCENT }}>●</div>
+                    )
                   )}
                 </button>
               );
@@ -334,71 +404,19 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
               {isCreating ? 'Creating…' : 'New sheet'}
             </button>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
-            <button
-              onClick={loadSheets}
-              disabled={isLoading}
-              title="Refresh sheets"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, border: '1px solid #d8d8d8', borderRadius: 10, background: 'transparent', cursor: isLoading ? 'not-allowed' : 'pointer', color: '#888', flexShrink: 0 }}
-            >
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'animate-spin' : ''} aria-hidden="true">
-                <path d="M13 2v4H9"/>
-                <path d="M1 12v-4h4"/>
-                <path d="M11.6 8.5a5 5 0 1 1-.8-5.1L13 6"/>
-                <path d="M2.4 5.5a5 5 0 1 1 .8 5.1L1 8"/>
-              </svg>
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d8d8d8', borderRadius: 10, padding: '9px 12px', flex: 1 }}>
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
-                <circle cx="6" cy="6" r="4.5"/>
-                <path d="M10 10l3 3"/>
-              </svg>
-              <input
-                type="text"
-                placeholder="Search your Drive…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ fontSize: 12, color: '#1a1a1a', flex: 1, border: 'none', outline: 'none', background: 'transparent' }}
-              />
-            </div>
-          </div>
-
-          {/* Ownership filter */}
-          <div style={{ display: 'flex', border: '1px solid #d8d8d8', borderRadius: 999, overflow: 'hidden', marginTop: 10 }}>
-            {FILTER_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleFilterChange(opt.value)}
-                style={{
-                  flex: 1,
-                  padding: '7px 0',
-                  fontSize: 11,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  border: 'none',
-                  borderRight: opt.value !== 'shared' ? '1px solid #d8d8d8' : 'none',
-                  background: ownerFilter === opt.value ? '#1a1a1a' : 'transparent',
-                  color: ownerFilter === opt.value ? '#fff' : '#888',
-                  transition: 'background 0.15s, color 0.15s',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
         </div>
 
-        <div style={{ padding: '12px 16px 20px', borderTop: '1px solid #ececec', display: 'flex', gap: 8 }}>
+        {/* Bottom bar — locked */}
+        <div style={{ flexShrink: 0, padding: '12px 16px 20px', borderTop: '1px solid #ececec', display: 'flex', gap: 8 }}>
           <button
-            onClick={() => setPendingId(null)}
-            style={{ flex: 1, padding: 12, border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+            onClick={() => !isSelecting && setPendingId(null)}
+            style={{ flex: 1, padding: 12, border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: isSelecting ? 'not-allowed' : 'pointer' }}
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!pendingId}
+            disabled={!pendingId || isSelecting}
             style={{
               flex: 2,
               padding: 12,
@@ -408,13 +426,15 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
               borderRadius: 999,
               fontSize: 13,
               fontWeight: 500,
-              cursor: pendingId ? 'pointer' : 'not-allowed',
+              cursor: pendingId && !isSelecting ? 'pointer' : 'not-allowed',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: 8,
             }}
           >
-            Use this sheet →
+            {isSelecting && <div className="w-3 h-3 border-[1.5px] border-white border-t-transparent rounded-full animate-spin" />}
+            {isSelecting ? 'Opening…' : 'Use this sheet →'}
           </button>
         </div>
       </div>

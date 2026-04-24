@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
 import { useStore } from '@/lib/store/useStore';
@@ -9,9 +9,21 @@ import SheetSelector from '@/components/sheets/SheetSelector';
 export default function SheetSelectionPage() {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { accessToken, user, logout, isConfigError } = useGoogleOAuth();
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [menuOpen]);
   const setSelectedSheet = useStore((state) => state.setSelectedSheet);
 
   useEffect(() => {
@@ -29,6 +41,7 @@ export default function SheetSelectionPage() {
 
   const handleSelectSheet = async (sheetId: string) => {
     setError(null);
+    setIsSelecting(true);
     try {
       const response = await fetch('/api/sheets/select', {
         method: 'POST',
@@ -48,6 +61,8 @@ export default function SheetSelectionPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to select sheet');
+    } finally {
+      setIsSelecting(false);
     }
   };
 
@@ -87,7 +102,7 @@ export default function SheetSelectionPage() {
     : user.email;
 
   return (
-    <div className="min-h-[100svh] bg-white text-[#1a1a1a] flex flex-col">
+    <div className="min-h-[100svh] max-sm:h-[100svh] max-sm:overflow-hidden bg-white text-[#1a1a1a] flex flex-col">
 
       {/* ── HEADER ── */}
       <header style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
@@ -106,9 +121,43 @@ export default function SheetSelectionPage() {
           </div>
         </div>
         {/* Mobile */}
-        <div className="sm:hidden flex justify-between items-center px-5 pt-3 pb-[14px]">
+        <div className="sm:hidden flex justify-between items-center px-5 py-3">
           <span style={{ fontSize: 13, fontWeight: 600 }}>Choose sheet</span>
-          <span style={{ fontSize: 11, color: '#888' }}>{emailShort}</span>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', flexDirection: 'column', gap: 4 }}
+              aria-label="Menu"
+            >
+              {[0, 1, 2].map((i) => (
+                <span key={i} style={{ display: 'block', width: 18, height: 1.5, background: '#888', borderRadius: 1 }} />
+              ))}
+            </button>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                background: '#fff',
+                border: '1px solid #ececec',
+                borderRadius: 10,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.09)',
+                minWidth: 160,
+                zIndex: 300,
+                overflow: 'hidden',
+              }}>
+                <div style={{ padding: '10px 14px 8px', fontSize: 11, color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>
+                  {user.email}
+                </div>
+                <button
+                  onClick={() => { setMenuOpen(false); logout(); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a' }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -126,6 +175,7 @@ export default function SheetSelectionPage() {
         onSelectSheet={handleSelectSheet}
         onCreateSheet={handleCreateNew}
         isCreating={isCreating}
+        isSelecting={isSelecting}
       />
     </div>
   );
