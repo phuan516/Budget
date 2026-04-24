@@ -183,7 +183,7 @@ export default function DashboardPage() {
   const emailShort = user.email.includes('@') ? user.email.split('@')[0] + '@…' : user.email;
 
   return (
-    <div className="min-h-[100svh] bg-white text-[#1a1a1a] flex flex-col">
+    <div className="h-[100svh] bg-white text-[#1a1a1a] flex flex-col overflow-hidden">
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <header style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>

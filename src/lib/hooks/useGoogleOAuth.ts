@@ -58,66 +58,11 @@ export function useGoogleOAuth() {
       return;
     }
 
-    // Token expired or missing — clear it but keep the user for silent re-auth
+    // Token expired or missing — clear everything and require fresh login
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
-
-    if (!storedUser) {
-      setIsSilentLoading(false);
-      return;
-    }
-
-    let parsedUser: GoogleUser | null = null;
-    try { parsedUser = JSON.parse(storedUser); } catch { /* ignore */ }
-
-    if (!parsedUser) {
-      localStorage.removeItem(USER_KEY);
-      setIsSilentLoading(false);
-      return;
-    }
-
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setIsSilentLoading(false);
-      return;
-    }
-
-    // Attempt silent token refresh — no popup if Google session is still active
-    (async () => {
-      try {
-        await loadGoogleSDK();
-        await new Promise<void>((resolve) => {
-          const tokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: SCOPES,
-            hint: parsedUser!.email,
-            error_callback: () => {
-              localStorage.removeItem(USER_KEY);
-              setIsSilentLoading(false);
-              resolve();
-            },
-            callback: (tokenResponse: TokenResponse) => {
-              if (tokenResponse.access_token && !tokenResponse.error) {
-                const token = tokenResponse.access_token;
-                const expiresIn = tokenResponse.expires_in ?? 3600;
-                setAccessToken(token);
-                setUser(parsedUser!);
-                localStorage.setItem(TOKEN_KEY, token);
-                localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + expiresIn * 1000));
-              } else {
-                localStorage.removeItem(USER_KEY);
-              }
-              setIsSilentLoading(false);
-              resolve();
-            },
-          });
-          tokenClient.requestAccessToken({ prompt: 'none', hint: parsedUser!.email });
-        });
-      } catch {
-        localStorage.removeItem(USER_KEY);
-        setIsSilentLoading(false);
-      }
-    })();
+    localStorage.removeItem(USER_KEY);
+    setIsSilentLoading(false);
   }, []);
 
   const logout = useCallback(() => {

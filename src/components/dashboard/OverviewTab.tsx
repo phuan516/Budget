@@ -1,31 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { useMemo, useState } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 
-const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
-const ACCENT = '#0F9D58';
-const BAR_COLORS = ['#1a1a1a', '#444', '#666', '#888', '#aaa', '#ccc'];
+const ACCENT = 'oklch(0.65 0.13 150)';
+const WARN = 'oklch(0.72 0.12 55)';
+const DANGER = 'oklch(0.58 0.18 25)';
+const INK = '#1a1a1a';
+const INK3 = '#888';
+const LINE2 = '#ececec';
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-}
-
-function SummaryCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
-  return (
-    <div style={{ border: '1px solid #ececec', borderRadius: 10, padding: '16px 18px' }}>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.5, color: accent ? ACCENT : '#1a1a1a', fontFamily: MONO }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function EmptyState({ label }: { label: string }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '32px 0', color: '#888', fontSize: 13 }}>{label}</div>
-  );
 }
 
 interface Props {
@@ -36,9 +22,11 @@ interface Props {
 
 export default function OverviewTab({ transactions, config, isLoading }: Props) {
   const now = new Date();
+  const today = now.getDate();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   const monthLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
   const monthTxns = useMemo(
     () =>
@@ -50,11 +38,47 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
   );
 
   const totalSpent = useMemo(() => monthTxns.reduce((s, t) => s + t.amount, 0), [monthTxns]);
-  const fixedTotal = useMemo(
-    () => config.fixedExpenses.reduce((s, e) => s + e.amount, 0),
-    [config.fixedExpenses],
+
+  const dailyTotals = useMemo(() => {
+    const map: Record<string, { amount: number; entryCount: number }> = {};
+    monthTxns.forEach((t) => {
+      const day = new Date(t.date).getDate();
+      const key = String(day);
+      if (!map[key]) map[key] = { amount: 0, entryCount: 0 };
+      map[key].amount += t.amount;
+      map[key].entryCount += 1;
+    });
+    return map;
+  }, [monthTxns]);
+
+  const spentToday = dailyTotals[String(today)]?.amount ?? 0;
+
+  const spentThisWeek = useMemo(() => {
+    const dow = now.getDay();
+    const daysFromMon = dow === 0 ? 6 : dow - 1;
+    let total = 0;
+    for (let d = Math.max(1, today - daysFromMon); d <= today; d++) {
+      total += dailyTotals[String(d)]?.amount ?? 0;
+    }
+    return total;
+  }, [dailyTotals, today, now]);
+
+  const dailyAvg = today > 0 ? totalSpent / today : 0;
+  const projected = today > 0 ? Math.round((totalSpent / today) * daysInMonth / 10) * 10 : 0;
+
+  const budget = config.monthlyIncome;
+  const pct = budget > 0 ? (totalSpent / budget) * 100 : 0;
+  const progressColor = pct >= 100 ? DANGER : pct >= 90 ? WARN : ACCENT;
+
+  const maxDailySpend = useMemo(
+    () => Math.max(0, ...Object.values(dailyTotals).map((d) => d.amount)),
+    [dailyTotals],
   );
-  const remaining = config.monthlyIncome > 0 ? config.monthlyIncome - totalSpent : null;
+
+  const firstDayOfWeek = useMemo(() => {
+    const d = new Date(currentYear, currentMonth, 1).getDay();
+    return d === 0 ? 6 : d - 1;
+  }, [currentYear, currentMonth]);
 
   const categoryData = useMemo(() => {
     const map: Record<string, number> = {};
@@ -63,14 +87,22 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
       map[cat] = (map[cat] || 0) + t.amount;
     });
     return Object.entries(map)
-      .map(([name, total]) => ({ name, total }))
-      .sort((a, b) => b.total - a.total);
-  }, [monthTxns]);
+      .map(([name, amount]) => ({ name, amount, pct: totalSpent > 0 ? (amount / totalSpent) * 100 : 0 }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 7);
+  }, [monthTxns, totalSpent]);
 
-  const recent = useMemo(
-    () => [...transactions].reverse().slice(0, 8),
-    [transactions],
-  );
+  const { biggestDay, cheapestDay, noSpendStreak } = useMemo(() => {
+    const entries = Object.entries(dailyTotals).map(([day, data]) => ({ day: parseInt(day), ...data }));
+    const biggest = entries.length > 0 ? entries.reduce((a, b) => (a.amount >= b.amount ? a : b)) : null;
+    const cheapest = entries.length > 0 ? entries.reduce((a, b) => (a.amount <= b.amount ? a : b)) : null;
+    let streak = 0;
+    for (let d = today; d >= 1; d--) {
+      if (!dailyTotals[String(d)] || dailyTotals[String(d)].amount === 0) streak++;
+      else break;
+    }
+    return { biggestDay: biggest, cheapestDay: cheapest, noSpendStreak: streak };
+  }, [dailyTotals, today]);
 
   const savingGoalProgress = useMemo(() => {
     const months = new Set(transactions.map((t) => t.date.slice(0, 7)));
@@ -78,22 +110,19 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
       if (months.size === 0) return 0;
       const sorted = [...months].sort();
       const [ey, em] = sorted[0].split('-').map(Number);
-      const now = new Date();
       return (now.getFullYear() - ey) * 12 + (now.getMonth() + 1 - em) + 1;
     })();
     return config.savingGoals.map((g) => {
-      const txnSaved = transactions
-        .filter((t) => t.category === g.name)
-        .reduce((s, t) => s + t.amount, 0);
-      const matchingFixed = config.fixedExpenses.find(
-        (fe) => fe.name.toLowerCase() === g.name.toLowerCase(),
-      );
+      const txnSaved = transactions.filter((t) => t.category === g.name).reduce((s, t) => s + t.amount, 0);
+      const matchingFixed = config.fixedExpenses.find((fe) => fe.name.toLowerCase() === g.name.toLowerCase());
       const fixedSaved = matchingFixed ? matchingFixed.amount * monthsCount : 0;
       const saved = (g.initialAmount ?? 0) + txnSaved + fixedSaved;
       const pct = g.amount > 0 ? Math.min(100, (saved / g.amount) * 100) : 0;
       return { ...g, saved, pct, hasFixed: !!matchingFixed };
     });
   }, [transactions, config.savingGoals, config.fixedExpenses]);
+
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
   if (isLoading) {
     return (
@@ -103,102 +132,272 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
     );
   }
 
+  const dayLabel = (day: number) =>
+    new Date(currentYear, currentMonth, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
   return (
-    <div style={{ padding: '24px 0 48px' }}>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 20 }}>{monthLabel}</div>
-
-      {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}
-        className="max-sm:grid-cols-1">
-        <SummaryCard label="Spent this month" value={fmt(totalSpent)} />
-        {config.monthlyIncome > 0 ? (
-          <SummaryCard
-            label="Remaining"
-            value={fmt(remaining ?? 0)}
-            sub={`of ${fmt(config.monthlyIncome)} income`}
-            accent={(remaining ?? 0) >= 0}
-          />
-        ) : (
-          <SummaryCard label="Remaining" value="—" sub="Set income in Settings" />
-        )}
-        <SummaryCard
-          label="Fixed expenses"
-          value={fixedTotal > 0 ? fmt(fixedTotal) : '—'}
-          sub={fixedTotal > 0 ? `${config.fixedExpenses.length} items` : 'Add in Settings'}
-        />
-      </div>
-
-      {/* Category breakdown */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: '#1a1a1a' }}>By category</div>
-        {categoryData.length === 0 ? (
-          <EmptyState label="No transactions this month" />
-        ) : (
-          <div style={{ height: 200, width: '100%', minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#888' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#888', fontFamily: MONO }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-                <Tooltip
-                  formatter={(v) => [fmt(Number(v)), 'Spent']}
-                  contentStyle={{ border: '1px solid #ececec', borderRadius: 8, fontSize: 12, boxShadow: 'none' }}
-                  cursor={{ fill: '#f5f5f5' }}
-                />
-                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                  {categoryData.map((_, i) => (
-                    <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+    <div>
+      {/* ── Hero ─────────────────────────────────────────────────── */}
+      <div style={{ padding: '32px 0 24px' }}>
+        <div style={{ fontSize: 11, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 8 }}>
+          Spent this month
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 18, marginBottom: 10, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              fontSize: 'clamp(48px, 6vw, 80px)',
+              fontWeight: 600,
+              letterSpacing: -2.5,
+              lineHeight: 0.9,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {fmt(totalSpent)}
           </div>
-        )}
+          {budget > 0 && (
+            <div style={{ fontSize: 14, color: INK3, paddingBottom: 6 }}>
+              / {fmt(budget)} · {monthLabel}
+            </div>
+          )}
+        </div>
+        <div style={{ height: 4, background: LINE2, borderRadius: 2, maxWidth: 520, marginBottom: 24, overflow: 'hidden' }}>
+          {budget > 0 && (
+            <div
+              style={{
+                height: '100%',
+                width: `${Math.min(100, pct)}%`,
+                background: progressColor,
+                borderRadius: 2,
+                transition: 'width 0.4s',
+              }}
+            />
+          )}
+        </div>
+        <div
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32, maxWidth: 640 }}
+          className="max-sm:grid-cols-2"
+        >
+          {(
+            [
+              ['Today', fmt(spentToday)],
+              ['This week', fmt(spentThisWeek)],
+              ['Daily avg', fmt(dailyAvg)],
+              ['Projected', fmt(projected)],
+            ] as [string, string][]
+          ).map(([label, value]) => (
+            <div key={label}>
+              <div style={{ fontSize: 11, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
+                {label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>
+                {value}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Saving goals progress */}
-      {savingGoalProgress.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: '#1a1a1a' }}>Saving goals</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {savingGoalProgress.map((g) => (
-              <div key={g.id} style={{ border: '1px solid #ececec', borderRadius: 10, padding: '14px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13 }}>{g.name}</span>
-                  <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>
-                    {fmt(g.saved)} / {fmt(g.amount)}
-                  </span>
+      <div style={{ height: 1, background: LINE2 }} />
+
+      {/* ── Body: heatmap + by category + saving goals ───────────── */}
+      <div
+        style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr', gap: 40, padding: '28px 0 36px' }}
+        className="max-xl:grid-cols-1"
+      >
+        {/* Heatmap */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: INK3 }}>Daily spend</div>
+            <div style={{ fontSize: 11, color: INK3 }}>{monthTxns.length} entries</div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxWidth: 480, overflow: 'visible' }}>
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+              <div key={i} style={{ fontSize: 10, color: INK3, textAlign: 'center', marginBottom: 2 }}>
+                {d}
+              </div>
+            ))}
+            {Array.from({ length: firstDayOfWeek }, (_, i) => (
+              <div key={`e${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const data = dailyTotals[String(day)];
+              const normalized = data && maxDailySpend > 0 ? data.amount / maxDailySpend : 0;
+              const alpha = data ? 0.08 + normalized * 0.9 : 0.05;
+              const isFuture = day > today;
+              const isToday = day === today;
+              const textColor = !isFuture && alpha > 0.5 ? '#fff' : INK3;
+              const isHovered = hoveredDay === day;
+              return (
+                <div
+                  key={day}
+                  onMouseEnter={() => setHoveredDay(day)}
+                  onMouseLeave={() => setHoveredDay(null)}
+                  style={{
+                    aspectRatio: '1',
+                    background: isFuture ? 'transparent' : `rgba(26,26,26,${alpha.toFixed(2)})`,
+                    border: isFuture ? `1px solid ${LINE2}` : 'none',
+                    borderRadius: 4,
+                    position: 'relative',
+                    fontSize: 9,
+                    color: isFuture ? '#ccc' : textColor,
+                    padding: 4,
+                    cursor: data ? 'pointer' : 'default',
+                  }}
+                >
+                  {day}
+                  {isToday && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        right: 2,
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: ACCENT,
+                      }}
+                    />
+                  )}
+                  {isHovered && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 6px)',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: INK,
+                        color: '#fff',
+                        borderRadius: 6,
+                        padding: '6px 10px',
+                        whiteSpace: 'nowrap',
+                        zIndex: 10,
+                        pointerEvents: 'none',
+                        boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                      }}
+                    >
+                      <div style={{ fontSize: 10, fontWeight: 600, marginBottom: data ? 3 : 0 }}>{dayLabel(day)}</div>
+                      {data && (
+                        <>
+                          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: -0.3, fontVariantNumeric: 'tabular-nums' }}>
+                            {fmt(data.amount)}
+                          </div>
+                          <div style={{ fontSize: 9, color: '#aaa', marginTop: 2 }}>
+                            {data.entryCount} {data.entryCount === 1 ? 'entry' : 'entries'}
+                          </div>
+                        </>
+                      )}
+                      {/* caret */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: 0,
+                          height: 0,
+                          borderLeft: '5px solid transparent',
+                          borderRight: '5px solid transparent',
+                          borderTop: `5px solid ${INK}`,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
-                {g.hasFixed && (
-                  <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6 }}>includes monthly fixed contribution</div>
-                )}
-                <div style={{ height: 4, background: '#ececec', borderRadius: 2 }}>
-                  <div style={{ height: '100%', width: `${g.pct}%`, background: ACCENT, borderRadius: 2, transition: 'width 0.4s' }} />
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 14, fontSize: 10, color: INK3 }}>
+            less
+            {[0.1, 0.25, 0.45, 0.7, 0.95].map((o) => (
+              <div key={o} style={{ width: 11, height: 11, background: `rgba(26,26,26,${o})`, borderRadius: 2, flexShrink: 0 }} />
+            ))}
+            more
+            <span style={{ marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span
+                style={{ display: 'inline-block', width: 5, height: 5, background: ACCENT, borderRadius: '50%' }}
+              />
+              today
+            </span>
+          </div>
+
+          {/* Stat tiles */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 22, maxWidth: 480 }}>
+            {[
+              { label: 'Biggest day', value: biggestDay ? fmt(biggestDay.amount) : '—', sub: biggestDay ? dayLabel(biggestDay.day) : '' },
+              { label: 'Cheapest day', value: cheapestDay ? fmt(cheapestDay.amount) : '—', sub: cheapestDay ? dayLabel(cheapestDay.day) : '' },
+              { label: 'No-spend streak', value: `${noSpendStreak} day${noSpendStreak !== 1 ? 's' : ''}`, sub: 'current' },
+            ].map(({ label, value, sub }) => (
+              <div key={label} style={{ border: `1px solid ${LINE2}`, borderRadius: 8, padding: '10px 12px' }}>
+                <div style={{ fontSize: 9, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 4 }}>
+                  {label}
                 </div>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 4, textAlign: 'right' }}>{g.pct.toFixed(0)}%</div>
+                <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.3, fontVariantNumeric: 'tabular-nums' }}>
+                  {value}
+                </div>
+                {sub && <div style={{ fontSize: 10, color: INK3, marginTop: 1 }}>{sub}</div>}
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Recent transactions */}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: '#1a1a1a' }}>Recent</div>
-        {recent.length === 0 ? (
-          <EmptyState label="No transactions yet — add one in Transactions" />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {recent.map((t) => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {t.category || 'Uncategorized'}{t.note ? ` · ${t.note}` : ''}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{t.date}{t.card ? ` · ${t.card}` : ''}</div>
+        {/* By category */}
+        <div>
+          <div style={{ fontSize: 12, color: INK3, marginBottom: 14 }}>By category</div>
+          {categoryData.length === 0 ? (
+            <div style={{ fontSize: 13, color: INK3 }}>No transactions this month</div>
+          ) : (
+            categoryData.map(({ name, amount, pct }) => (
+              <div key={name} style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                  <span>{name}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmt(amount)}</span>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a', fontFamily: MONO, marginLeft: 16 }}>{fmt(t.amount)}</div>
+                <div style={{ height: 2, background: LINE2, borderRadius: 1 }}>
+                  <div
+                    style={{ height: '100%', width: `${pct}%`, background: INK, borderRadius: 1, transition: 'width 0.4s' }}
+                  />
+                </div>
               </div>
-            ))}
+            ))
+          )}
+        </div>
+
+        {/* Saving goals */}
+        {savingGoalProgress.length > 0 && (
+          <div>
+            <div style={{ fontSize: 12, color: INK3, marginBottom: 14 }}>Saving goals</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {savingGoalProgress.map((g) => (
+                <div key={g.id} style={{ border: `1px solid ${LINE2}`, borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12 }}>{g.name}</span>
+                    <span style={{ fontSize: 11, color: INK3, fontVariantNumeric: 'tabular-nums' }}>
+                      {fmt(g.saved)} / {fmt(g.amount)}
+                    </span>
+                  </div>
+                  {g.hasFixed && (
+                    <div style={{ fontSize: 10, color: '#aaa', marginBottom: 6 }}>includes monthly fixed</div>
+                  )}
+                  <div style={{ height: 3, background: LINE2, borderRadius: 2 }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${g.pct}%`,
+                        background: ACCENT,
+                        borderRadius: 2,
+                        transition: 'width 0.4s',
+                      }}
+                    />
+                  </div>
+                  <div style={{ fontSize: 10, color: INK3, marginTop: 4, textAlign: 'right' }}>
+                    {g.pct.toFixed(0)}%
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
