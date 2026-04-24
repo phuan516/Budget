@@ -174,8 +174,8 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
           )}
         </div>
         <div
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32, maxWidth: 640 }}
-          className="max-sm:grid-cols-2"
+          style={{ display: 'grid', gap: 32, maxWidth: 640 }}
+          className="grid-cols-2 sm:grid-cols-4"
         >
           {(
             [
@@ -201,8 +201,8 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
 
       {/* ── Body: heatmap + by category + saving goals ───────────── */}
       <div
-        style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr', gap: 40, padding: '28px 0 36px' }}
-        className="max-xl:grid-cols-1"
+        style={{ display: 'grid', gap: 40, padding: '28px 0 36px' }}
+        className="grid-cols-1 xl:grid-cols-[1.3fr_1fr_1fr]"
       >
         {/* Heatmap */}
         <div>

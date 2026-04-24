@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
@@ -100,7 +100,116 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     width: '100%',
     boxSizing: 'border-box',
   };
-  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer', appearance: 'none' };
+  function CustomSelect({
+    value,
+    onChange,
+    options,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    options: { label: string; value: string; disabled?: boolean; divider?: boolean }[];
+  }) {
+    const [open, setOpen] = useState(false);
+    const [hovered, setHovered] = useState<string | null>(null);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      if (!open) return;
+      function onDown(e: MouseEvent) {
+        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      }
+      document.addEventListener('mousedown', onDown);
+      return () => document.removeEventListener('mousedown', onDown);
+    }, [open]);
+
+    const selected = options.find((o) => !o.disabled && !o.divider && o.value === value);
+
+    return (
+      <div ref={ref} style={{ position: 'relative' }}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            ...inputStyle,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            cursor: 'pointer',
+            textAlign: 'left',
+            paddingRight: 10,
+          }}
+        >
+          <span style={{ color: selected ? '#1a1a1a' : '#aaa', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selected ? selected.label : '— none —'}
+          </span>
+          <svg viewBox="0 0 10 6" width="10" height="10" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}>
+            <path d="M1 1l4 4 4-4" />
+          </svg>
+        </button>
+
+        {open && (
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            background: '#fff',
+            border: '1px solid #d8d8d8',
+            borderRadius: 8,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.09)',
+            zIndex: 200,
+            overflow: 'hidden',
+            maxHeight: 220,
+            overflowY: 'auto',
+          }}>
+            {options.map((opt, i) => {
+              if (opt.divider) {
+                return (
+                  <div key={i} style={{ padding: '6px 12px 4px', fontSize: 10, color: '#bbb', textTransform: 'uppercase', letterSpacing: 0.5, borderTop: i > 0 ? '1px solid #f0f0f0' : 'none', marginTop: i > 0 ? 4 : 0 }}>
+                    {opt.label}
+                  </div>
+                );
+              }
+              const isSelected = opt.value === value;
+              const isHovered = hovered === `${i}`;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onMouseEnter={() => setHovered(`${i}`)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '9px 12px',
+                    fontSize: 13,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: isHovered ? '#f7f7f7' : 'transparent',
+                    color: '#1a1a1a',
+                    fontWeight: isSelected ? 500 : 400,
+                    transition: 'background 0.1s',
+                  }}
+                >
+                  {opt.label}
+                  {isSelected && (
+                    <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 5l3.5 3.5L11 1" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '24px 0 48px' }}>
@@ -136,37 +245,29 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
           </div>
           <div>
             <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 5 }}>Category</label>
-            <select
+            <CustomSelect
               value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              style={selectStyle}
-            >
-              <option value="">— none —</option>
-              {config.categories.map((c) => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-              {config.savingGoals.length > 0 && (
-                <>
-                  <option disabled>── Saving goals</option>
-                  {config.savingGoals.map((g) => (
-                    <option key={g.id} value={g.name}>{g.name}</option>
-                  ))}
-                </>
-              )}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, category: v }))}
+              options={[
+                { label: '— none —', value: '' },
+                ...config.categories.map((c) => ({ label: c.name, value: c.name })),
+                ...(config.savingGoals.length > 0 ? [
+                  { label: 'Saving goals', value: '', divider: true },
+                  ...config.savingGoals.map((g) => ({ label: g.name, value: g.name })),
+                ] : []),
+              ]}
+            />
           </div>
           <div>
             <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 5 }}>Card / Payment</label>
-            <select
+            <CustomSelect
               value={form.card}
-              onChange={(e) => setForm((f) => ({ ...f, card: e.target.value }))}
-              style={selectStyle}
-            >
-              <option value="">— none —</option>
-              {config.cards.map((c) => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-            </select>
+              onChange={(v) => setForm((f) => ({ ...f, card: v }))}
+              options={[
+                { label: '— none —', value: '' },
+                ...config.cards.map((c) => ({ label: c.name, value: c.name })),
+              ]}
+            />
           </div>
         </div>
         <div style={{ marginBottom: 12 }}>
@@ -180,22 +281,24 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
           />
         </div>
         {formError && <div style={{ fontSize: 12, color: '#c0392b', marginBottom: 10 }}>{formError}</div>}
-        <button
-          type="submit"
-          disabled={saving}
-          style={{
-            border: 'none',
-            background: saving ? '#d8d8d8' : '#1a1a1a',
-            color: '#fff',
-            padding: '9px 18px',
-            borderRadius: 999,
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: saving ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {saving ? 'Saving…' : 'Add'}
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              border: 'none',
+              background: saving ? '#d8d8d8' : '#1a1a1a',
+              color: '#fff',
+              padding: '9px 18px',
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {saving ? 'Saving…' : 'Add'}
+          </button>
+        </div>
       </form>
 
       {/* Month nav */}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
 import { useStore, DashboardTab, Transaction } from '@/lib/store/useStore';
@@ -28,6 +28,17 @@ export default function DashboardPage() {
 
   const [configLoading, setConfigLoading] = useState(false);
   const [txnLoading, setTxnLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [menuOpen]);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
@@ -221,7 +232,47 @@ export default function DashboardPage() {
               {selectedSheet.name}
             </span>
           </div>
-          <span style={{ fontSize: 11, color: '#888' }}>{emailShort}</span>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', flexDirection: 'column', gap: 4 }}
+              aria-label="Menu"
+            >
+              {[0, 1, 2].map((i) => (
+                <span key={i} style={{ display: 'block', width: 18, height: 1.5, background: '#888', borderRadius: 1 }} />
+              ))}
+            </button>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                background: '#fff',
+                border: '1px solid #ececec',
+                borderRadius: 10,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.09)',
+                minWidth: 160,
+                zIndex: 300,
+                overflow: 'hidden',
+              }}>
+                <div style={{ padding: '10px 14px 8px', fontSize: 11, color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>
+                  {user.email}
+                </div>
+                {[
+                  { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
+                  { label: 'Sign out', action: () => { setMenuOpen(false); logout(); } },
+                ].map(({ label, action }) => (
+                  <button
+                    key={label}
+                    onClick={action}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a' }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
