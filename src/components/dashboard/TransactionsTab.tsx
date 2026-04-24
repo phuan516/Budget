@@ -17,7 +17,7 @@ interface Props {
   transactions: Transaction[];
   config: Config;
   isLoading: boolean;
-  onAdd: (t: Omit<Transaction, 'id'>) => Promise<void>;
+  onAdd: (t: Omit<Transaction, 'id'>) => Promise<string>;
   onDelete: (id: string) => Promise<void>;
 }
 
@@ -36,6 +36,7 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [newId, setNewId] = useState<string | null>(null);
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
@@ -73,8 +74,10 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     setFormError(null);
     setSaving(true);
     try {
-      await onAdd({ date: form.date, amount: parseFloat(form.amount), category: form.category, card: form.card, note: form.note });
+      const tempId = await onAdd({ date: form.date, amount: parseFloat(form.amount), category: form.category, card: form.card, note: form.note });
       setForm({ date: todayISO(), amount: '', category: '', card: '', note: '' });
+      setNewId(tempId);
+      setTimeout(() => setNewId(null), 600);
     } finally {
       setSaving(false);
     }
@@ -101,6 +104,7 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
 
   return (
     <div style={{ padding: '24px 0 48px' }}>
+      <style>{`@keyframes txn-slide-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
       {/* Add transaction form */}
       <form onSubmit={handleAdd} style={{ border: '1px solid #ececec', borderRadius: 12, padding: '18px 20px', marginBottom: 28, background: '#fafafa' }}>
@@ -141,6 +145,14 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
               {config.categories.map((c) => (
                 <option key={c.id} value={c.name}>{c.name}</option>
               ))}
+              {config.savingGoals.length > 0 && (
+                <>
+                  <option disabled>── Saving goals</option>
+                  {config.savingGoals.map((g) => (
+                    <option key={g.id} value={g.name}>{g.name}</option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
           <div>
@@ -214,7 +226,10 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
           {filtered.map((t) => (
             <div
               key={t.id}
-              style={{ display: 'flex', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid #f0f0f0', gap: 12 }}
+              style={{
+                display: 'flex', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid #f0f0f0', gap: 12,
+                animation: t.id === newId ? 'txn-slide-in 0.35s ease' : undefined,
+              }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: '#1a1a1a', display: 'flex', gap: 8, alignItems: 'center' }}>

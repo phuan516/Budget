@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const selectedSheet = useStore((s) => s.selectedSheet);
   const config = useStore((s) => s.config);
   const setConfig = useStore((s) => s.setConfig);
+  const updateConfig = useStore((s) => s.updateConfig);
   const transactions = useStore((s) => s.transactions);
   const setTransactions = useStore((s) => s.setTransactions);
   const activeTab = useStore((s) => s.activeTab);
@@ -76,6 +77,28 @@ export default function DashboardPage() {
     }
   }, [accessToken, selectedSheet, setTransactions, logout]);
 
+  const loadTransactionsSilent = useCallback(async () => {
+    if (!accessToken || !selectedSheet) return;
+    try {
+      const res = await fetch(`/api/transactions?sheetId=${selectedSheet.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.status === 401) { logout(); return; }
+      if (res.ok) setTransactions(await res.json());
+    } catch { /* silent */ }
+  }, [accessToken, selectedSheet, setTransactions, logout]);
+
+  const loadConfigSilent = useCallback(async () => {
+    if (!accessToken || !selectedSheet) return;
+    try {
+      const res = await fetch(`/api/config?sheetId=${selectedSheet.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.status === 401) { logout(); return; }
+      if (res.ok) setConfig(await res.json());
+    } catch { /* silent */ }
+  }, [accessToken, selectedSheet, setConfig, logout]);
+
   useEffect(() => {
     if (!isInitializing && accessToken && selectedSheet) {
       loadConfig();
@@ -84,55 +107,69 @@ export default function DashboardPage() {
   }, [isInitializing, accessToken, selectedSheet, loadConfig, loadTransactions]);
 
   /* ── Config mutations ──────────────────────────────────────── */
-  async function handleConfigAdd(type: string, name: string, value?: string) {
+  async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
     if (!accessToken || !selectedSheet) return;
+    const tempId = `tmp_${Date.now()}`;
+    if (type === 'category') updateConfig({ categories: [...config.categories, { id: tempId, name }] });
+    else if (type === 'card') updateConfig({ cards: [...config.cards, { id: tempId, name }] });
+    else if (type === 'fixed_expense') updateConfig({ fixedExpenses: [...config.fixedExpenses, { id: tempId, name, amount: parseFloat(value ?? '0') || 0 }] });
+    else if (type === 'saving_goal') updateConfig({ savingGoals: [...config.savingGoals, { id: tempId, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 }] });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '' }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '', extra: extra ?? '' }),
     });
-    await loadConfig();
+    loadConfigSilent();
   }
 
   async function handleConfigDelete(type: string, id: string) {
     if (!accessToken || !selectedSheet) return;
+    if (type === 'category') updateConfig({ categories: config.categories.filter((i) => i.id !== id) });
+    else if (type === 'card') updateConfig({ cards: config.cards.filter((i) => i.id !== id) });
+    else if (type === 'fixed_expense') updateConfig({ fixedExpenses: config.fixedExpenses.filter((i) => i.id !== id) });
+    else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.filter((i) => i.id !== id) });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'delete', rowIndex: parseInt(id) }),
     });
-    await loadConfig();
+    loadConfigSilent();
   }
 
   async function handleSetIncome(amount: number) {
     if (!accessToken || !selectedSheet) return;
+    updateConfig({ monthlyIncome: amount });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setIncome', income: amount }),
     });
-    await loadConfig();
+    loadConfigSilent();
   }
 
   /* ── Transaction mutations ─────────────────────────────────── */
-  async function handleAddTransaction(t: Omit<Transaction, 'id'>) {
-    if (!accessToken || !selectedSheet) return;
+  async function handleAddTransaction(t: Omit<Transaction, 'id'>): Promise<string> {
+    if (!accessToken || !selectedSheet) return '';
+    const tempId = `tmp_${Date.now()}`;
+    setTransactions([...transactions, { ...t, id: tempId }]);
     await fetch('/api/transactions/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, ...t }),
     });
-    await loadTransactions();
+    loadTransactionsSilent();
+    return tempId;
   }
 
   async function handleDeleteTransaction(id: string) {
     if (!accessToken || !selectedSheet) return;
+    setTransactions(transactions.filter((t) => t.id !== id));
     await fetch('/api/transactions/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: id }),
     });
-    await loadTransactions();
+    loadTransactionsSilent();
   }
 
   if (isInitializing || !accessToken || !user || !selectedSheet) {

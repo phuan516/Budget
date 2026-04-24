@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!accessToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { sheetId, action, type, name, value, rowIndex, income } = body;
+    const { sheetId, action, type, name, value, extra, rowIndex, income } = body;
 
     if (!sheetId) return NextResponse.json({ error: 'sheetId is required' }, { status: 400 });
 
@@ -18,11 +18,11 @@ export async function POST(req: NextRequest) {
     const service = new SheetsService(oauth2Client);
 
     if (action === 'add') {
-      await service.addConfigItem(sheetId, type, name, value ?? '');
+      await service.addConfigItem(sheetId, type, name, value ?? '', extra ?? '');
     } else if (action === 'delete') {
       await service.deleteConfigItem(sheetId, rowIndex);
     } else if (action === 'update') {
-      await service.updateConfigItem(sheetId, rowIndex, type, name, value ?? '');
+      await service.updateConfigItem(sheetId, rowIndex, type, name, value ?? '', extra ?? '');
     } else if (action === 'setIncome') {
       const current = await service.readConfig(sheetId);
       if (current.incomeRowIndex) {

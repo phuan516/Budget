@@ -13,7 +13,7 @@ export interface Config {
   cards: { id: string; name: string }[];
   fixedExpenses: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
-  savingGoals: { id: string; name: string; amount: number }[];
+  savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
 }
 
 export interface Transaction {

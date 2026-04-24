@@ -8,7 +8,7 @@ const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 interface Props {
   config: Config;
   isLoading: boolean;
-  onAdd: (type: string, name: string, value?: string) => Promise<void>;
+  onAdd: (type: string, name: string, value?: string, extra?: string) => Promise<void>;
   onDelete: (type: string, id: string) => Promise<void>;
   onSetIncome: (amount: number) => Promise<void>;
 }
@@ -84,8 +84,10 @@ function NameListSection({
 
   async function handleAdd() {
     if (!draft.trim()) return;
+    const name = draft.trim();
+    setDraft('');
     setAdding(true);
-    try { await onAdd(type, draft.trim()); setDraft(''); }
+    try { await onAdd(type, name); }
     finally { setAdding(false); }
   }
 
@@ -144,8 +146,12 @@ function AmountListSection({
 
   async function handleAdd() {
     if (!draftName.trim() || !draftAmount) return;
+    const name = draftName.trim();
+    const amount = draftAmount;
+    setDraftName('');
+    setDraftAmount('');
     setAdding(true);
-    try { await onAdd(type, draftName.trim(), draftAmount); setDraftName(''); setDraftAmount(''); }
+    try { await onAdd(type, name, amount); }
     finally { setAdding(false); }
   }
 
@@ -192,6 +198,69 @@ function AmountListSection({
           style={{ ...inputStyle, flex: 1, fontFamily: MONO }}
         />
         <AddButton onClick={handleAdd} disabled={adding || !draftName.trim() || !draftAmount} />
+      </div>
+    </section>
+  );
+}
+
+/* ─── saving goals (name + target + initial) ─────────────────── */
+function SavingGoalSection({
+  items, onAdd, onDelete,
+}: {
+  items: { id: string; name: string; amount: number; initialAmount: number }[];
+  onAdd: (type: string, name: string, value: string, extra: string) => Promise<void>;
+  onDelete: (type: string, id: string) => Promise<void>;
+}) {
+  const [draftName, setDraftName] = useState('');
+  const [draftTarget, setDraftTarget] = useState('');
+  const [draftInitial, setDraftInitial] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+
+  async function handleAdd() {
+    if (!draftName.trim() || !draftTarget) return;
+    const name = draftName.trim();
+    const target = draftTarget;
+    const initial = draftInitial;
+    setDraftName(''); setDraftTarget(''); setDraftInitial('');
+    setAdding(true);
+    try { await onAdd('saving_goal', name, target, initial); }
+    finally { setAdding(false); }
+  }
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try { await onDelete('saving_goal', id); }
+    finally { setDeletingId(null); }
+  }
+
+  return (
+    <section style={{ marginBottom: 36 }}>
+      <SectionTitle>Saving Goals</SectionTitle>
+      {items.length > 0 && (
+        <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {items.map((item) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+              <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
+              <span style={{ fontSize: 12, color: '#888', fontFamily: MONO, marginRight: 12 }}>
+                target {fmt(item.amount)}
+                {item.initialAmount > 0 && <> · saved {fmt(item.initialAmount)}</>}
+              </span>
+              <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+            </div>
+          ))}
+        </div>
+      )}
+      {items.length === 0 && (
+        <div style={{ fontSize: 12, color: '#bbb', marginBottom: 10 }}>None yet</div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }} className="max-sm:flex-col">
+        <input type="text" placeholder="Name…" value={draftName} onChange={(e) => setDraftName(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
+        <input type="number" placeholder="Target amount" min="0" step="0.01" value={draftTarget} onChange={(e) => setDraftTarget(e.target.value)} style={{ ...inputStyle, flex: 1, fontFamily: MONO }} />
+        <input type="number" placeholder="Already saved" min="0" step="0.01" value={draftInitial} onChange={(e) => setDraftInitial(e.target.value)} style={{ ...inputStyle, flex: 1, fontFamily: MONO }} />
+        <AddButton onClick={handleAdd} disabled={adding || !draftName.trim() || !draftTarget} />
       </div>
     </section>
   );
@@ -288,11 +357,8 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetI
         onDelete={onDelete}
       />
 
-      <AmountListSection
-        title="Saving Goals"
+      <SavingGoalSection
         items={config.savingGoals}
-        type="saving_goal"
-        amountLabel="Target amount"
         onAdd={onAdd}
         onDelete={onDelete}
       />

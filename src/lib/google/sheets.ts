@@ -98,7 +98,7 @@ export class SheetsService {
         ['Amount'],
         [],
         ['SAVING GOALS'],
-        ['Name', 'Amount'],
+        ['Name', 'Target', 'Initial'],
         [],
         ['CATEGORIES'],
         ['Name'],
@@ -180,12 +180,12 @@ export class SheetsService {
     fixedExpenses: { id: string; name: string; amount: number }[];
     monthlyIncome: number;
     incomeRowIndex: number | null;
-    savingGoals: { id: string; name: string; amount: number }[];
+    savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
   }> {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: 'Config!A:B',
+        range: 'Config!A:C',
       });
 
       const rows = (response.data.values || []) as string[][];
@@ -226,7 +226,7 @@ export class SheetsService {
         id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0,
       }));
       const savingGoals = getDataRows('SAVING GOALS').map(({ row, rowNum }) => ({
-        id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0,
+        id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0, initialAmount: parseFloat(row[2] ?? '') || 0,
       }));
 
       return { categories, cards, fixedExpenses, monthlyIncome, incomeRowIndex, savingGoals };
@@ -236,7 +236,7 @@ export class SheetsService {
     }
   }
 
-  async addConfigItem(sheetId: string, type: string, name: string, value = ''): Promise<void> {
+  async addConfigItem(sheetId: string, type: string, name: string, value = '', extra = ''): Promise<void> {
     try {
       const sectionLabel = TYPE_TO_SECTION[type];
       if (!sectionLabel) throw new Error(`Unknown config type: ${type}`);
@@ -244,7 +244,7 @@ export class SheetsService {
       // Read current layout to find insertion point
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: 'Config!A:B',
+        range: 'Config!A:C',
       });
       const rows = (response.data.values || []) as string[][];
 
@@ -281,17 +281,23 @@ export class SheetsService {
       // Write data into the newly inserted row (1-based: insertAt + 1)
       const newRowNum = insertAt + 1;
       let rowData: (string | number)[];
+      let rangeEnd = 'B';
       if (type === 'income') {
         rowData = [parseFloat(value) || 0];
+        rangeEnd = 'A';
       } else if (type === 'category' || type === 'card') {
         rowData = [name];
+        rangeEnd = 'A';
+      } else if (type === 'saving_goal') {
+        rowData = [name, parseFloat(value) || 0, parseFloat(extra) || 0];
+        rangeEnd = 'C';
       } else {
         rowData = [name, parseFloat(value) || 0];
       }
 
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `Config!A${newRowNum}:B${newRowNum}`,
+        range: `Config!A${newRowNum}:${rangeEnd}${newRowNum}`,
         valueInputOption: 'RAW',
         requestBody: { values: [rowData] },
       });
@@ -301,20 +307,26 @@ export class SheetsService {
     }
   }
 
-  async updateConfigItem(sheetId: string, rowIndex: number, type: string, name: string, value = ''): Promise<void> {
+  async updateConfigItem(sheetId: string, rowIndex: number, type: string, name: string, value = '', extra = ''): Promise<void> {
     try {
       let rowData: (string | number)[];
+      let rangeEnd = 'B';
       if (type === 'income') {
         rowData = [parseFloat(value) || 0];
+        rangeEnd = 'A';
       } else if (type === 'category' || type === 'card') {
         rowData = [name];
+        rangeEnd = 'A';
+      } else if (type === 'saving_goal') {
+        rowData = [name, parseFloat(value) || 0, parseFloat(extra) || 0];
+        rangeEnd = 'C';
       } else {
         rowData = [name, parseFloat(value) || 0];
       }
 
       await this.sheets.spreadsheets.values.update({
         spreadsheetId: sheetId,
-        range: `Config!A${rowIndex}:B${rowIndex}`,
+        range: `Config!A${rowIndex}:${rangeEnd}${rowIndex}`,
         valueInputOption: 'RAW',
         requestBody: { values: [rowData] },
       });

@@ -72,6 +72,29 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
     [transactions],
   );
 
+  const savingGoalProgress = useMemo(() => {
+    const months = new Set(transactions.map((t) => t.date.slice(0, 7)));
+    const monthsCount = (() => {
+      if (months.size === 0) return 0;
+      const sorted = [...months].sort();
+      const [ey, em] = sorted[0].split('-').map(Number);
+      const now = new Date();
+      return (now.getFullYear() - ey) * 12 + (now.getMonth() + 1 - em) + 1;
+    })();
+    return config.savingGoals.map((g) => {
+      const txnSaved = transactions
+        .filter((t) => t.category === g.name)
+        .reduce((s, t) => s + t.amount, 0);
+      const matchingFixed = config.fixedExpenses.find(
+        (fe) => fe.name.toLowerCase() === g.name.toLowerCase(),
+      );
+      const fixedSaved = matchingFixed ? matchingFixed.amount * monthsCount : 0;
+      const saved = (g.initialAmount ?? 0) + txnSaved + fixedSaved;
+      const pct = g.amount > 0 ? Math.min(100, (saved / g.amount) * 100) : 0;
+      return { ...g, saved, pct, hasFixed: !!matchingFixed };
+    });
+  }, [transactions, config.savingGoals, config.fixedExpenses]);
+
   if (isLoading) {
     return (
       <div style={{ padding: '40px 0', display: 'flex', justifyContent: 'center' }}>
@@ -133,19 +156,25 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
       </div>
 
       {/* Saving goals progress */}
-      {config.savingGoals.length > 0 && (
+      {savingGoalProgress.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: '#1a1a1a' }}>Saving goals</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {config.savingGoals.map((g) => (
+            {savingGoalProgress.map((g) => (
               <div key={g.id} style={{ border: '1px solid #ececec', borderRadius: 10, padding: '14px 16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ fontSize: 13 }}>{g.name}</span>
-                  <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>{fmt(g.amount)}</span>
+                  <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>
+                    {fmt(g.saved)} / {fmt(g.amount)}
+                  </span>
                 </div>
+                {g.hasFixed && (
+                  <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6 }}>includes monthly fixed contribution</div>
+                )}
                 <div style={{ height: 4, background: '#ececec', borderRadius: 2 }}>
-                  <div style={{ height: '100%', width: '0%', background: ACCENT, borderRadius: 2 }} />
+                  <div style={{ height: '100%', width: `${g.pct}%`, background: ACCENT, borderRadius: 2, transition: 'width 0.4s' }} />
                 </div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 4, textAlign: 'right' }}>{g.pct.toFixed(0)}%</div>
               </div>
             ))}
           </div>
