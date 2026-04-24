@@ -1,116 +1,142 @@
-# Budget Tracker App
+# Ledger
 
-A mobile-first web application that uses Google Sheets as a backend database for personal budget tracking. Users authenticate with Google, select or create a spreadsheet, and use a modern interface to track spending with categories, payment methods, and fixed expenses.
+A mobile-first personal budget tracker that uses Google Sheets as a backend. Sign in with Google, connect a spreadsheet, and track spending across categories, payment methods, and fixed expenses — with your data staying entirely in your own Google account.
 
 ## Tech Stack
 
-### Frontend
-- **Framework:** Next.js 14+ (App Router) with TypeScript
-- **Styling:** Tailwind CSS
-- **State Management:** Zustand
-- **UI Components:** shadcn/ui (optional)
-- **Date Handling:** date-fns
-- **Charts:** recharts
-- **Icons:** lucide-react
-
-### Backend
-- **API:** Next.js API Routes
-- **Authentication:** Google OAuth 2.0 (Client-side)
-- **Data Storage:** Google Sheets API v4
+- **Framework:** Next.js 16 (App Router) + TypeScript
+- **Styling:** Tailwind CSS v4
+- **State:** Zustand v5 (with `persist` middleware for selected sheet)
+- **UI:** Headless UI v2, lucide-react, recharts
+- **Date:** date-fns
+- **APIs:** Google Sheets API v4, Google Drive API v3 (via `googleapis`)
+- **Auth:** Google Identity Services (client-side implicit token flow — no server sessions)
+- **Hosting:** Vercel
 
 ## Features
 
-- **Authentication:** Sign in with Google
-- **Sheet Selection:** Select or create budget sheets from Google Drive
-- **Transaction Management:** Add, edit, delete transactions
-- **Configuration:** Manage categories, payment cards, and fixed expenses
-- **Dashboard:** View spending overview, category breakdown, and trends
-- **Mobile-First:** Responsive design optimized for mobile devices
+- Sign in with Google (OAuth 2.0, no password)
+- Create or connect an existing Google Sheet as your budget database
+- Add, view, and delete transactions (date, amount, category, card, note)
+- Dashboard with monthly spending summary, category breakdown, fixed expenses, and savings progress
+- Manage categories, payment cards, fixed expenses, savings goals, and monthly income
+- Transactions organized into monthly tabs (e.g. "Apr 2026") inside your sheet
+- Mobile-first responsive design
 
 ## Getting Started
 
-### Prerequisites
+### 1. Google Cloud Setup
 
-- Node.js 18+
-- Google Cloud Project with Sheets API and Drive API enabled
+The app authenticates via Google and reads/writes your Google Sheet, so you need a Google Cloud project first.
 
-### Installation
+**Create a project and enable APIs:**
 
-1. Clone the repository:
+1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+2. Create a new project (e.g. "Ledger")
+3. In the search bar, find and enable **Google Sheets API**
+4. Do the same for **Google Drive API**
+
+**Configure the OAuth consent screen:**
+
+1. Go to **APIs & Services > OAuth consent screen**
+2. Set **User type** to External, then fill in the app name and support email
+3. Add these scopes:
+   - `https://www.googleapis.com/auth/spreadsheets`
+   - `https://www.googleapis.com/auth/drive.readonly`
+   - `https://www.googleapis.com/auth/userinfo.email`
+   - `https://www.googleapis.com/auth/userinfo.profile`
+4. Add your Google account as a **test user**
+
+**Create OAuth credentials:**
+
+1. Go to **APIs & Services > Credentials**
+2. Click **Create Credentials > OAuth client ID**
+3. Application type: **Web application**
+4. Under **Authorized JavaScript origins**, add:
+   - `http://localhost:3000` (development)
+   - `https://your-app.vercel.app` (production, when ready)
+5. Click **Create** and copy the **Client ID**
+
+### 2. Install and Configure
 
 ```bash
+# Clone the repo
 git clone <repository-url>
 cd Budget
-```
 
-2. Install dependencies:
-
-```bash
+# Install dependencies
 npm install
+
+# Set up environment
+cp .env.example .env.local
 ```
 
-3. Create `.env.local` file:
+Edit `.env.local` and paste your Client ID:
 
 ```bash
-# Google OAuth (required)
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
-
-# App Config
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
 ```
 
-4. Run the development server:
+This is the only required environment variable. The app uses client-side OAuth — there is no server secret.
+
+### 3. Run Locally
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000). Sign in with the Google account you added as a test user.
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server (hot reload) |
+| `npm run build` | Build for production |
+| `npm start` | Run the production build |
+| `npm run lint` | Run ESLint |
 
 ## Project Structure
 
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── api/               # API routes
-│   │   ├── sheets/       # Sheet management endpoints
-│   │   └── ...           # Other API routes
-│   ├── dashboard/        # Main dashboard page
-│   ├── sheets/           # Sheet selector page
-│   └── ...               # Other pages
-├── components/           # React components
-│   ├── sheets/          # Sheet selector components
-│   ├── transactions/    # Transaction components
-│   ├── dashboard/       # Dashboard components
-│   └── ...              # Other components
-├── lib/                 # Library code
-│   ├── google/          # Google API wrappers
-│   ├── hooks/           # React hooks
-│   ├── store/           # Zustand state store
-│   └── ...              # Other utilities
-└── styles/
-    └── globals.css      # Global styles
+├── app/
+│   ├── page.tsx                    # Landing / sign-in page
+│   ├── dashboard/page.tsx          # Main dashboard (Overview, Transactions, Settings tabs)
+│   ├── sheets/select/page.tsx      # Sheet selector
+│   ├── globals.css                 # Tailwind v4 theme + global styles
+│   └── api/
+│       ├── sheets/
+│       │   ├── list/route.ts       # GET  — list user's spreadsheets
+│       │   ├── create/route.ts     # POST — create new budget sheet
+│       │   └── select/route.ts     # POST — validate and select a sheet
+│       ├── transactions/
+│       │   ├── route.ts            # GET  — fetch transactions
+│       │   ├── add/route.ts        # POST — add a transaction
+│       │   └── delete/route.ts     # DELETE — delete a transaction
+│       └── config/
+│           ├── route.ts            # GET  — fetch config
+│           └── update/route.ts     # POST — update config item
+├── components/
+│   ├── sheets/SheetSelector.tsx    # Sheet list + create form
+│   └── dashboard/
+│       ├── OverviewTab.tsx         # Monthly summary, savings, fixed expenses
+│       ├── TransactionsTab.tsx     # Transaction list + add form
+│       └── SettingsTab.tsx         # Categories, cards, expenses, goals, income
+└── lib/
+    ├── google/sheets.ts            # SheetsService class (all Google Sheets operations)
+    ├── hooks/useGoogleOAuth.ts     # Auth state, sign-in/out, token expiry
+    └── store/useStore.ts           # Zustand store
 ```
 
-## Google Cloud Setup
-
-1. Create a Google Cloud Project
-2. Enable Google Sheets API and Google Drive API
-3. Create OAuth 2.0 credentials
-4. Add authorized JavaScript origins:
-   - `http://localhost:3000` (development)
-   - `https://yourapp.vercel.app` (production)
-
-See `GOOGLE_SETUP.md` for full setup instructions.
-
-## Deployment
-
-This project can be deployed to Vercel:
+## Deployment (Vercel)
 
 ```bash
 npm install -g vercel
 vercel --prod
 ```
+
+Add `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in your Vercel project's environment variables, and add your production URL (e.g. `https://your-app.vercel.app`) as an **Authorized JavaScript origin** in Google Cloud.
 
 ## License
 
