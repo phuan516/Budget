@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
+import { useStore } from '@/lib/store/useStore';
 
 function GoogleG({ size = 16 }: { size?: number }) {
   return (
@@ -17,13 +18,14 @@ function GoogleG({ size = 16 }: { size?: number }) {
 
 export default function LandingPage() {
   const router = useRouter();
-  const { isLoading, login, isConfigError, accessToken, user } = useGoogleOAuth();
+  const { isLoading, login, isConfigError, accessToken, user, isSilentLoading } = useGoogleOAuth();
+  const selectedSheet = useStore((s) => s.selectedSheet);
 
   useEffect(() => {
-    if (accessToken && user) {
-      router.push('/sheets/select');
+    if (!isSilentLoading && accessToken && user) {
+      router.push(selectedSheet ? '/dashboard' : '/sheets/select');
     }
-  }, [accessToken, user, router]);
+  }, [isSilentLoading, accessToken, user, selectedSheet, router]);
 
   const handleLogin = async () => {
     try {
@@ -32,6 +34,14 @@ export default function LandingPage() {
       // errors handled within the hook
     }
   };
+
+  if (isSilentLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (isConfigError) {
     return (

@@ -14,10 +14,26 @@ const TOKEN_EXPIRY_KEY = 'budget_token_expiry';
 const USER_KEY = 'budget_user';
 const TOKEN_KEY = 'budget_access_token';
 
+const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
+
+async function loadGoogleSDK() {
+  if (window.google) return;
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google SDK'));
+    document.body.appendChild(script);
+  });
+}
+
 export function useGoogleOAuth() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<GoogleUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSilentLoading, setIsSilentLoading] = useState(true);
   const [isConfigError, setIsConfigError] = useState(false);
   const clearSelectedSheet = useStore((state) => state.clearSelectedSheet);
   const setAvailableSheets = useStore((state) => state.setAvailableSheets);
@@ -27,15 +43,9 @@ export function useGoogleOAuth() {
     const storedToken = localStorage.getItem(TOKEN_KEY);
     const storedExpiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
 
-    const isExpired = storedExpiry && Date.now() > parseInt(storedExpiry, 10);
-    if (isExpired) {
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(TOKEN_EXPIRY_KEY);
-      return;
-    }
+    const isExpired = storedExpiry ? Date.now() > parseInt(storedExpiry, 10) : !storedToken;
 
-    if (storedUser && storedToken) {
+    if (storedToken && storedUser && !isExpired) {
       try {
         setUser(JSON.parse(storedUser));
         setAccessToken(storedToken);
@@ -44,7 +54,70 @@ export function useGoogleOAuth() {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(TOKEN_EXPIRY_KEY);
       }
+      setIsSilentLoading(false);
+      return;
     }
+
+    // Token expired or missing — clear it but keep the user for silent re-auth
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+
+    if (!storedUser) {
+      setIsSilentLoading(false);
+      return;
+    }
+
+    let parsedUser: GoogleUser | null = null;
+    try { parsedUser = JSON.parse(storedUser); } catch { /* ignore */ }
+
+    if (!parsedUser) {
+      localStorage.removeItem(USER_KEY);
+      setIsSilentLoading(false);
+      return;
+    }
+
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setIsSilentLoading(false);
+      return;
+    }
+
+    // Attempt silent token refresh — no popup if Google session is still active
+    (async () => {
+      try {
+        await loadGoogleSDK();
+        await new Promise<void>((resolve) => {
+          const tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: clientId,
+            scope: SCOPES,
+            hint: parsedUser!.email,
+            error_callback: () => {
+              localStorage.removeItem(USER_KEY);
+              setIsSilentLoading(false);
+              resolve();
+            },
+            callback: (tokenResponse: TokenResponse) => {
+              if (tokenResponse.access_token && !tokenResponse.error) {
+                const token = tokenResponse.access_token;
+                const expiresIn = tokenResponse.expires_in ?? 3600;
+                setAccessToken(token);
+                setUser(parsedUser!);
+                localStorage.setItem(TOKEN_KEY, token);
+                localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + expiresIn * 1000));
+              } else {
+                localStorage.removeItem(USER_KEY);
+              }
+              setIsSilentLoading(false);
+              resolve();
+            },
+          });
+          tokenClient.requestAccessToken({ prompt: 'none', hint: parsedUser!.email });
+        });
+      } catch {
+        localStorage.removeItem(USER_KEY);
+        setIsSilentLoading(false);
+      }
+    })();
   }, []);
 
   const logout = useCallback(() => {
@@ -65,18 +138,7 @@ export function useGoogleOAuth() {
       throw new Error('Google Client ID not configured. Please ask the administrator to set it up.');
     }
 
-    if (!window.google) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load Google SDK'));
-        document.body.appendChild(script);
-      });
-    }
-
+    await loadGoogleSDK();
     return clientId;
   }, []);
 
@@ -96,7 +158,7 @@ export function useGoogleOAuth() {
 
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+        scope: SCOPES,
         error_callback: (err: { type: string; message?: string }) => {
           clearTimeout(timeout);
           setIsLoading(false);
@@ -156,6 +218,7 @@ export function useGoogleOAuth() {
     accessToken,
     user,
     isLoading,
+    isSilentLoading,
     isConfigError,
     login: handleGoogleLogin,
     logout,
