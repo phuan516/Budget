@@ -31,8 +31,8 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
   const monthTxns = useMemo(
     () =>
       transactions.filter((t) => {
-        const d = new Date(t.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        const [y, m] = t.date.split('-').map(Number);
+        return y === currentYear && m - 1 === currentMonth;
       }),
     [transactions, currentMonth, currentYear],
   );
@@ -160,7 +160,7 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
             </div>
           )}
         </div>
-        <div style={{ height: 4, background: LINE2, borderRadius: 2, maxWidth: 520, marginBottom: 24, overflow: 'hidden' }}>
+        <div style={{ height: 4, background: LINE2, borderRadius: 2, maxWidth: 520, overflow: 'hidden' }}>
           {budget > 0 && (
             <div
               style={{
@@ -173,6 +173,15 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
             />
           )}
         </div>
+        {budget > 0 && pct >= 100 ? (
+          <div style={{ marginTop: 10, marginBottom: 14, padding: '9px 14px', background: 'oklch(0.97 0.03 25)', border: '1px solid oklch(0.88 0.07 25)', borderRadius: 8, maxWidth: 520 }}>
+            <span style={{ fontSize: 13, color: DANGER }}>
+              Over budget by <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(totalSpent - budget)}</strong> — overspend carried to next month
+            </span>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 24 }} />
+        )}
         <div
           style={{ display: 'grid', gap: 32, maxWidth: 640 }}
           className="grid-cols-2 sm:grid-cols-4"

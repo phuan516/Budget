@@ -44,8 +44,8 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     () =>
       transactions
         .filter((t) => {
-          const d = new Date(t.date);
-          return d.getMonth() === viewMonth && d.getFullYear() === viewYear;
+          const [y, m] = t.date.split('-').map(Number);
+          return y === viewYear && m - 1 === viewMonth;
         })
         .slice()
         .reverse(),
@@ -58,14 +58,18 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
     else setViewMonth((m) => m - 1);
   }
+  // Allow navigating up to one month ahead of current (to see carry-over transactions)
+  const maxMonth = now.getMonth() === 11 ? 0 : now.getMonth() + 1;
+  const maxYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+
   function nextMonth() {
-    const n = new Date();
-    if (viewYear > n.getFullYear() || (viewYear === n.getFullYear() && viewMonth >= n.getMonth())) return;
+    if (viewYear > maxYear || (viewYear === maxYear && viewMonth >= maxMonth)) return;
     if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
     else setViewMonth((m) => m + 1);
   }
 
   const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+  const isAtMax = viewYear === maxYear && viewMonth === maxMonth;
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -308,8 +312,8 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
           <span style={{ fontSize: 13, fontWeight: 500, minWidth: 140, textAlign: 'center' }}>{monthLabel}</span>
           <button
             onClick={nextMonth}
-            disabled={isCurrentMonth}
-            style={{ background: 'none', border: 'none', cursor: isCurrentMonth ? 'not-allowed' : 'pointer', padding: 4, color: isCurrentMonth ? '#d8d8d8' : '#888', fontSize: 16, lineHeight: 1 }}
+            disabled={isAtMax}
+            style={{ background: 'none', border: 'none', cursor: isAtMax ? 'not-allowed' : 'pointer', padding: 4, color: isAtMax ? '#d8d8d8' : '#888', fontSize: 16, lineHeight: 1 }}
           >›</button>
         </div>
         <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>{filtered.length} items · {fmt(total)}</span>

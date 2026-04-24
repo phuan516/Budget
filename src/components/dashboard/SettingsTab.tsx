@@ -295,9 +295,9 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetI
   return (
     <div style={{ padding: '24px 0 48px' }}>
 
-      {/* Monthly Income */}
+      {/* Monthly Budget */}
       <section style={{ marginBottom: 36 }}>
-        <SectionTitle>Monthly Income</SectionTitle>
+        <SectionTitle>Monthly Budget</SectionTitle>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1, maxWidth: 200 }}>
             <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#888' }}>$</span>

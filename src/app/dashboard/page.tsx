@@ -163,23 +163,137 @@ export default function DashboardPage() {
     if (!accessToken || !selectedSheet) return '';
     const tempId = `tmp_${Date.now()}`;
     setTransactions([...transactions, { ...t, id: tempId }]);
+
     await fetch('/api/transactions/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, ...t }),
     });
+
+    // Check if this transaction pushes the current month over budget
+    if (config.monthlyIncome > 0) {
+      const now = new Date();
+      const [tYear, tMonth] = t.date.split('-').map(Number);
+      const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
+
+      if (isThisMonth) {
+        const newTotal = [...transactions, t]
+          .filter((txn) => {
+            const [y, m] = txn.date.split('-').map(Number);
+            return y === now.getFullYear() && m - 1 === now.getMonth();
+          })
+          .reduce((s, txn) => s + txn.amount, 0);
+
+        if (newTotal > config.monthlyIncome) {
+          const overAmount = Math.round((newTotal - config.monthlyIncome) * 100) / 100;
+          const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+          const nextMonthIdx = (now.getMonth() + 1) % 12;
+          const nextDate = `${nextYear}-${String(nextMonthIdx + 1).padStart(2, '0')}-01`;
+          const fromLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+          // Delete existing carry-over in next month (if any) to replace with updated amount
+          const existing = transactions.find((txn) => {
+            const [y, m] = txn.date.split('-').map(Number);
+            return y === nextYear && m - 1 === nextMonthIdx && txn.category === 'Carry Over';
+          });
+          if (existing && !existing.id.startsWith('tmp_')) {
+            await fetch('/api/transactions/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+              body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: existing.id }),
+            });
+          }
+
+          await fetch('/api/transactions/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+            body: JSON.stringify({
+              sheetId: selectedSheet.id,
+              date: nextDate,
+              amount: overAmount,
+              category: 'Carry Over',
+              card: '',
+              note: `From ${fromLabel}`,
+            }),
+          });
+        }
+      }
+    }
+
     loadTransactionsSilent();
     return tempId;
   }
 
   async function handleDeleteTransaction(id: string) {
     if (!accessToken || !selectedSheet) return;
+
+    const txn = transactions.find((t) => t.id === id);
     setTransactions(transactions.filter((t) => t.id !== id));
+
     await fetch('/api/transactions/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: id }),
     });
+
+    // Sync carry-over when deleting a current-month transaction
+    if (txn && config.monthlyIncome > 0) {
+      const now = new Date();
+      const [tYear, tMonth] = txn.date.split('-').map(Number);
+      const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
+
+      if (isThisMonth) {
+        const newTotal = transactions
+          .filter((t) => t.id !== id)
+          .filter((t) => {
+            const [y, m] = t.date.split('-').map(Number);
+            return y === now.getFullYear() && m - 1 === now.getMonth();
+          })
+          .reduce((s, t) => s + t.amount, 0);
+
+        const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+        const nextMonthIdx = (now.getMonth() + 1) % 12;
+
+        const existing = transactions.find((t) => {
+          const [y, m] = t.date.split('-').map(Number);
+          return y === nextYear && m - 1 === nextMonthIdx && t.category === 'Carry Over';
+        });
+
+        if (existing && !existing.id.startsWith('tmp_')) {
+          if (newTotal <= config.monthlyIncome) {
+            // Back under budget — remove carry-over
+            await fetch('/api/transactions/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+              body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: existing.id }),
+            });
+          } else {
+            // Still over budget — update carry-over to new amount
+            const overAmount = Math.round((newTotal - config.monthlyIncome) * 100) / 100;
+            const nextDate = `${nextYear}-${String(nextMonthIdx + 1).padStart(2, '0')}-01`;
+            const fromLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+            await fetch('/api/transactions/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+              body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: existing.id }),
+            });
+            await fetch('/api/transactions/add', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+              body: JSON.stringify({
+                sheetId: selectedSheet.id,
+                date: nextDate,
+                amount: overAmount,
+                category: 'Carry Over',
+                card: '',
+                note: `From ${fromLabel}`,
+              }),
+            });
+          }
+        }
+      }
+    }
+
     loadTransactionsSilent();
   }
 
