@@ -142,7 +142,7 @@ export default function DashboardPage() {
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'delete', rowIndex: parseInt(id) }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'delete', type, rowIndex: parseInt(id) }),
     });
     loadConfigSilent();
   }

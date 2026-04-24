@@ -66,9 +66,11 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
   const dailyAvg = today > 0 ? totalSpent / today : 0;
   const projected = today > 0 ? Math.round((totalSpent / today) * daysInMonth / 10) * 10 : 0;
 
-  const budget = config.monthlyIncome;
-  const pct = budget > 0 ? (totalSpent / budget) * 100 : 0;
-  const progressColor = pct >= 100 ? DANGER : pct >= 90 ? WARN : ACCENT;
+  const income = config.monthlyIncome;
+  const totalFixed = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
+  const totalCommitted = totalSpent + totalFixed;
+  const pct = income > 0 ? (totalCommitted / income) * 100 : 0;
+  const isOver = pct >= 100;
 
   const maxDailySpend = useMemo(
     () => Math.max(0, ...Object.values(dailyTotals).map((d) => d.amount)),
@@ -86,11 +88,28 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
       const cat = t.category || 'Uncategorized';
       map[cat] = (map[cat] || 0) + t.amount;
     });
-    return Object.entries(map)
-      .map(([name, amount]) => ({ name, amount, pct: totalSpent > 0 ? (amount / totalSpent) * 100 : 0 }))
+    const total = totalCommitted;
+    const txnEntries = Object.entries(map)
+      .map(([name, amount]) => ({
+        name, amount, isFixed: false,
+        pct: total > 0 ? (amount / total) * 100 : 0,
+        breakdown: null as { name: string; amount: number }[] | null,
+      }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 7);
-  }, [monthTxns, totalSpent]);
+
+    if (config.fixedExpenses.length > 0) {
+      txnEntries.push({
+        name: 'Fixed Expenses',
+        amount: totalFixed,
+        isFixed: true,
+        pct: total > 0 ? (totalFixed / total) * 100 : 0,
+        breakdown: config.fixedExpenses.map((fe) => ({ name: fe.name, amount: fe.amount })),
+      });
+    }
+
+    return txnEntries.sort((a, b) => b.amount - a.amount);
+  }, [monthTxns, totalCommitted, totalFixed, config.fixedExpenses]);
 
   const { biggestDay, cheapestDay, noSpendStreak } = useMemo(() => {
     const entries = Object.entries(dailyTotals).map(([day, data]) => ({ day: parseInt(day), ...data }));
@@ -123,6 +142,7 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
   }, [transactions, config.savingGoals, config.fixedExpenses]);
 
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -152,39 +172,54 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {fmt(totalSpent)}
+            {fmt(totalCommitted)}
           </div>
-          {budget > 0 && (
+          {income > 0 && (
             <div style={{ fontSize: 14, color: INK3, paddingBottom: 6 }}>
-              / {fmt(budget)} · {monthLabel}
+              / {fmt(income)} · {monthLabel}
             </div>
           )}
         </div>
         <div style={{ height: 4, background: LINE2, borderRadius: 2, maxWidth: 520, overflow: 'hidden' }}>
-          {budget > 0 && (
-            <div
-              style={{
-                height: '100%',
-                width: `${Math.min(100, pct)}%`,
-                background: progressColor,
-                borderRadius: 2,
-                transition: 'width 0.4s',
-              }}
-            />
+          {income > 0 && (
+            <div style={{ display: 'flex', height: '100%', width: `${Math.min(100, pct)}%`, transition: 'width 0.4s' }}>
+              {totalFixed > 0 && (
+                <div style={{ flex: totalFixed, background: isOver ? DANGER : WARN, minWidth: 0 }} />
+              )}
+              {totalSpent > 0 && (
+                <div style={{ flex: totalSpent, background: isOver ? DANGER : ACCENT, minWidth: 0 }} />
+              )}
+            </div>
           )}
         </div>
-        {budget > 0 && pct >= 100 ? (
+        {income > 0 && (
+          <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 10, color: INK3, maxWidth: 520 }}>
+            {totalFixed > 0 && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: isOver ? DANGER : WARN, flexShrink: 0 }} />
+                Fixed {fmt(totalFixed)}
+              </span>
+            )}
+            {totalSpent > 0 && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: isOver ? DANGER : ACCENT, flexShrink: 0 }} />
+                Variable {fmt(totalSpent)}
+              </span>
+            )}
+          </div>
+        )}
+        {income > 0 && isOver ? (
           <div style={{ marginTop: 10, marginBottom: 14, padding: '9px 14px', background: 'oklch(0.97 0.03 25)', border: '1px solid oklch(0.88 0.07 25)', borderRadius: 8, maxWidth: 520 }}>
             <span style={{ fontSize: 13, color: DANGER }}>
-              Over budget by <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(totalSpent - budget)}</strong> — overspend carried to next month
+              Over budget by <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(totalCommitted - income)}</strong> — overspend carried to next month
             </span>
           </div>
         ) : (
           <div style={{ marginBottom: 24 }} />
         )}
         <div
-          style={{ display: 'grid', gap: 32, maxWidth: 640 }}
-          className="grid-cols-2 sm:grid-cols-4"
+          style={{ display: 'grid', gap: 32, maxWidth: 800 }}
+          className={`grid-cols-2 ${income > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}
         >
           {(
             [
@@ -203,6 +238,16 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
               </div>
             </div>
           ))}
+          {income > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
+                Left to spend
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums', color: isOver ? DANGER : ACCENT }}>
+                {isOver ? `-${fmt(totalCommitted - income)}` : fmt(income - totalCommitted)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -358,17 +403,45 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
           {categoryData.length === 0 ? (
             <div style={{ fontSize: 13, color: INK3 }}>No transactions this month</div>
           ) : (
-            categoryData.map(({ name, amount, pct }) => (
-              <div key={name} style={{ marginBottom: 14 }}>
+            categoryData.map(({ name, amount, isFixed, pct, breakdown }) => (
+              <div
+                key={name}
+                style={{ marginBottom: 14, position: 'relative' }}
+                onMouseEnter={() => isFixed ? setHoveredCategory(name) : undefined}
+                onMouseLeave={() => setHoveredCategory(null)}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span>{name}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {name}
+                    {isFixed && <span style={{ fontSize: 10, color: INK3 }}>▾</span>}
+                  </span>
                   <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmt(amount)}</span>
                 </div>
                 <div style={{ height: 2, background: LINE2, borderRadius: 1 }}>
-                  <div
-                    style={{ height: '100%', width: `${pct}%`, background: INK, borderRadius: 1, transition: 'width 0.4s' }}
-                  />
+                  <div style={{ height: '100%', width: `${pct}%`, background: isFixed ? WARN : INK, borderRadius: 1, transition: 'width 0.4s' }} />
                 </div>
+                {isFixed && hoveredCategory === name && breakdown && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    minWidth: 180,
+                    background: INK,
+                    color: '#fff',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    zIndex: 20,
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+                    pointerEvents: 'none',
+                  }}>
+                    {breakdown.map((item) => (
+                      <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 11, padding: '2px 0' }}>
+                        <span style={{ color: '#ccc' }}>{item.name}</span>
+                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(item.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))
           )}

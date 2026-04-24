@@ -128,7 +128,121 @@ function NameListSection({
   );
 }
 
-/* ─── name + amount list section (fixed expenses, saving goals) ─ */
+/* ─── fixed expenses (name + $ amount + % of income, linked) ──── */
+function FixedExpenseSection({
+  items, monthlyIncome, onAdd, onDelete,
+}: {
+  items: { id: string; name: string; amount: number }[];
+  monthlyIncome: number;
+  onAdd: (type: string, name: string, value: string) => Promise<void>;
+  onDelete: (type: string, id: string) => Promise<void>;
+}) {
+  const [draftName, setDraftName] = useState('');
+  const [draftAmount, setDraftAmount] = useState('');
+  const [draftPct, setDraftPct] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  function handleAmountChange(val: string) {
+    setDraftAmount(val);
+    if (monthlyIncome > 0 && val !== '') {
+      const amt = parseFloat(val);
+      if (!isNaN(amt)) setDraftPct(((amt / monthlyIncome) * 100).toFixed(1));
+      else setDraftPct('');
+    } else {
+      setDraftPct('');
+    }
+  }
+
+  function handlePctChange(val: string) {
+    setDraftPct(val);
+    if (monthlyIncome > 0 && val !== '') {
+      const pct = parseFloat(val);
+      if (!isNaN(pct)) setDraftAmount(((pct / 100) * monthlyIncome).toFixed(2));
+      else setDraftAmount('');
+    } else {
+      setDraftAmount('');
+    }
+  }
+
+  async function handleAdd() {
+    if (!draftName.trim() || !draftAmount) return;
+    const name = draftName.trim();
+    const amount = draftAmount;
+    setDraftName(''); setDraftAmount(''); setDraftPct('');
+    setAdding(true);
+    try { await onAdd('fixed_expense', name, amount); }
+    finally { setAdding(false); }
+  }
+
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try { await onDelete('fixed_expense', id); }
+    finally { setDeletingId(null); }
+  }
+
+  const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+  const toPct = (amt: number) => monthlyIncome > 0 ? ((amt / monthlyIncome) * 100).toFixed(1) + '%' : null;
+
+  return (
+    <section style={{ marginBottom: 36 }}>
+      <SectionTitle>Fixed Expenses</SectionTitle>
+      {items.length > 0 && (
+        <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {items.map((item) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+              <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
+              <span style={{ fontSize: 13, color: '#444', fontFamily: MONO, marginRight: 4 }}>{fmt(item.amount)}</span>
+              {toPct(item.amount) && (
+                <span style={{ fontSize: 11, color: '#aaa', fontFamily: MONO, marginRight: 8 }}>· {toPct(item.amount)}</span>
+              )}
+              <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+            </div>
+          ))}
+        </div>
+      )}
+      {items.length === 0 && (
+        <div style={{ fontSize: 12, color: '#bbb', marginBottom: 10 }}>None yet</div>
+      )}
+      <div style={{ display: 'flex', gap: 8 }} className="max-sm:flex-col">
+        <input
+          type="text"
+          placeholder="Name…"
+          value={draftName}
+          onChange={(e) => setDraftName(e.target.value)}
+          style={{ ...inputStyle, flex: 2 }}
+        />
+        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#888', pointerEvents: 'none' }}>$</span>
+          <input
+            type="number"
+            placeholder="Amount"
+            min="0"
+            step="0.01"
+            value={draftAmount}
+            onChange={(e) => handleAmountChange(e.target.value)}
+            style={{ ...inputStyle, paddingLeft: 22, fontFamily: MONO, width: '100%', boxSizing: 'border-box' }}
+          />
+        </div>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+          <input
+            type="number"
+            placeholder="% of income"
+            min="0"
+            step="0.1"
+            value={draftPct}
+            onChange={(e) => handlePctChange(e.target.value)}
+            style={{ ...inputStyle, paddingRight: 26, fontFamily: MONO, width: '100%', boxSizing: 'border-box' }}
+          />
+          <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#888', pointerEvents: 'none' }}>%</span>
+        </div>
+        <AddButton onClick={handleAdd} disabled={adding || !draftName.trim() || !draftAmount} />
+      </div>
+    </section>
+  );
+}
+
+/* ─── name + amount list section (saving goals) ──────────────── */
 function AmountListSection({
   title, items, type, amountLabel, onAdd, onDelete,
 }: {
@@ -295,9 +409,9 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetI
   return (
     <div style={{ padding: '24px 0 48px' }}>
 
-      {/* Monthly Budget */}
+      {/* Monthly Income */}
       <section style={{ marginBottom: 36 }}>
-        <SectionTitle>Monthly Budget</SectionTitle>
+        <SectionTitle>Monthly Income</SectionTitle>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1, maxWidth: 200 }}>
             <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#888' }}>$</span>
@@ -348,11 +462,9 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetI
         onDelete={onDelete}
       />
 
-      <AmountListSection
-        title="Fixed Expenses"
+      <FixedExpenseSection
         items={config.fixedExpenses}
-        type="fixed_expense"
-        amountLabel="Amount / mo"
+        monthlyIncome={config.monthlyIncome}
         onAdd={onAdd}
         onDelete={onDelete}
       />

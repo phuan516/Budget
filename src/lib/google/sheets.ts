@@ -367,6 +367,94 @@ export class SheetsService {
     }
   }
 
+  async syncFixedExpensesToAllMonthSheets(
+    spreadsheetId: string,
+    fixedExpenses: { name: string; amount: number }[],
+  ): Promise<void> {
+    const spreadsheet = await this.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const monthTabs = (spreadsheet.data.sheets || [])
+      .map(s => ({ title: s.properties?.title ?? '', sheetId: s.properties?.sheetId ?? 0 }))
+      .filter(s => MONTH_TAB_REGEX.test(s.title));
+
+    for (const tab of monthTabs) {
+      try {
+        await this.syncFixedExpensesToMonthSheet(spreadsheetId, tab.title, tab.sheetId, fixedExpenses);
+      } catch (err) {
+        console.error(`Failed to sync fixed expenses to ${tab.title}:`, err);
+      }
+    }
+  }
+
+  private async syncFixedExpensesToMonthSheet(
+    spreadsheetId: string,
+    monthLabel: string,
+    numericSheetId: number,
+    fixedExpenses: { name: string; amount: number }[],
+  ): Promise<void> {
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${quoteSheet(monthLabel)}!A:B`,
+    });
+    const rows = (response.data.values || []) as string[][];
+
+    const feLabelIdx = rows.findIndex(
+      r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSES'
+    );
+    if (feLabelIdx === -1) return;
+
+    // Data rows start 2 after label (label row + column header row)
+    const dataStart = feLabelIdx + 2;
+
+    // Find end of current data rows (stop at blank or TRANSACTIONS)
+    let dataEnd = dataStart;
+    while (dataEnd < rows.length) {
+      const cell = (rows[dataEnd]?.[0] ?? '').toString().trim().toUpperCase();
+      if (cell === '' || cell === 'TRANSACTIONS') break;
+      dataEnd++;
+    }
+
+    const currentCount = dataEnd - dataStart;
+    const newCount = fixedExpenses.length;
+    const diff = newCount - currentCount;
+
+    if (diff > 0) {
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            insertDimension: {
+              range: { sheetId: numericSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + diff },
+              inheritFromBefore: false,
+            },
+          }],
+        },
+      });
+    } else if (diff < 0) {
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            deleteDimension: {
+              range: { sheetId: numericSheetId, dimension: 'ROWS', startIndex: dataStart + newCount, endIndex: dataEnd },
+            },
+          }],
+        },
+      });
+    }
+
+    if (newCount > 0) {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${quoteSheet(monthLabel)}!A${dataStart + 1}:B${dataStart + newCount}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: fixedExpenses.map(fe => [fe.name, fe.amount]) },
+      });
+    }
+  }
+
   // Creates a monthly tab with a Fixed Expenses table and a Transactions table.
   private async createMonthSheet(
     spreadsheetId: string,

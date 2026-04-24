@@ -19,8 +19,16 @@ export async function POST(req: NextRequest) {
 
     if (action === 'add') {
       await service.addConfigItem(sheetId, type, name, value ?? '', extra ?? '');
+      if (type === 'fixed_expense') {
+        const updated = await service.readConfig(sheetId);
+        await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses);
+      }
     } else if (action === 'delete') {
       await service.deleteConfigItem(sheetId, rowIndex);
+      if (type === 'fixed_expense') {
+        const updated = await service.readConfig(sheetId);
+        await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses);
+      }
     } else if (action === 'update') {
       await service.updateConfigItem(sheetId, rowIndex, type, name, value ?? '', extra ?? '');
     } else if (action === 'setIncome') {
