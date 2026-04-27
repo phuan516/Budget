@@ -22,6 +22,8 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
 }
 
+type SortBy = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
+
 export default function TransactionsTab({ transactions, config, isLoading, onAdd, onDelete }: Props) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -39,27 +41,74 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newId, setNewId] = useState<string | null>(null);
 
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<SortBy>('date-desc');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterCard, setFilterCard] = useState('');
+
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
-  const filtered = useMemo(
+  const monthFiltered = useMemo(
     () =>
-      transactions
-        .filter((t) => {
-          const [y, m] = t.date.split('-').map(Number);
-          return y === viewYear && m - 1 === viewMonth;
-        })
-        .slice()
-        .reverse(),
+      transactions.filter((t) => {
+        const [y, m] = t.date.split('-').map(Number);
+        return y === viewYear && m - 1 === viewMonth;
+      }),
     [transactions, viewMonth, viewYear],
   );
 
-  const total = useMemo(() => filtered.reduce((s, t) => s + t.amount, 0), [filtered]);
+  const monthTotal = useMemo(() => monthFiltered.reduce((s, t) => s + t.amount, 0), [monthFiltered]);
+
+  const uniqueCategories = useMemo(
+    () => [...new Set(monthFiltered.map((t) => t.category).filter(Boolean))].sort(),
+    [monthFiltered],
+  );
+  const uniqueCards = useMemo(
+    () => [...new Set(monthFiltered.map((t) => t.card).filter(Boolean))].sort(),
+    [monthFiltered],
+  );
+
+  const displayed = useMemo(() => {
+    let result = [...monthFiltered];
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter(
+        (t) =>
+          t.category.toLowerCase().includes(q) ||
+          t.note.toLowerCase().includes(q) ||
+          t.card.toLowerCase().includes(q),
+      );
+    }
+
+    if (filterCategory) result = result.filter((t) => t.category === filterCategory);
+    if (filterCard) result = result.filter((t) => t.card === filterCard);
+
+    result.sort((a, b) => {
+      if (sortBy === 'date-desc') return b.date.localeCompare(a.date);
+      if (sortBy === 'date-asc') return a.date.localeCompare(b.date);
+      if (sortBy === 'amount-desc') return b.amount - a.amount;
+      return a.amount - b.amount;
+    });
+
+    return result;
+  }, [monthFiltered, search, filterCategory, filterCard, sortBy]);
+
+  const displayedTotal = useMemo(() => displayed.reduce((s, t) => s + t.amount, 0), [displayed]);
+
+  const hasFilters = search.trim() !== '' || filterCategory !== '' || filterCard !== '' || sortBy !== 'date-desc';
+
+  function clearFilters() {
+    setSearch('');
+    setFilterCategory('');
+    setFilterCard('');
+    setSortBy('date-desc');
+  }
 
   function prevMonth() {
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
     else setViewMonth((m) => m - 1);
   }
-  // Allow navigating up to one month ahead of current (to see carry-over transactions)
   const maxMonth = now.getMonth() === 11 ? 0 : now.getMonth() + 1;
   const maxYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
 
@@ -105,6 +154,7 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     width: '100%',
     boxSizing: 'border-box',
   };
+
   function CustomSelect({
     value,
     onChange,
@@ -317,21 +367,108 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
             style={{ background: 'none', border: 'none', cursor: isAtMax ? 'not-allowed' : 'pointer', padding: 4, color: isAtMax ? '#d8d8d8' : '#888', fontSize: 16, lineHeight: 1 }}
           >›</button>
         </div>
-        <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>{filtered.length} items · {fmt(total)}</span>
+        <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>{monthFiltered.length} items · {fmt(monthTotal)}</span>
       </div>
+
+      {/* Search, sort, filter controls */}
+      {!isLoading && monthFiltered.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          {/* Search */}
+          <div style={{ position: 'relative', marginBottom: 8 }}>
+            <svg
+              viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#aaa" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+              style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+            >
+              <circle cx="6.5" cy="6.5" r="5" />
+              <line x1="10.5" y1="10.5" x2="14" y2="14" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search category, note, card…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ ...inputStyle, paddingLeft: 30 }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 16, lineHeight: 1, padding: 2 }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Sort + filter row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }} className="max-sm:grid-cols-1">
+            <div>
+              <label style={{ fontSize: 10, color: '#aaa', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 }}>Sort</label>
+              <CustomSelect
+                value={sortBy}
+                onChange={(v) => setSortBy(v as SortBy)}
+                options={[
+                  { label: 'Date (newest)', value: 'date-desc' },
+                  { label: 'Date (oldest)', value: 'date-asc' },
+                  { label: 'Amount (high → low)', value: 'amount-desc' },
+                  { label: 'Amount (low → high)', value: 'amount-asc' },
+                ]}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: '#aaa', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 }}>Category</label>
+              <CustomSelect
+                value={filterCategory}
+                onChange={setFilterCategory}
+                options={[
+                  { label: 'All', value: '' },
+                  ...uniqueCategories.map((c) => ({ label: c, value: c })),
+                ]}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: '#aaa', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 }}>Card</label>
+              <CustomSelect
+                value={filterCard}
+                onChange={setFilterCard}
+                options={[
+                  { label: 'All', value: '' },
+                  ...uniqueCards.map((c) => ({ label: c, value: c })),
+                ]}
+              />
+            </div>
+          </div>
+
+          {/* Active filter summary */}
+          {hasFilters && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+              <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>
+                {displayed.length} of {monthFiltered.length} · {fmt(displayedTotal)}
+              </span>
+              <button
+                type="button"
+                onClick={clearFilters}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', textDecoration: 'underline', padding: 0 }}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Transaction list */}
       {isLoading ? (
         <div style={{ padding: '32px 0', display: 'flex', justifyContent: 'center' }}>
           <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : displayed.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: '#888', fontSize: 13 }}>
-          No transactions in {monthLabel}
+          {monthFiltered.length === 0 ? `No transactions in ${monthLabel}` : 'No transactions match your filters'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {filtered.map((t) => (
+          {displayed.map((t) => (
             <div
               key={t.id}
               style={{
