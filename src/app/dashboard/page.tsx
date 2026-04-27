@@ -177,12 +177,14 @@ export default function DashboardPage() {
       const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
 
       if (isThisMonth) {
-        const newTotal = [...transactions, t]
+        const txnTotal = [...transactions, t]
           .filter((txn) => {
             const [y, m] = txn.date.split('-').map(Number);
             return y === now.getFullYear() && m - 1 === now.getMonth();
           })
           .reduce((s, txn) => s + txn.amount, 0);
+        const fixedTotal = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
+        const newTotal = txnTotal + fixedTotal;
 
         if (newTotal > config.monthlyIncome) {
           const overAmount = Math.round((newTotal - config.monthlyIncome) * 100) / 100;
@@ -243,13 +245,15 @@ export default function DashboardPage() {
       const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
 
       if (isThisMonth) {
-        const newTotal = transactions
+        const txnTotal = transactions
           .filter((t) => t.id !== id)
           .filter((t) => {
             const [y, m] = t.date.split('-').map(Number);
             return y === now.getFullYear() && m - 1 === now.getMonth();
           })
           .reduce((s, t) => s + t.amount, 0);
+        const fixedTotal = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
+        const newTotal = txnTotal + fixedTotal;
 
         const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
         const nextMonthIdx = (now.getMonth() + 1) % 12;

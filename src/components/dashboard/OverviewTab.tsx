@@ -42,7 +42,7 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
   const dailyTotals = useMemo(() => {
     const map: Record<string, { amount: number; entryCount: number }> = {};
     monthTxns.forEach((t) => {
-      const day = new Date(t.date).getDate();
+      const day = parseInt(t.date.split('-')[2], 10);
       const key = String(day);
       if (!map[key]) map[key] = { amount: 0, entryCount: 0 };
       map[key].amount += t.amount;
@@ -281,7 +281,7 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
               const alpha = data ? 0.08 + normalized * 0.9 : 0.05;
               const isFuture = day > today;
               const isToday = day === today;
-              const textColor = !isFuture && alpha > 0.5 ? '#fff' : INK3;
+              const textColor = !isFuture && alpha > 0.5 ? '#fff' : (!isFuture && alpha > 0.25 ? INK : INK3);
               const isHovered = hoveredDay === day;
               return (
                 <div
