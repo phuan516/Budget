@@ -19,12 +19,16 @@ export default function DashboardPage() {
   const { accessToken, user, logout } = useGoogleOAuth();
   const selectedSheet = useStore((s) => s.selectedSheet);
   const config = useStore((s) => s.config);
+  const setSelectedSheet = useStore((s) => s.setSelectedSheet);
   const setConfig = useStore((s) => s.setConfig);
   const updateConfig = useStore((s) => s.updateConfig);
   const transactions = useStore((s) => s.transactions);
   const setTransactions = useStore((s) => s.setTransactions);
   const activeTab = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
+
+  const selectedSheetRef = useRef(selectedSheet);
+  useEffect(() => { selectedSheetRef.current = selectedSheet; }, [selectedSheet]);
 
   const [configLoading, setConfigLoading] = useState(false);
   const [txnLoading, setTxnLoading] = useState(false);
@@ -53,6 +57,21 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isInitializing && accessToken && !selectedSheet) router.push('/sheets/select');
   }, [isInitializing, accessToken, selectedSheet, router]);
+
+  const syncSheetName = useCallback(async () => {
+    const sheet = selectedSheetRef.current;
+    if (!accessToken || !sheet) return;
+    try {
+      const res = await fetch(`/api/sheets/details?sheetId=${sheet.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return;
+      const { name } = await res.json();
+      if (name && name !== sheet.name) {
+        setSelectedSheet({ ...sheet, name });
+      }
+    } catch { /* silent — stale name is non-critical */ }
+  }, [accessToken, setSelectedSheet]);
 
   const loadConfig = useCallback(async () => {
     if (!accessToken || !selectedSheet) return;
@@ -112,10 +131,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isInitializing && accessToken && selectedSheet) {
+      syncSheetName();
       loadConfig();
       loadTransactions();
     }
-  }, [isInitializing, accessToken, selectedSheet, loadConfig, loadTransactions]);
+  }, [isInitializing, accessToken, selectedSheet, syncSheetName, loadConfig, loadTransactions]);
 
   /* ── Config mutations ──────────────────────────────────────── */
   async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
