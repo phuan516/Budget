@@ -66,14 +66,14 @@ export default function SheetSelectionPage() {
     }
   };
 
-  const handleCreateNew = async () => {
+  const handleCreateNew = async (name: string) => {
     setIsCreating(true);
     setError(null);
     try {
       const response = await fetch('/api/sheets/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ name: `Ledger — ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}` }),
+        body: JSON.stringify({ name }),
       });
       const data = await response.json();
       if (!response.ok) {
