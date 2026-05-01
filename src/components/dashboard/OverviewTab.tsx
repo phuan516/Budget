@@ -18,9 +18,11 @@ interface Props {
   transactions: Transaction[];
   config: Config;
   isLoading: boolean;
+  onSetMonthlyIncomeOverride: (monthKey: string, amount: number) => Promise<void>;
+  onDeleteMonthlyIncomeOverride: (monthKey: string) => Promise<void>;
 }
 
-export default function OverviewTab({ transactions, config, isLoading }: Props) {
+export default function OverviewTab({ transactions, config, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride }: Props) {
   const now = new Date();
   const today = now.getDate();
   const currentMonth = now.getMonth();
@@ -66,7 +68,8 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
   const dailyAvg = today > 0 ? totalSpent / today : 0;
   const projected = today > 0 ? Math.round((totalSpent / today) * daysInMonth / 10) * 10 : 0;
 
-  const income = config.monthlyIncome;
+  const thisMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  const income = config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
   const totalFixed = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
   const totalCommitted = totalSpent + totalFixed;
   const pct = income > 0 ? (totalCommitted / income) * 100 : 0;
@@ -143,6 +146,27 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
 
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+  const [editingIncome, setEditingIncome] = useState(false);
+  const [incomeDraft, setIncomeDraft] = useState('');
+  const [savingIncomeDraft, setSavingIncomeDraft] = useState(false);
+
+  const hasOverride = !!config.monthlyIncomeOverrides?.[thisMonthKey];
+
+  async function handleSaveIncomeOverride() {
+    const val = parseFloat(incomeDraft);
+    if (!val || val < 0) { setEditingIncome(false); return; }
+    setSavingIncomeDraft(true);
+    try {
+      if (val === config.monthlyIncome) {
+        if (hasOverride) await onDeleteMonthlyIncomeOverride(thisMonthKey);
+      } else {
+        await onSetMonthlyIncomeOverride(thisMonthKey, val);
+      }
+      setEditingIncome(false);
+    } finally {
+      setSavingIncomeDraft(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -175,8 +199,61 @@ export default function OverviewTab({ transactions, config, isLoading }: Props) 
             {fmt(totalCommitted)}
           </div>
           {income > 0 && (
-            <div style={{ fontSize: 14, color: INK3, paddingBottom: 6 }}>
-              / {fmt(income)} · {monthLabel}
+            <div style={{ fontSize: 14, color: INK3, paddingBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {editingIncome ? (
+                <>
+                  <span>/ $</span>
+                  <input
+                    autoFocus
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={incomeDraft}
+                    onChange={(e) => setIncomeDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveIncomeOverride(); if (e.key === 'Escape') setEditingIncome(false); }}
+                    style={{ width: 90, border: '1px solid #d8d8d8', borderRadius: 6, padding: '3px 7px', fontSize: 13, outline: 'none', fontVariantNumeric: 'tabular-nums' }}
+                  />
+                  <span>· {monthLabel}</span>
+                  <button
+                    onClick={handleSaveIncomeOverride}
+                    disabled={savingIncomeDraft}
+                    style={{ border: 'none', background: '#1a1a1a', color: '#fff', padding: '3px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer' }}
+                  >
+                    {savingIncomeDraft ? '…' : 'Save'}
+                  </button>
+                  {hasOverride && (
+                    <button
+                      onClick={async () => { setSavingIncomeDraft(true); try { await onDeleteMonthlyIncomeOverride(thisMonthKey); setEditingIncome(false); } finally { setSavingIncomeDraft(false); } }}
+                      disabled={savingIncomeDraft}
+                      style={{ border: '1px solid #d8d8d8', background: 'none', color: '#888', padding: '3px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer' }}
+                    >
+                      Reset to default
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setEditingIncome(false)}
+                    style={{ border: 'none', background: 'none', color: '#aaa', fontSize: 11, cursor: 'pointer', padding: '3px 6px' }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>/ {fmt(income)} · {monthLabel}</span>
+                  {hasOverride && (
+                    <span style={{ fontSize: 10, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 5px', fontWeight: 500 }}>custom</span>
+                  )}
+                  <button
+                    onClick={() => { setIncomeDraft(String(income)); setEditingIncome(true); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: '0 2px', display: 'flex', alignItems: 'center' }}
+                    title="Edit this month's income"
+                  >
+                    <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

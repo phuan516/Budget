@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SheetsService } from '@/lib/google/sheets';
+import { SheetsService, currentMonthLabel } from '@/lib/google/sheets';
 import { google } from 'googleapis';
 
 export async function POST(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!accessToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { sheetId, action, type, name, value, extra, rowIndex, income } = body;
+    const { sheetId, action, type, name, value, extra, rowIndex, income, monthKey } = body;
 
     if (!sheetId) return NextResponse.json({ error: 'sheetId is required' }, { status: 400 });
 
@@ -17,20 +17,25 @@ export async function POST(req: NextRequest) {
     oauth2Client.setCredentials({ access_token: accessToken });
     const service = new SheetsService(oauth2Client);
 
+    const thisMonth = currentMonthLabel();
     if (action === 'add') {
       await service.addConfigItem(sheetId, type, name, value ?? '', extra ?? '');
       if (type === 'fixed_expense') {
         const updated = await service.readConfig(sheetId);
-        await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses);
+        await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses, thisMonth);
       }
     } else if (action === 'delete') {
       await service.deleteConfigItem(sheetId, rowIndex);
       if (type === 'fixed_expense') {
         const updated = await service.readConfig(sheetId);
-        await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses);
+        await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses, thisMonth);
       }
     } else if (action === 'update') {
       await service.updateConfigItem(sheetId, rowIndex, type, name, value ?? '', extra ?? '');
+      if (type === 'fixed_expense') {
+        const updated = await service.readConfig(sheetId);
+        await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses, thisMonth);
+      }
     } else if (action === 'setIncome') {
       const current = await service.readConfig(sheetId);
       if (current.incomeRowIndex) {
@@ -38,6 +43,10 @@ export async function POST(req: NextRequest) {
       } else {
         await service.addConfigItem(sheetId, 'income', 'monthly_income', String(income));
       }
+    } else if (action === 'setMonthlyIncomeOverride') {
+      await service.setMonthlyIncomeOverride(sheetId, monthKey, income);
+    } else if (action === 'deleteMonthlyIncomeOverride') {
+      await service.deleteMonthlyIncomeOverride(sheetId, monthKey);
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

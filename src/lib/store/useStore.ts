@@ -13,6 +13,7 @@ export interface Config {
   cards: { id: string; name: string }[];
   fixedExpenses: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
+  monthlyIncomeOverrides: { [monthKey: string]: number };
   savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
 }
 
@@ -55,6 +56,7 @@ const DEFAULT_CONFIG: Config = {
   cards: [],
   fixedExpenses: [],
   monthlyIncome: 0,
+  monthlyIncomeOverrides: {},
   savingGoals: [],
 };
 

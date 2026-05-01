@@ -10,7 +10,22 @@ interface Props {
   isLoading: boolean;
   onAdd: (type: string, name: string, value?: string, extra?: string) => Promise<void>;
   onDelete: (type: string, id: string) => Promise<void>;
+  onEdit: (type: string, id: string, name: string, value?: string, extra?: string) => Promise<void>;
   onSetIncome: (amount: number) => Promise<void>;
+}
+
+function PencilBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: '0 4px', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+      title="Edit"
+    >
+      <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
+      </svg>
+    </button>
+  );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -70,17 +85,21 @@ function DeleteBtn({ onClick, loading }: { onClick: () => void; loading?: boolea
 
 /* ─── name-only list section (categories, cards) ─────────────── */
 function NameListSection({
-  title, items, type, onAdd, onDelete,
+  title, items, type, onAdd, onDelete, onEdit,
 }: {
   title: string;
   items: { id: string; name: string }[];
   type: string;
   onAdd: (type: string, name: string) => Promise<void>;
   onDelete: (type: string, id: string) => Promise<void>;
+  onEdit: (type: string, id: string, name: string) => Promise<void>;
 }) {
   const [draft, setDraft] = useState('');
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [saving, setSaving] = useState(false);
 
   async function handleAdd() {
     if (!draft.trim()) return;
@@ -97,15 +116,47 @@ function NameListSection({
     finally { setDeletingId(null); }
   }
 
+  function startEdit(item: { id: string; name: string }) {
+    setEditingId(item.id);
+    setEditDraft(item.name);
+  }
+
+  async function saveEdit(id: string) {
+    if (!editDraft.trim()) return;
+    setSaving(true);
+    try { await onEdit(type, id, editDraft.trim()); setEditingId(null); }
+    finally { setSaving(false); }
+  }
+
   return (
     <section style={{ marginBottom: 36 }}>
       <SectionTitle>{title}</SectionTitle>
       {items.length > 0 && (
         <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
           {items.map((item) => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
-              <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5', gap: 6 }}>
+              {editingId === item.id ? (
+                <>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(item.id); if (e.key === 'Escape') setEditingId(null); }}
+                    style={{ ...inputStyle, flex: 1, padding: '5px 9px' }}
+                  />
+                  <button onClick={() => saveEdit(item.id)} disabled={saving || !editDraft.trim()} style={{ border: 'none', background: '#1a1a1a', color: '#fff', padding: '5px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer' }}>
+                    {saving ? '…' : 'Save'}
+                  </button>
+                  <button onClick={() => setEditingId(null)} style={{ border: 'none', background: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '5px 8px' }}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
+                  <PencilBtn onClick={() => startEdit(item)} />
+                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -130,39 +181,41 @@ function NameListSection({
 
 /* ─── fixed expenses (name + $ amount + % of income, linked) ──── */
 function FixedExpenseSection({
-  items, monthlyIncome, onAdd, onDelete,
+  items, monthlyIncome, onAdd, onDelete, onEdit,
 }: {
   items: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
   onAdd: (type: string, name: string, value: string) => Promise<void>;
   onDelete: (type: string, id: string) => Promise<void>;
+  onEdit: (type: string, id: string, name: string, value: string) => Promise<void>;
 }) {
   const [draftName, setDraftName] = useState('');
   const [draftAmount, setDraftAmount] = useState('');
   const [draftPct, setDraftPct] = useState('');
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editPct, setEditPct] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
-  function handleAmountChange(val: string) {
-    setDraftAmount(val);
+  function handleAmountChange(val: string, setAmt: (v: string) => void, setPct: (v: string) => void) {
+    setAmt(val);
     if (monthlyIncome > 0 && val !== '') {
       const amt = parseFloat(val);
-      if (!isNaN(amt)) setDraftPct(((amt / monthlyIncome) * 100).toFixed(1));
-      else setDraftPct('');
-    } else {
-      setDraftPct('');
-    }
+      if (!isNaN(amt)) setPct(((amt / monthlyIncome) * 100).toFixed(1));
+      else setPct('');
+    } else setPct('');
   }
 
-  function handlePctChange(val: string) {
-    setDraftPct(val);
+  function handlePctChange(val: string, setAmt: (v: string) => void, setPct: (v: string) => void) {
+    setPct(val);
     if (monthlyIncome > 0 && val !== '') {
       const pct = parseFloat(val);
-      if (!isNaN(pct)) setDraftAmount(((pct / 100) * monthlyIncome).toFixed(2));
-      else setDraftAmount('');
-    } else {
-      setDraftAmount('');
-    }
+      if (!isNaN(pct)) setAmt(((pct / 100) * monthlyIncome).toFixed(2));
+      else setAmt('');
+    } else setAmt('');
   }
 
   async function handleAdd() {
@@ -181,6 +234,20 @@ function FixedExpenseSection({
     finally { setDeletingId(null); }
   }
 
+  function startEdit(item: { id: string; name: string; amount: number }) {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditAmount(String(item.amount));
+    setEditPct(monthlyIncome > 0 ? ((item.amount / monthlyIncome) * 100).toFixed(1) : '');
+  }
+
+  async function saveEdit(id: string) {
+    if (!editName.trim() || !editAmount) return;
+    setEditSaving(true);
+    try { await onEdit('fixed_expense', id, editName.trim(), editAmount); setEditingId(null); }
+    finally { setEditSaving(false); }
+  }
+
   const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
   const toPct = (amt: number) => monthlyIncome > 0 ? ((amt / monthlyIncome) * 100).toFixed(1) + '%' : null;
 
@@ -190,13 +257,42 @@ function FixedExpenseSection({
       {items.length > 0 && (
         <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
           {items.map((item) => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
-              <span style={{ fontSize: 13, color: '#444', fontFamily: MONO, marginRight: 4 }}>{fmt(item.amount)}</span>
-              {toPct(item.amount) && (
-                <span style={{ fontSize: 11, color: '#aaa', fontFamily: MONO, marginRight: 8 }}>· {toPct(item.amount)}</span>
+            <div key={item.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+              {editingId === item.id ? (
+                <div style={{ display: 'flex', gap: 8, padding: '8px 0', alignItems: 'center' }} className="max-sm:flex-col">
+                  <input autoFocus type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditingId(null); }}
+                    style={{ ...inputStyle, flex: 2, padding: '5px 9px' }} placeholder="Name…" />
+                  <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                    <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#888', pointerEvents: 'none' }}>$</span>
+                    <input type="number" min="0" step="0.01" value={editAmount}
+                      onChange={(e) => handleAmountChange(e.target.value, setEditAmount, setEditPct)}
+                      style={{ ...inputStyle, paddingLeft: 22, fontFamily: MONO, width: '100%', boxSizing: 'border-box', padding: '5px 9px 5px 22px' }} />
+                  </div>
+                  <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                    <input type="number" min="0" step="0.1" value={editPct}
+                      onChange={(e) => handlePctChange(e.target.value, setEditAmount, setEditPct)}
+                      style={{ ...inputStyle, paddingRight: 26, fontFamily: MONO, width: '100%', boxSizing: 'border-box', padding: '5px 26px 5px 9px' }} />
+                    <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#888', pointerEvents: 'none' }}>%</span>
+                  </div>
+                  <button onClick={() => saveEdit(item.id)} disabled={editSaving || !editName.trim() || !editAmount}
+                    style={{ border: 'none', background: '#1a1a1a', color: '#fff', padding: '5px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                    {editSaving ? '…' : 'Save'}
+                  </button>
+                  <button onClick={() => setEditingId(null)}
+                    style={{ border: 'none', background: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '5px 8px', flexShrink: 0 }}>Cancel</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', padding: '8px 0', gap: 6 }}>
+                  <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
+                  <span style={{ fontSize: 13, color: '#444', fontFamily: MONO }}>{fmt(item.amount)}</span>
+                  {toPct(item.amount) && (
+                    <span style={{ fontSize: 11, color: '#aaa', fontFamily: MONO }}>· {toPct(item.amount)}</span>
+                  )}
+                  <PencilBtn onClick={() => startEdit(item)} />
+                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+                </div>
               )}
-              <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
             </div>
           ))}
         </div>
@@ -220,7 +316,7 @@ function FixedExpenseSection({
             min="0"
             step="0.01"
             value={draftAmount}
-            onChange={(e) => handleAmountChange(e.target.value)}
+            onChange={(e) => handleAmountChange(e.target.value, setDraftAmount, setDraftPct)}
             style={{ ...inputStyle, paddingLeft: 22, fontFamily: MONO, width: '100%', boxSizing: 'border-box' }}
           />
         </div>
@@ -231,7 +327,7 @@ function FixedExpenseSection({
             min="0"
             step="0.1"
             value={draftPct}
-            onChange={(e) => handlePctChange(e.target.value)}
+            onChange={(e) => handlePctChange(e.target.value, setDraftAmount, setDraftPct)}
             style={{ ...inputStyle, paddingRight: 26, fontFamily: MONO, width: '100%', boxSizing: 'border-box' }}
           />
           <span style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#888', pointerEvents: 'none' }}>%</span>
@@ -243,93 +339,25 @@ function FixedExpenseSection({
 }
 
 /* ─── name + amount list section (saving goals) ──────────────── */
-function AmountListSection({
-  title, items, type, amountLabel, onAdd, onDelete,
-}: {
-  title: string;
-  items: { id: string; name: string; amount: number }[];
-  type: string;
-  amountLabel: string;
-  onAdd: (type: string, name: string, value: string) => Promise<void>;
-  onDelete: (type: string, id: string) => Promise<void>;
-}) {
-  const [draftName, setDraftName] = useState('');
-  const [draftAmount, setDraftAmount] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  async function handleAdd() {
-    if (!draftName.trim() || !draftAmount) return;
-    const name = draftName.trim();
-    const amount = draftAmount;
-    setDraftName('');
-    setDraftAmount('');
-    setAdding(true);
-    try { await onAdd(type, name, amount); }
-    finally { setAdding(false); }
-  }
-
-  async function handleDelete(id: string) {
-    setDeletingId(id);
-    try { await onDelete(type, id); }
-    finally { setDeletingId(null); }
-  }
-
-  const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
-
-  return (
-    <section style={{ marginBottom: 36 }}>
-      <SectionTitle>{title}</SectionTitle>
-      {items.length > 0 && (
-        <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {items.map((item) => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
-              <span style={{ fontSize: 13, color: '#444', fontFamily: MONO, marginRight: 8 }}>{fmt(item.amount)}</span>
-              <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
-            </div>
-          ))}
-        </div>
-      )}
-      {items.length === 0 && (
-        <div style={{ fontSize: 12, color: '#bbb', marginBottom: 10 }}>None yet</div>
-      )}
-      <div style={{ display: 'flex', gap: 8 }} className="max-sm:flex-col">
-        <input
-          type="text"
-          placeholder="Name…"
-          value={draftName}
-          onChange={(e) => setDraftName(e.target.value)}
-          style={{ ...inputStyle, flex: 2 }}
-        />
-        <input
-          type="number"
-          placeholder={amountLabel}
-          min="0"
-          step="0.01"
-          value={draftAmount}
-          onChange={(e) => setDraftAmount(e.target.value)}
-          style={{ ...inputStyle, flex: 1, fontFamily: MONO }}
-        />
-        <AddButton onClick={handleAdd} disabled={adding || !draftName.trim() || !draftAmount} />
-      </div>
-    </section>
-  );
-}
-
 /* ─── saving goals (name + target + initial) ─────────────────── */
 function SavingGoalSection({
-  items, onAdd, onDelete,
+  items, onAdd, onDelete, onEdit,
 }: {
   items: { id: string; name: string; amount: number; initialAmount: number }[];
   onAdd: (type: string, name: string, value: string, extra: string) => Promise<void>;
   onDelete: (type: string, id: string) => Promise<void>;
+  onEdit: (type: string, id: string, name: string, value: string, extra: string) => Promise<void>;
 }) {
   const [draftName, setDraftName] = useState('');
   const [draftTarget, setDraftTarget] = useState('');
   const [draftInitial, setDraftInitial] = useState('');
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editTarget, setEditTarget] = useState('');
+  const [editInitial, setEditInitial] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
 
   const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
 
@@ -350,19 +378,54 @@ function SavingGoalSection({
     finally { setDeletingId(null); }
   }
 
+  function startEdit(item: { id: string; name: string; amount: number; initialAmount: number }) {
+    setEditingId(item.id);
+    setEditName(item.name);
+    setEditTarget(String(item.amount));
+    setEditInitial(item.initialAmount > 0 ? String(item.initialAmount) : '');
+  }
+
+  async function saveEdit(id: string) {
+    if (!editName.trim() || !editTarget) return;
+    setEditSaving(true);
+    try { await onEdit('saving_goal', id, editName.trim(), editTarget, editInitial); setEditingId(null); }
+    finally { setEditSaving(false); }
+  }
+
   return (
     <section style={{ marginBottom: 36 }}>
       <SectionTitle>Saving Goals</SectionTitle>
       {items.length > 0 && (
         <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
           {items.map((item) => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
-              <span style={{ fontSize: 12, color: '#888', fontFamily: MONO, marginRight: 12 }}>
-                target {fmt(item.amount)}
-                {item.initialAmount > 0 && <> · saved {fmt(item.initialAmount)}</>}
-              </span>
-              <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+            <div key={item.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+              {editingId === item.id ? (
+                <div style={{ display: 'flex', gap: 8, padding: '8px 0', alignItems: 'center' }} className="max-sm:flex-col">
+                  <input autoFocus type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditingId(null); }}
+                    style={{ ...inputStyle, flex: 2, padding: '5px 9px' }} placeholder="Name…" />
+                  <input type="number" min="0" step="0.01" value={editTarget} onChange={(e) => setEditTarget(e.target.value)}
+                    style={{ ...inputStyle, flex: 1, fontFamily: MONO, padding: '5px 9px' }} placeholder="Target" />
+                  <input type="number" min="0" step="0.01" value={editInitial} onChange={(e) => setEditInitial(e.target.value)}
+                    style={{ ...inputStyle, flex: 1, fontFamily: MONO, padding: '5px 9px' }} placeholder="Saved so far" />
+                  <button onClick={() => saveEdit(item.id)} disabled={editSaving || !editName.trim() || !editTarget}
+                    style={{ border: 'none', background: '#1a1a1a', color: '#fff', padding: '5px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                    {editSaving ? '…' : 'Save'}
+                  </button>
+                  <button onClick={() => setEditingId(null)}
+                    style={{ border: 'none', background: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '5px 8px', flexShrink: 0 }}>Cancel</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', padding: '8px 0', gap: 6 }}>
+                  <span style={{ flex: 1, fontSize: 13, color: '#1a1a1a' }}>{item.name}</span>
+                  <span style={{ fontSize: 12, color: '#888', fontFamily: MONO }}>
+                    target {fmt(item.amount)}
+                    {item.initialAmount > 0 && <> · saved {fmt(item.initialAmount)}</>}
+                  </span>
+                  <PencilBtn onClick={() => startEdit(item)} />
+                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -380,7 +443,7 @@ function SavingGoalSection({
   );
 }
 
-export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetIncome }: Props) {
+export default function SettingsTab({ config, isLoading, onAdd, onDelete, onEdit, onSetIncome }: Props) {
   const [incomeValue, setIncomeValue] = useState(config.monthlyIncome > 0 ? String(config.monthlyIncome) : '');
   const [savingIncome, setSavingIncome] = useState(false);
   const [incomeSaved, setIncomeSaved] = useState(false);
@@ -452,6 +515,7 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetI
         type="category"
         onAdd={onAdd}
         onDelete={onDelete}
+        onEdit={onEdit}
       />
 
       <NameListSection
@@ -460,6 +524,7 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetI
         type="card"
         onAdd={onAdd}
         onDelete={onDelete}
+        onEdit={onEdit}
       />
 
       <FixedExpenseSection
@@ -467,12 +532,14 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onSetI
         monthlyIncome={config.monthlyIncome}
         onAdd={onAdd}
         onDelete={onDelete}
+        onEdit={onEdit}
       />
 
       <SavingGoalSection
         items={config.savingGoals}
         onAdd={onAdd}
         onDelete={onDelete}
+        onEdit={onEdit}
       />
     </div>
   );

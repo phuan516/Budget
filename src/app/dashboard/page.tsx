@@ -153,6 +153,21 @@ export default function DashboardPage() {
     loadConfigSilent();
   }
 
+  async function handleConfigEdit(type: string, id: string, name: string, value?: string, extra?: string) {
+    if (!accessToken || !selectedSheet) return;
+    const rowIndex = parseInt(id);
+    if (type === 'category') updateConfig({ categories: config.categories.map((i) => i.id === id ? { ...i, name } : i) });
+    else if (type === 'card') updateConfig({ cards: config.cards.map((i) => i.id === id ? { ...i, name } : i) });
+    else if (type === 'fixed_expense') updateConfig({ fixedExpenses: config.fixedExpenses.map((i) => i.id === id ? { ...i, name, amount: parseFloat(value ?? '0') || 0 } : i) });
+    else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.map((i) => i.id === id ? { ...i, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 } : i) });
+    await fetch('/api/config/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'update', type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
+    });
+    loadConfigSilent();
+  }
+
   async function handleConfigDelete(type: string, id: string) {
     if (!accessToken || !selectedSheet) return;
     if (type === 'category') updateConfig({ categories: config.categories.filter((i) => i.id !== id) });
@@ -178,6 +193,30 @@ export default function DashboardPage() {
     loadConfigSilent();
   }
 
+  async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number) {
+    if (!accessToken || !selectedSheet) return;
+    updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount } });
+    await fetch('/api/config/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setMonthlyIncomeOverride', monthKey, income: amount }),
+    });
+    loadConfigSilent();
+  }
+
+  async function handleDeleteMonthlyIncomeOverride(monthKey: string) {
+    if (!accessToken || !selectedSheet) return;
+    const next = { ...config.monthlyIncomeOverrides };
+    delete next[monthKey];
+    updateConfig({ monthlyIncomeOverrides: next });
+    await fetch('/api/config/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'deleteMonthlyIncomeOverride', monthKey }),
+    });
+    loadConfigSilent();
+  }
+
   /* ── Transaction mutations ─────────────────────────────────── */
   async function handleAddTransaction(t: Omit<Transaction, 'id'>): Promise<string> {
     if (!accessToken || !selectedSheet) return '';
@@ -191,8 +230,10 @@ export default function DashboardPage() {
     });
 
     // Check if this transaction pushes the current month over budget
-    if (config.monthlyIncome > 0) {
-      const now = new Date();
+    const now = new Date();
+    const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const effectiveIncome = config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
+    if (effectiveIncome > 0) {
       const [tYear, tMonth] = t.date.split('-').map(Number);
       const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
 
@@ -206,8 +247,8 @@ export default function DashboardPage() {
         const fixedTotal = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
         const newTotal = txnTotal + fixedTotal;
 
-        if (newTotal > config.monthlyIncome) {
-          const overAmount = Math.round((newTotal - config.monthlyIncome) * 100) / 100;
+        if (newTotal > effectiveIncome) {
+          const overAmount = Math.round((newTotal - effectiveIncome) * 100) / 100;
           const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
           const nextMonthIdx = (now.getMonth() + 1) % 12;
           const nextDate = `${nextYear}-${String(nextMonthIdx + 1).padStart(2, '0')}-01`;
@@ -259,8 +300,11 @@ export default function DashboardPage() {
     });
 
     // Sync carry-over when deleting a current-month transaction
-    if (txn && config.monthlyIncome > 0) {
-      const now = new Date();
+    const nowDel = new Date();
+    const delMonthKey = `${nowDel.getFullYear()}-${String(nowDel.getMonth() + 1).padStart(2, '0')}`;
+    const effectiveIncomeDel = config.monthlyIncomeOverrides?.[delMonthKey] ?? config.monthlyIncome;
+    if (txn && effectiveIncomeDel > 0) {
+      const now = nowDel;
       const [tYear, tMonth] = txn.date.split('-').map(Number);
       const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
 
@@ -284,7 +328,7 @@ export default function DashboardPage() {
         });
 
         if (existing && !existing.id.startsWith('tmp_')) {
-          if (newTotal <= config.monthlyIncome) {
+          if (newTotal <= effectiveIncomeDel) {
             // Back under budget — remove carry-over
             await fetch('/api/transactions/delete', {
               method: 'POST',
@@ -293,7 +337,7 @@ export default function DashboardPage() {
             });
           } else {
             // Still over budget — update carry-over to new amount
-            const overAmount = Math.round((newTotal - config.monthlyIncome) * 100) / 100;
+            const overAmount = Math.round((newTotal - effectiveIncomeDel) * 100) / 100;
             const nextDate = `${nextYear}-${String(nextMonthIdx + 1).padStart(2, '0')}-01`;
             const fromLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
             await fetch('/api/transactions/delete', {
@@ -447,6 +491,8 @@ export default function DashboardPage() {
             transactions={transactions}
             config={config}
             isLoading={configLoading || txnLoading}
+            onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
+            onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
           />
         )}
         {activeTab === 'transactions' && (
@@ -464,6 +510,7 @@ export default function DashboardPage() {
             isLoading={configLoading}
             onAdd={handleConfigAdd}
             onDelete={handleConfigDelete}
+            onEdit={handleConfigEdit}
             onSetIncome={handleSetIncome}
           />
         )}

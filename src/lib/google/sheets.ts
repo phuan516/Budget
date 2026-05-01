@@ -13,7 +13,7 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_TAB_REGEX = /^[A-Z][a-z]{2} \d{4}$/;
 
 // Config section labels (must match exactly what's written to the sheet)
-const CONFIG_SECTIONS = ['INCOME', 'SAVING GOALS', 'CATEGORIES', 'CARDS', 'FIXED EXPENSES'] as const;
+const CONFIG_SECTIONS = ['INCOME', 'INCOME OVERRIDES', 'SAVING GOALS', 'CATEGORIES', 'CARDS', 'FIXED EXPENSES'] as const;
 const CONFIG_SECTION_SET = new Set<string>(CONFIG_SECTIONS);
 
 const TYPE_TO_SECTION: Record<string, string> = {
@@ -45,6 +45,16 @@ function getMonthLabel(dateStr: string): string {
   const year = parseInt(parts[0]);
   const month = parseInt(parts[1]);
   return `${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+function monthLabelToNum(label: string): number {
+  const [mon, yr] = label.split(' ');
+  return parseInt(yr) * 12 + MONTH_NAMES.indexOf(mon);
+}
+
+export function currentMonthLabel(): string {
+  const now = new Date();
+  return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 }
 
 export class SheetsService {
@@ -97,6 +107,9 @@ export class SheetsService {
         ['INCOME'],
         ['Amount'],
         [],
+        ['INCOME OVERRIDES'],
+        ['Month', 'Amount'],
+        [],
         ['SAVING GOALS'],
         ['Name', 'Target', 'Initial'],
         [],
@@ -118,7 +131,7 @@ export class SheetsService {
       });
 
       // Bold section labels and column headers
-      const boldRowIdxs = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13]; // 0-based
+      const boldRowIdxs = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16]; // 0-based
       await this.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
@@ -174,11 +187,17 @@ export class SheetsService {
     }
   }
 
+  private async getConfigSheetNumericId(spreadsheetId: string): Promise<number> {
+    const spreadsheet = await this.sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' });
+    return spreadsheet.data.sheets?.find(s => s.properties?.title === 'Config')?.properties?.sheetId ?? 0;
+  }
+
   async readConfig(sheetId: string): Promise<{
     categories: { id: string; name: string }[];
     cards: { id: string; name: string }[];
     fixedExpenses: { id: string; name: string; amount: number }[];
     monthlyIncome: number;
+    monthlyIncomeOverrides: { [monthKey: string]: number };
     incomeRowIndex: number | null;
     savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
   }> {
@@ -216,6 +235,13 @@ export class SheetsService {
       const monthlyIncome = incomeRows.length > 0 ? parseFloat(incomeRows[0].row[0] ?? '') || 0 : 0;
       const incomeRowIndex = incomeRows.length > 0 ? incomeRows[0].rowNum : null;
 
+      const monthlyIncomeOverrides: { [monthKey: string]: number } = {};
+      for (const { row } of getDataRows('INCOME OVERRIDES')) {
+        const key = (row[0] ?? '').toString().trim();
+        const amt = parseFloat((row[1] ?? '').toString()) || 0;
+        if (key && amt) monthlyIncomeOverrides[key] = amt;
+      }
+
       const categories = getDataRows('CATEGORIES').map(({ row, rowNum }) => ({
         id: String(rowNum), name: (row[0] ?? '').toString(),
       }));
@@ -229,7 +255,7 @@ export class SheetsService {
         id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0, initialAmount: parseFloat(row[2] ?? '') || 0,
       }));
 
-      return { categories, cards, fixedExpenses, monthlyIncome, incomeRowIndex, savingGoals };
+      return { categories, cards, fixedExpenses, monthlyIncome, monthlyIncomeOverrides, incomeRowIndex, savingGoals };
     } catch (error) {
       console.error('Error reading config:', error);
       throw new Error('Failed to read config');
@@ -370,14 +396,17 @@ export class SheetsService {
   async syncFixedExpensesToAllMonthSheets(
     spreadsheetId: string,
     fixedExpenses: { name: string; amount: number }[],
+    minMonthLabel?: string,
   ): Promise<void> {
     const spreadsheet = await this.sheets.spreadsheets.get({
       spreadsheetId,
       fields: 'sheets.properties',
     });
+    const minNum = minMonthLabel ? monthLabelToNum(minMonthLabel) : -Infinity;
     const monthTabs = (spreadsheet.data.sheets || [])
       .map(s => ({ title: s.properties?.title ?? '', sheetId: s.properties?.sheetId ?? 0 }))
-      .filter(s => MONTH_TAB_REGEX.test(s.title));
+      .filter(s => MONTH_TAB_REGEX.test(s.title))
+      .filter(s => monthLabelToNum(s.title) >= minNum);
 
     for (const tab of monthTabs) {
       try {
@@ -581,6 +610,89 @@ export class SheetsService {
     } catch (error) {
       console.error('Error reading transactions:', error);
       throw new Error('Failed to read transactions');
+    }
+  }
+
+  async setMonthlyIncomeOverride(sheetId: string, monthKey: string, amount: number): Promise<void> {
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: 'Config!A:B',
+      });
+      const rows = (response.data.values || []) as string[][];
+
+      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME OVERRIDES');
+
+      if (labelIdx === -1) {
+        // Section missing (old sheet) — append it
+        await this.sheets.spreadsheets.values.append({
+          spreadsheetId: sheetId,
+          range: 'Config!A:B',
+          valueInputOption: 'RAW',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { values: [[], ['INCOME OVERRIDES'], ['Month', 'Amount'], [monthKey, amount]] },
+        });
+        return;
+      }
+
+      const dataStart = labelIdx + 2;
+      const dataEnd = sectionDataEnd(rows, dataStart);
+
+      // Update existing row if monthKey already present
+      for (let i = dataStart; i < dataEnd; i++) {
+        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey) {
+          await this.sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `Config!A${i + 1}:B${i + 1}`,
+            valueInputOption: 'RAW',
+            requestBody: { values: [[monthKey, amount]] },
+          });
+          return;
+        }
+      }
+
+      // Insert new row at end of section
+      const configSheetId = await this.getConfigSheetNumericId(sheetId);
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          requests: [{ insertDimension: { range: { sheetId: configSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + 1 }, inheritFromBefore: true } }],
+        },
+      });
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `Config!A${dataEnd + 1}:B${dataEnd + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[monthKey, amount]] },
+      });
+    } catch (error) {
+      console.error('Error setting income override:', error);
+      throw new Error('Failed to set income override');
+    }
+  }
+
+  async deleteMonthlyIncomeOverride(sheetId: string, monthKey: string): Promise<void> {
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: 'Config!A:B',
+      });
+      const rows = (response.data.values || []) as string[][];
+      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME OVERRIDES');
+      if (labelIdx === -1) return;
+
+      const dataStart = labelIdx + 2;
+      const dataEnd = sectionDataEnd(rows, dataStart);
+
+      for (let i = dataStart; i < dataEnd; i++) {
+        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey) {
+          await this.deleteConfigItem(sheetId, i + 1);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting income override:', error);
+      throw new Error('Failed to delete income override');
     }
   }
 

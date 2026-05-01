@@ -29,6 +29,7 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
 
+  const [isRefund, setIsRefund] = useState(false);
   const [form, setForm] = useState({
     date: todayISO(),
     amount: '',
@@ -128,8 +129,11 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     setFormError(null);
     setSaving(true);
     try {
-      const tempId = await onAdd({ date: form.date, amount: parseFloat(form.amount), category: form.category, card: form.card, note: form.note });
+      const rawAmount = parseFloat(form.amount);
+      const amount = isRefund ? -rawAmount : rawAmount;
+      const tempId = await onAdd({ date: form.date, amount, category: form.category, card: form.card, note: form.note });
       setForm({ date: todayISO(), amount: '', category: '', card: '', note: '' });
+      setIsRefund(false);
       setNewId(tempId);
       setTimeout(() => setNewId(null), 600);
     } finally {
@@ -272,7 +276,32 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
 
       {/* Add transaction form */}
       <form onSubmit={handleAdd} style={{ border: '1px solid #ececec', borderRadius: 12, padding: '18px 20px', marginBottom: 28, background: '#fafafa' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 14, color: '#1a1a1a' }}>Add transaction</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>Add transaction</span>
+          <div style={{ display: 'flex', border: '1px solid #d8d8d8', borderRadius: 999, overflow: 'hidden', fontSize: 12 }}>
+            {(['Expense', 'Refund'] as const).map((label) => {
+              const active = label === 'Refund' ? isRefund : !isRefund;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setIsRefund(label === 'Refund')}
+                  style={{
+                    padding: '5px 12px',
+                    border: 'none',
+                    background: active ? (label === 'Refund' ? '#0F9D58' : '#1a1a1a') : 'transparent',
+                    color: active ? '#fff' : '#888',
+                    fontWeight: active ? 600 : 400,
+                    cursor: 'pointer',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}
           className="max-sm:grid-cols-1">
           <div>
@@ -479,13 +508,18 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: '#1a1a1a', display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span>{t.category || <span style={{ color: '#aaa' }}>No category</span>}</span>
+                  {t.amount < 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 5px', textTransform: 'uppercase', letterSpacing: 0.4 }}>Refund</span>
+                  )}
                   {t.note && <span style={{ color: '#888', fontSize: 12 }}>· {t.note}</span>}
                 </div>
                 <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
                   {t.date}{t.card ? ` · ${t.card}` : ''}
                 </div>
               </div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a', fontFamily: MONO, flexShrink: 0 }}>{fmt(t.amount)}</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: t.amount < 0 ? '#0F9D58' : '#1a1a1a', fontFamily: MONO, flexShrink: 0 }}>
+                {t.amount < 0 ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
+              </div>
               <button
                 onClick={() => handleDelete(t.id)}
                 disabled={deletingId === t.id}
