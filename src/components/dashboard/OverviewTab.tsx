@@ -20,9 +20,11 @@ interface Props {
   isLoading: boolean;
   onSetMonthlyIncomeOverride: (monthKey: string, amount: number) => Promise<void>;
   onDeleteMonthlyIncomeOverride: (monthKey: string) => Promise<void>;
+  onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number) => Promise<void>;
+  onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
 }
 
-export default function OverviewTab({ transactions, config, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride }: Props) {
+export default function OverviewTab({ transactions, config, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride }: Props) {
   const now = new Date();
   const today = now.getDate();
   const currentMonth = now.getMonth();
@@ -70,7 +72,10 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
 
   const thisMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
   const income = config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
-  const totalFixed = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
+  const totalFixed = config.fixedExpenses.reduce((s, fe) => {
+    const override = config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name];
+    return s + (override ?? fe.amount);
+  }, 0);
   const totalCommitted = totalSpent + totalFixed;
   const pct = income > 0 ? (totalCommitted / income) * 100 : 0;
   const isOver = pct >= 100;
@@ -96,7 +101,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
       .map(([name, amount]) => ({
         name, amount, isFixed: false,
         pct: total > 0 ? (amount / total) * 100 : 0,
-        breakdown: null as { name: string; amount: number }[] | null,
+        breakdown: null as { name: string; amount: number; defaultAmount: number; hasOverride: boolean }[] | null,
       }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 7);
@@ -107,7 +112,12 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
         amount: totalFixed,
         isFixed: true,
         pct: total > 0 ? (totalFixed / total) * 100 : 0,
-        breakdown: config.fixedExpenses.map((fe) => ({ name: fe.name, amount: fe.amount })),
+        breakdown: config.fixedExpenses.map((fe) => ({
+          name: fe.name,
+          amount: config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name] ?? fe.amount,
+          defaultAmount: fe.amount,
+          hasOverride: !!config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name],
+        })),
       });
     }
 
@@ -149,8 +159,15 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeDraft, setIncomeDraft] = useState('');
   const [savingIncomeDraft, setSavingIncomeDraft] = useState(false);
+  const [fixedExpanded, setFixedExpanded] = useState(false);
+  const [editingFixedItem, setEditingFixedItem] = useState<string | null>(null);
+  const [fixedItemDraft, setFixedItemDraft] = useState('');
+  const [savingFixedItem, setSavingFixedItem] = useState(false);
+  const [resettingFixedItem, setResettingFixedItem] = useState<string | null>(null);
+  const [resettingAllFixed, setResettingAllFixed] = useState(false);
 
   const hasOverride = !!config.monthlyIncomeOverrides?.[thisMonthKey];
+  const hasAnyFixedOverride = Object.keys(config.fixedExpenseOverrides?.[thisMonthKey] ?? {}).length > 0;
 
   async function handleSaveIncomeOverride() {
     const val = parseFloat(incomeDraft);
@@ -165,6 +182,35 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
       setEditingIncome(false);
     } finally {
       setSavingIncomeDraft(false);
+    }
+  }
+
+  async function handleSaveFixedItem(fe: { name: string; defaultAmount: number }) {
+    const val = parseFloat(fixedItemDraft);
+    if (!val || val < 0) { setEditingFixedItem(null); return; }
+    setSavingFixedItem(true);
+    try {
+      if (val === fe.defaultAmount) {
+        if (config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name]) {
+          await onDeleteFixedExpenseOverride(thisMonthKey, fe.name);
+        }
+      } else {
+        await onSetFixedExpenseOverride(thisMonthKey, fe.name, val);
+      }
+      setEditingFixedItem(null);
+    } finally {
+      setSavingFixedItem(false);
+    }
+  }
+
+  async function handleResetAllFixed() {
+    const overrideKeys = Object.keys(config.fixedExpenseOverrides?.[thisMonthKey] ?? {});
+    if (overrideKeys.length === 0) return;
+    setResettingAllFixed(true);
+    try {
+      await Promise.all(overrideKeys.map((name) => onDeleteFixedExpenseOverride(thisMonthKey, name)));
+    } finally {
+      setResettingAllFixed(false);
     }
   }
 
@@ -481,40 +527,90 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
             <div style={{ fontSize: 13, color: INK3 }}>No transactions this month</div>
           ) : (
             categoryData.map(({ name, amount, isFixed, pct, breakdown }) => (
-              <div
-                key={name}
-                style={{ marginBottom: 14, position: 'relative' }}
-                onMouseEnter={() => isFixed ? setHoveredCategory(name) : undefined}
-                onMouseLeave={() => setHoveredCategory(null)}
-              >
+              <div key={name} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: isFixed ? 'pointer' : 'default' }}
+                    onClick={() => { if (isFixed) { setFixedExpanded(v => !v); setEditingFixedItem(null); } }}
+                  >
                     {name}
-                    {isFixed && <span style={{ fontSize: 10, color: INK3 }}>▾</span>}
+                    {isFixed && <span style={{ fontSize: 10, color: INK3 }}>{fixedExpanded ? '▴' : '▾'}</span>}
+                    {isFixed && hasAnyFixedOverride && (
+                      <span style={{ fontSize: 10, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 5px', fontWeight: 500 }}>custom</span>
+                    )}
                   </span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmt(amount)}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {isFixed && hasAnyFixedOverride && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleResetAllFixed(); }}
+                        disabled={resettingAllFixed}
+                        style={{ border: '1px solid #d8d8d8', background: 'none', color: '#888', padding: '1px 8px', borderRadius: 999, fontSize: 10, cursor: 'pointer' }}
+                      >
+                        {resettingAllFixed ? '…' : 'Reset to default'}
+                      </button>
+                    )}
+                    <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmt(amount)}</span>
+                  </span>
                 </div>
-                <div style={{ height: 2, background: LINE2, borderRadius: 1 }}>
+                <div style={{ height: 2, background: LINE2, borderRadius: 1, marginBottom: isFixed && fixedExpanded ? 8 : 0 }}>
                   <div style={{ height: '100%', width: `${pct}%`, background: isFixed ? WARN : INK, borderRadius: 1, transition: 'width 0.4s' }} />
                 </div>
-                {isFixed && hoveredCategory === name && breakdown && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    left: 0,
-                    minWidth: 180,
-                    background: INK,
-                    color: '#fff',
-                    borderRadius: 8,
-                    padding: '10px 12px',
-                    zIndex: 20,
-                    boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
-                    pointerEvents: 'none',
-                  }}>
+                {isFixed && fixedExpanded && breakdown && (
+                  <div style={{ paddingLeft: 8, borderLeft: `2px solid ${LINE2}` }}>
                     {breakdown.map((item) => (
-                      <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 11, padding: '2px 0' }}>
-                        <span style={{ color: '#ccc' }}>{item.name}</span>
-                        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(item.amount)}</span>
+                      <div key={item.name} style={{ padding: '5px 0', borderBottom: `1px solid ${LINE2}` }}>
+                        {editingFixedItem === item.name ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, color: INK3, flex: 1, minWidth: 80 }}>{item.name}</span>
+                            <span style={{ fontSize: 11, color: INK3 }}>$</span>
+                            <input
+                              autoFocus
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={fixedItemDraft}
+                              onChange={(e) => setFixedItemDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFixedItem(item); if (e.key === 'Escape') setEditingFixedItem(null); }}
+                              style={{ width: 80, border: '1px solid #d8d8d8', borderRadius: 6, padding: '2px 6px', fontSize: 12, outline: 'none', fontVariantNumeric: 'tabular-nums' }}
+                            />
+                            <button onClick={() => handleSaveFixedItem(item)} disabled={savingFixedItem}
+                              style={{ border: 'none', background: '#1a1a1a', color: '#fff', padding: '2px 8px', borderRadius: 999, fontSize: 11, cursor: 'pointer' }}>
+                              {savingFixedItem ? '…' : 'Save'}
+                            </button>
+                            <button onClick={() => setEditingFixedItem(null)}
+                              style={{ border: 'none', background: 'none', color: '#aaa', fontSize: 11, cursor: 'pointer' }}>
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 11, color: '#444' }}>{item.name}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              {item.hasOverride && (
+                                <>
+                                  <span style={{ fontSize: 10, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 4px', fontWeight: 500 }}>custom</span>
+                                  <button
+                                    onClick={async (e) => { e.stopPropagation(); setResettingFixedItem(item.name); try { await onDeleteFixedExpenseOverride(thisMonthKey, item.name); } finally { setResettingFixedItem(null); } }}
+                                    disabled={resettingFixedItem === item.name}
+                                    style={{ border: '1px solid #d8d8d8', background: 'none', color: '#888', padding: '1px 6px', borderRadius: 999, fontSize: 10, cursor: 'pointer' }}
+                                  >
+                                    {resettingFixedItem === item.name ? '…' : 'Reset'}
+                                  </button>
+                                </>
+                              )}
+                              <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: '#444' }}>{fmt(item.amount)}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingFixedItem(item.name); setFixedItemDraft(String(item.amount)); }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: '0 2px', display: 'flex', alignItems: 'center' }}
+                                title={`Override ${item.name} for ${monthLabel}`}
+                              >
+                                <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
+                                </svg>
+                              </button>
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

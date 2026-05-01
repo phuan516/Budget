@@ -13,7 +13,7 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_TAB_REGEX = /^[A-Z][a-z]{2} \d{4}$/;
 
 // Config section labels (must match exactly what's written to the sheet)
-const CONFIG_SECTIONS = ['INCOME', 'INCOME OVERRIDES', 'SAVING GOALS', 'CATEGORIES', 'CARDS', 'FIXED EXPENSES'] as const;
+const CONFIG_SECTIONS = ['INCOME', 'INCOME OVERRIDES', 'FIXED EXPENSE OVERRIDES', 'SAVING GOALS', 'CATEGORIES', 'CARDS', 'FIXED EXPENSES'] as const;
 const CONFIG_SECTION_SET = new Set<string>(CONFIG_SECTIONS);
 
 const TYPE_TO_SECTION: Record<string, string> = {
@@ -198,6 +198,7 @@ export class SheetsService {
     fixedExpenses: { id: string; name: string; amount: number }[];
     monthlyIncome: number;
     monthlyIncomeOverrides: { [monthKey: string]: number };
+    fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } };
     incomeRowIndex: number | null;
     savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
   }> {
@@ -242,6 +243,17 @@ export class SheetsService {
         if (key && amt) monthlyIncomeOverrides[key] = amt;
       }
 
+      const fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } } = {};
+      for (const { row } of getDataRows('FIXED EXPENSE OVERRIDES')) {
+        const monthKey = (row[0] ?? '').toString().trim();
+        const expName = (row[1] ?? '').toString().trim();
+        const amt = parseFloat((row[2] ?? '').toString()) || 0;
+        if (monthKey && expName && amt) {
+          if (!fixedExpenseOverrides[monthKey]) fixedExpenseOverrides[monthKey] = {};
+          fixedExpenseOverrides[monthKey][expName] = amt;
+        }
+      }
+
       const categories = getDataRows('CATEGORIES').map(({ row, rowNum }) => ({
         id: String(rowNum), name: (row[0] ?? '').toString(),
       }));
@@ -255,7 +267,7 @@ export class SheetsService {
         id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0, initialAmount: parseFloat(row[2] ?? '') || 0,
       }));
 
-      return { categories, cards, fixedExpenses, monthlyIncome, monthlyIncomeOverrides, incomeRowIndex, savingGoals };
+      return { categories, cards, fixedExpenses, monthlyIncome, monthlyIncomeOverrides, fixedExpenseOverrides, incomeRowIndex, savingGoals };
     } catch (error) {
       console.error('Error reading config:', error);
       throw new Error('Failed to read config');
@@ -693,6 +705,88 @@ export class SheetsService {
     } catch (error) {
       console.error('Error deleting income override:', error);
       throw new Error('Failed to delete income override');
+    }
+  }
+
+  async setFixedExpenseOverride(sheetId: string, monthKey: string, expenseName: string, amount: number): Promise<void> {
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: 'Config!A:C',
+      });
+      const rows = (response.data.values || []) as string[][];
+
+      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSE OVERRIDES');
+
+      if (labelIdx === -1) {
+        await this.sheets.spreadsheets.values.append({
+          spreadsheetId: sheetId,
+          range: 'Config!A:C',
+          valueInputOption: 'RAW',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: { values: [[], ['FIXED EXPENSE OVERRIDES'], ['Month', 'Expense', 'Amount'], [monthKey, expenseName, amount]] },
+        });
+        return;
+      }
+
+      const dataStart = labelIdx + 2;
+      const dataEnd = sectionDataEnd(rows, dataStart);
+
+      for (let i = dataStart; i < dataEnd; i++) {
+        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey &&
+            (rows[i]?.[1] ?? '').toString().trim() === expenseName) {
+          await this.sheets.spreadsheets.values.update({
+            spreadsheetId: sheetId,
+            range: `Config!A${i + 1}:C${i + 1}`,
+            valueInputOption: 'RAW',
+            requestBody: { values: [[monthKey, expenseName, amount]] },
+          });
+          return;
+        }
+      }
+
+      const configSheetId = await this.getConfigSheetNumericId(sheetId);
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: sheetId,
+        requestBody: {
+          requests: [{ insertDimension: { range: { sheetId: configSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + 1 }, inheritFromBefore: true } }],
+        },
+      });
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `Config!A${dataEnd + 1}:C${dataEnd + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[monthKey, expenseName, amount]] },
+      });
+    } catch (error) {
+      console.error('Error setting fixed expense override:', error);
+      throw new Error('Failed to set fixed expense override');
+    }
+  }
+
+  async deleteFixedExpenseOverride(sheetId: string, monthKey: string, expenseName: string): Promise<void> {
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: 'Config!A:C',
+      });
+      const rows = (response.data.values || []) as string[][];
+      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSE OVERRIDES');
+      if (labelIdx === -1) return;
+
+      const dataStart = labelIdx + 2;
+      const dataEnd = sectionDataEnd(rows, dataStart);
+
+      for (let i = dataStart; i < dataEnd; i++) {
+        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey &&
+            (rows[i]?.[1] ?? '').toString().trim() === expenseName) {
+          await this.deleteConfigItem(sheetId, i + 1);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting fixed expense override:', error);
+      throw new Error('Failed to delete fixed expense override');
     }
   }
 

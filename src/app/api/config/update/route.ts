@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!accessToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { sheetId, action, type, name, value, extra, rowIndex, income, monthKey } = body;
+    const { sheetId, action, type, name, value, extra, rowIndex, income, monthKey, expenseName } = body;
 
     if (!sheetId) return NextResponse.json({ error: 'sheetId is required' }, { status: 400 });
 
@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
       await service.setMonthlyIncomeOverride(sheetId, monthKey, income);
     } else if (action === 'deleteMonthlyIncomeOverride') {
       await service.deleteMonthlyIncomeOverride(sheetId, monthKey);
+    } else if (action === 'setFixedExpenseOverride') {
+      await service.setFixedExpenseOverride(sheetId, monthKey, expenseName, income);
+    } else if (action === 'deleteFixedExpenseOverride') {
+      await service.deleteFixedExpenseOverride(sheetId, monthKey, expenseName);
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

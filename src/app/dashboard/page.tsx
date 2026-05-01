@@ -217,6 +217,34 @@ export default function DashboardPage() {
     loadConfigSilent();
   }
 
+  async function handleSetFixedExpenseOverride(monthKey: string, expenseName: string, amount: number) {
+    if (!accessToken || !selectedSheet) return;
+    const monthOverrides = { ...(config.fixedExpenseOverrides?.[monthKey] ?? {}), [expenseName]: amount };
+    updateConfig({ fixedExpenseOverrides: { ...config.fixedExpenseOverrides, [monthKey]: monthOverrides } });
+    await fetch('/api/config/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setFixedExpenseOverride', monthKey, expenseName, income: amount }),
+    });
+    loadConfigSilent();
+  }
+
+  async function handleDeleteFixedExpenseOverride(monthKey: string, expenseName: string) {
+    if (!accessToken || !selectedSheet) return;
+    const monthOverrides = { ...(config.fixedExpenseOverrides?.[monthKey] ?? {}) };
+    delete monthOverrides[expenseName];
+    const next = { ...config.fixedExpenseOverrides };
+    if (Object.keys(monthOverrides).length === 0) delete next[monthKey];
+    else next[monthKey] = monthOverrides;
+    updateConfig({ fixedExpenseOverrides: next });
+    await fetch('/api/config/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'deleteFixedExpenseOverride', monthKey, expenseName }),
+    });
+    loadConfigSilent();
+  }
+
   /* ── Transaction mutations ─────────────────────────────────── */
   async function handleAddTransaction(t: Omit<Transaction, 'id'>): Promise<string> {
     if (!accessToken || !selectedSheet) return '';
@@ -493,6 +521,8 @@ export default function DashboardPage() {
             isLoading={configLoading || txnLoading}
             onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
             onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
+            onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
+            onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
           />
         )}
         {activeTab === 'transactions' && (

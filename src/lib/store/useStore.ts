@@ -14,6 +14,7 @@ export interface Config {
   fixedExpenses: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
   monthlyIncomeOverrides: { [monthKey: string]: number };
+  fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } };
   savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
 }
 
@@ -57,6 +58,7 @@ const DEFAULT_CONFIG: Config = {
   fixedExpenses: [],
   monthlyIncome: 0,
   monthlyIncomeOverrides: {},
+  fixedExpenseOverrides: {},
   savingGoals: [],
 };
 
