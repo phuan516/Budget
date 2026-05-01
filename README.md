@@ -18,6 +18,7 @@ A mobile-first personal budget tracker that uses Google Sheets as a backend. Sig
 - Sign in with Google (OAuth 2.0, no password)
 - Create or connect an existing Google Sheet as your budget database
 - Add, view, and delete transactions (date, amount, category, card, note)
+- Search, sort, and filter transactions by category, card, or keyword
 - Dashboard with monthly spending summary, category breakdown, fixed expenses, and savings progress
 - Manage categories, payment cards, fixed expenses, savings goals, and monthly income
 - Transactions organized into monthly tabs (e.g. "Apr 2026") inside your sheet

@@ -47,7 +47,9 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] View transactions (list view, current month)
 - [x] Delete transactions
 - [ ] Edit existing transactions
-- [ ] Search and filter transactions
+- [x] Search transactions by category, note, or card
+- [x] Filter transactions by category and card
+- [x] Sort transactions by date or amount (ascending/descending)
 
 ### Configuration
 - [x] Manage spending categories
@@ -62,7 +64,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] Category breakdown
 - [x] Fixed expenses card
 - [x] Savings progress (goal vs. current)
-- [x] Overspending carry-over for savings calculations
+- [x] Overspending carry-over for savings calculations (includes fixed expenses in overspend total)
 - [ ] Spending trends (multi-month)
 - [ ] Budget vs. actual comparisons
 
