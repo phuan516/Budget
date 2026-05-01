@@ -68,6 +68,9 @@ cd Budget
 # Install dependencies
 npm install
 
+# (Optional) Install graphify for AI-assisted codebase exploration in Claude Code
+pip install graphifyy
+
 # Set up environment
 cp .env.example .env.local
 ```
