@@ -10,15 +10,14 @@
           }
         ]
       }
-    ]
-    ,
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "cd /home/peterhuang/Budget && graphify update . 2>/dev/null || true",
+            "command": "graphify update . 2>/dev/null || true",
             "statusMessage": "Updating knowledge graph...",
             "async": true
           }

@@ -26,8 +26,8 @@
 9. `POST()` - 2 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `POST()` --calls--> `currentMonthLabel()`  [INFERRED]
-  /home/peterhuang/Budget/src/app/api/config/update/route.ts → /home/peterhuang/Budget/src/lib/google/sheets.ts
+- `currentMonthLabel()` --calls--> `POST()`  [INFERRED]
+  /home/peterhuang/Budget/src/lib/google/sheets.ts → /home/peterhuang/Budget/src/app/api/config/update/route.ts
 
 ## Communities
 
