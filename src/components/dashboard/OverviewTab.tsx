@@ -108,7 +108,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
 
     if (config.fixedExpenses.length > 0) {
       txnEntries.push({
-        name: 'Fixed Expenses',
+        name: 'Monthly Expenses',
         amount: totalFixed,
         isFixed: true,
         pct: total > 0 ? (totalFixed / total) * 100 : 0,
@@ -159,7 +159,6 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeDraft, setIncomeDraft] = useState('');
   const [savingIncomeDraft, setSavingIncomeDraft] = useState(false);
-  const [fixedExpanded, setFixedExpanded] = useState(false);
   const [editingFixedItem, setEditingFixedItem] = useState<string | null>(null);
   const [fixedItemDraft, setFixedItemDraft] = useState('');
   const [savingFixedItem, setSavingFixedItem] = useState(false);
@@ -208,7 +207,9 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
     if (overrideKeys.length === 0) return;
     setResettingAllFixed(true);
     try {
-      await Promise.all(overrideKeys.map((name) => onDeleteFixedExpenseOverride(thisMonthKey, name)));
+      for (const name of overrideKeys) {
+        await onDeleteFixedExpenseOverride(thisMonthKey, name);
+      }
     } finally {
       setResettingAllFixed(false);
     }
@@ -320,7 +321,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
             {totalFixed > 0 && (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: isOver ? DANGER : WARN, flexShrink: 0 }} />
-                Fixed {fmt(totalFixed)}
+                Monthly {fmt(totalFixed)}
               </span>
             )}
             {totalSpent > 0 && (
@@ -530,11 +531,9 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
               <div key={name} style={{ marginBottom: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
                   <span
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: isFixed ? 'pointer' : 'default' }}
-                    onClick={() => { if (isFixed) { setFixedExpanded(v => !v); setEditingFixedItem(null); } }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5 }}
                   >
                     {name}
-                    {isFixed && <span style={{ fontSize: 10, color: INK3 }}>{fixedExpanded ? '▴' : '▾'}</span>}
                     {isFixed && hasAnyFixedOverride && (
                       <span style={{ fontSize: 10, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 5px', fontWeight: 500 }}>custom</span>
                     )}
@@ -542,7 +541,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {isFixed && hasAnyFixedOverride && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleResetAllFixed(); }}
+                        onClick={() => handleResetAllFixed()}
                         disabled={resettingAllFixed}
                         style={{ border: '1px solid #d8d8d8', background: 'none', color: '#888', padding: '1px 8px', borderRadius: 999, fontSize: 10, cursor: 'pointer' }}
                       >
@@ -552,10 +551,10 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                     <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmt(amount)}</span>
                   </span>
                 </div>
-                <div style={{ height: 2, background: LINE2, borderRadius: 1, marginBottom: isFixed && fixedExpanded ? 8 : 0 }}>
+                <div style={{ height: 2, background: LINE2, borderRadius: 1, marginBottom: isFixed ? 8 : 0 }}>
                   <div style={{ height: '100%', width: `${pct}%`, background: isFixed ? WARN : INK, borderRadius: 1, transition: 'width 0.4s' }} />
                 </div>
-                {isFixed && fixedExpanded && breakdown && (
+                {isFixed && breakdown && (
                   <div style={{ paddingLeft: 8, borderLeft: `2px solid ${LINE2}` }}>
                     {breakdown.map((item) => (
                       <div key={item.name} style={{ padding: '5px 0', borderBottom: `1px solid ${LINE2}` }}>

@@ -253,7 +253,7 @@ function FixedExpenseSection({
 
   return (
     <section style={{ marginBottom: 36 }}>
-      <SectionTitle>Fixed Expenses</SectionTitle>
+      <SectionTitle>Monthly Expenses</SectionTitle>
       {items.length > 0 && (
         <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 1 }}>
           {items.map((item) => (

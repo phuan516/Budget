@@ -7,11 +7,13 @@ import { useStore, DashboardTab, Transaction } from '@/lib/store/useStore';
 import OverviewTab from '@/components/dashboard/OverviewTab';
 import TransactionsTab from '@/components/dashboard/TransactionsTab';
 import SettingsTab from '@/components/dashboard/SettingsTab';
+import EverythingTab from '@/components/dashboard/EverythingTab';
 
 const TABS: { id: DashboardTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'transactions', label: 'Transactions' },
   { id: 'settings', label: 'Settings' },
+  { id: 'everything', label: 'Everything' },
 ];
 
 export default function DashboardPage() {
@@ -542,6 +544,13 @@ export default function DashboardPage() {
             onDelete={handleConfigDelete}
             onEdit={handleConfigEdit}
             onSetIncome={handleSetIncome}
+          />
+        )}
+        {activeTab === 'everything' && (
+          <EverythingTab
+            transactions={transactions}
+            config={config}
+            isLoading={configLoading || txnLoading}
           />
         )}
       </main>
