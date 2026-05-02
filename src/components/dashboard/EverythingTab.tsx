@@ -6,7 +6,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LineChart, Line, ResponsiveContainer,
 } from 'recharts';
+import s from './EverythingTab.module.css';
 
+const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const LINE_COLORS = ['#1a1a1a', '#6b7280', '#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'];
 
@@ -74,15 +76,15 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
       allMonthKeys.map(key => {
         const income = config.monthlyIncomeOverrides?.[key] ?? config.monthlyIncome;
         const fixed = config.fixedExpenses.reduce(
-          (s, fe) => s + (config.fixedExpenseOverrides?.[key]?.[fe.name] ?? fe.amount),
+          (sum, fe) => sum + (config.fixedExpenseOverrides?.[key]?.[fe.name] ?? fe.amount),
           0
         );
         const variable = transactions
           .filter(t => t.date.startsWith(key) && t.amount > 0 && t.category !== 'Carry Over')
-          .reduce((s, t) => s + t.amount, 0);
+          .reduce((sum, t) => sum + t.amount, 0);
         const refunds = transactions
           .filter(t => t.date.startsWith(key) && t.amount < 0)
-          .reduce((s, t) => s + Math.abs(t.amount), 0);
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0);
         return {
           month: keyToShortLabel(key),
           income: Math.round(income * 100) / 100,
@@ -133,33 +135,26 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
     });
   }
 
-  const totalSpend = filtered.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const totalRefunds = filtered.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const totalSpend = filtered.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
+  const totalRefunds = filtered.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
+      <div className={s.spinner}>
         <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div style={{ paddingTop: 32, paddingBottom: 48 }}>
+    <div className={s.root}>
       {/* Sub-tab nav */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #ececec', marginBottom: 28 }}>
+      <div className={s.subNav}>
         {(['transactions', 'charts'] as const).map(t => (
           <button
             key={t}
             onClick={() => setSubTab(t)}
-            style={{
-              background: 'none', border: 'none',
-              borderBottom: subTab === t ? '2px solid #1a1a1a' : '2px solid transparent',
-              padding: '10px 0', marginRight: 24, fontSize: 13,
-              fontWeight: subTab === t ? 600 : 400,
-              color: subTab === t ? '#1a1a1a' : '#888',
-              cursor: 'pointer',
-            }}
+            className={`${s.subNavBtn} ${subTab === t ? s.subNavBtnActive : ''}`}
           >
             {t === 'transactions' ? 'All Transactions' : 'Charts'}
           </button>
@@ -168,63 +163,40 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
 
       {subTab === 'transactions' && (
         <div>
-          {/* Search */}
           <input
             type="text"
             placeholder="Search by note, category, or card…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%', padding: '10px 14px', fontSize: 13, marginBottom: 12,
-              border: '1px solid #e8e8e8', borderRadius: 8, outline: 'none',
-              background: '#fafafa', boxSizing: 'border-box',
-            }}
+            className={s.searchInput}
           />
 
           {/* Month filter pills */}
           {allMonthKeys.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontSize: 11, color: '#bbb' }}>Month</span>
+            <div className={s.pillRow}>
+              <span className={s.pillLabel}>Month</span>
               <button
                 onClick={() => setSelectedMonths(new Set())}
-                style={{
-                  padding: '3px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
-                  border: '1px solid',
-                  borderColor: selectedMonths.size === 0 ? '#1a1a1a' : '#e0e0e0',
-                  background: selectedMonths.size === 0 ? '#1a1a1a' : 'transparent',
-                  color: selectedMonths.size === 0 ? '#fff' : '#888',
-                }}
+                className={`${s.pill} ${selectedMonths.size === 0 ? s.pillActive : ''}`}
               >All</button>
               {allMonthKeys.map(key => (
                 <button
                   key={key}
                   onClick={() => toggleMonth(key)}
-                  style={{
-                    padding: '3px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
-                    border: '1px solid',
-                    borderColor: selectedMonths.has(key) ? '#1a1a1a' : '#e0e0e0',
-                    background: selectedMonths.has(key) ? '#1a1a1a' : 'transparent',
-                    color: selectedMonths.has(key) ? '#fff' : '#888',
-                  }}
+                  className={`${s.pill} ${selectedMonths.has(key) ? s.pillActive : ''}`}
                 >{keyToShortLabel(key)}</button>
               ))}
             </div>
           )}
 
           {/* Sort controls */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontSize: 11, color: '#bbb' }}>Sort</span>
+          <div className={s.sortRow}>
+            <span className={s.sortLabel}>Sort</span>
             {(['date', 'amount', 'category'] as const).map(field => (
               <button
                 key={field}
                 onClick={() => toggleSort(field)}
-                style={{
-                  padding: '3px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer',
-                  border: '1px solid', textTransform: 'capitalize',
-                  borderColor: sortBy === field ? '#1a1a1a' : '#e0e0e0',
-                  background: sortBy === field ? '#1a1a1a' : 'transparent',
-                  color: sortBy === field ? '#fff' : '#888',
-                }}
+                className={`${s.sortBtn} ${sortBy === field ? s.sortBtnActive : ''}`}
               >
                 {field}{sortBy === field ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
               </button>
@@ -232,23 +204,21 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
           </div>
 
           {/* Summary */}
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 14, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className={s.summary}>
             <span>{filtered.length} transaction{filtered.length !== 1 ? 's' : ''}</span>
-            <span style={{ color: '#d8d8d8' }}>·</span>
+            <span className={s.summarySep}>·</span>
             <span>Total: <b style={{ color: '#1a1a1a' }}>{fmt(totalSpend)}</b></span>
             {totalRefunds > 0 && (
               <>
-                <span style={{ color: '#d8d8d8' }}>·</span>
-                <span>Refunds: <b style={{ color: '#16a34a' }}>{`−${fmt(totalRefunds)}`}</b></span>
+                <span className={s.summarySep}>·</span>
+                <span>Refunds: <b className={s.summaryRefund}>{`−${fmt(totalRefunds)}`}</b></span>
               </>
             )}
           </div>
 
           {/* Transaction list */}
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, paddingTop: 40 }}>
-              No transactions found
-            </div>
+            <div className={s.empty}>No transactions found</div>
           ) : (
             <div>
               {filtered.map((t, i) => {
@@ -259,45 +229,25 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
                 return (
                   <div key={t.id}>
                     {showHeader && (
-                      <div style={{
-                        fontSize: 11, fontWeight: 600, color: '#aaa',
-                        padding: '12px 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em',
-                      }}>
-                        {keyToFullLabel(monthKey)}
-                      </div>
+                      <div className={s.monthHeader}>{keyToFullLabel(monthKey)}</div>
                     )}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', padding: '10px 0',
-                      borderBottom: '1px solid #f5f5f5',
-                    }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          {isRefund && (
-                            <span style={{
-                              fontSize: 9, fontWeight: 700, color: '#16a34a',
-                              border: '1px solid #16a34a', borderRadius: 3,
-                              padding: '1px 4px', letterSpacing: '0.05em', flexShrink: 0,
-                            }}>REFUND</span>
-                          )}
-                          <span style={{
-                            fontSize: 13, fontWeight: 500, color: '#1a1a1a',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>
-                            {t.note || t.category || '—'}
-                          </span>
+                    <div className={s.txnRow}>
+                      <div className={s.txnBody}>
+                        <div className={s.txnPrimary}>
+                          <span>{t.category || <span className={s.txnNoCategory}>No category</span>}</span>
+                          {isRefund && <span className={s.txnRefundBadge}>Refund</span>}
+                          {t.note && <span className={s.txnNote}>· {t.note}</span>}
                         </div>
-                        <div style={{ display: 'flex', gap: 6, marginTop: 2, fontSize: 11, color: '#aaa' }}>
-                          <span>{t.date}</span>
-                          {t.category && <><span>·</span><span>{t.category}</span></>}
-                          {t.card && <><span>·</span><span>{t.card}</span></>}
+                        <div className={s.txnMeta}>
+                          {t.date}{t.card ? ` · ${t.card}` : ''}
                         </div>
                       </div>
-                      <span style={{
-                        fontSize: 13, fontWeight: 600, marginLeft: 12, whiteSpace: 'nowrap',
-                        color: isRefund ? '#16a34a' : '#1a1a1a',
-                      }}>
-                        {isRefund ? `−${fmt(t.amount)}` : fmt(t.amount)}
-                      </span>
+                      <div
+                        className={`${s.txnAmount} ${isRefund ? s.txnAmountRefund : ''}`}
+                        style={{ fontFamily: MONO }}
+                      >
+                        {isRefund ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
+                      </div>
                     </div>
                   </div>
                 );
@@ -308,13 +258,12 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
       )}
 
       {subTab === 'charts' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 44 }}>
+        <div className={s.charts}>
 
-          {/* 1. Income vs Spending by month */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Income vs Spending</div>
+          <div className={s.chartSection}>
+            <div className={s.chartTitle}>Income vs Spending</div>
             {monthChartData.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#aaa', textAlign: 'center', paddingTop: 20 }}>No data</div>
+              <div className={s.chartEmpty}>No data</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={monthChartData} margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>
@@ -330,11 +279,10 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
             )}
           </div>
 
-          {/* 2. Spending by category */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Spending by Category</div>
+          <div className={s.chartSection}>
+            <div className={s.chartTitle}>Spending by Category</div>
             {categoryData.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#aaa', textAlign: 'center', paddingTop: 20 }}>No data</div>
+              <div className={s.chartEmpty}>No data</div>
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(180, categoryData.length * 30)}>
                 <BarChart
@@ -352,11 +300,10 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
             )}
           </div>
 
-          {/* 3. Fixed expenses per month */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Fixed Expenses Over Time</div>
+          <div className={s.chartSection}>
+            <div className={s.chartTitle}>Fixed Expenses Over Time</div>
             {config.fixedExpenses.length === 0 || allMonthKeys.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#aaa', textAlign: 'center', paddingTop: 20 }}>No data</div>
+              <div className={s.chartEmpty}>No data</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={fixedExpenseChartData} margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>
@@ -380,11 +327,10 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
             )}
           </div>
 
-          {/* 4. Variable vs Fixed monthly trend */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Monthly Spending Breakdown</div>
+          <div className={s.chartSection}>
+            <div className={s.chartTitle}>Monthly Spending Breakdown</div>
             {monthChartData.length === 0 ? (
-              <div style={{ fontSize: 13, color: '#aaa', textAlign: 'center', paddingTop: 20 }}>No data</div>
+              <div className={s.chartEmpty}>No data</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={monthChartData} margin={{ top: 4, right: 4, bottom: 4, left: 0 }}>

@@ -1,0 +1,228 @@
+.root {
+  padding-top: 32px;
+  padding-bottom: 48px;
+}
+
+/* ── Sub-tab nav ── */
+.subNav {
+  display: flex;
+  border-bottom: 1px solid #ececec;
+  margin-bottom: 28px;
+}
+
+.subNavBtn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 0;
+  margin-right: 24px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #888;
+  cursor: pointer;
+}
+
+.subNavBtnActive {
+  border-bottom-color: #1a1a1a;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* ── All Transactions sub-tab ── */
+.searchInput {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  outline: none;
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+/* Month filter pills */
+.pillRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pillLabel {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.pill {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid #e0e0e0;
+  background: transparent;
+  color: #888;
+}
+
+.pillActive {
+  border-color: #1a1a1a;
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* Sort controls */
+.sortRow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sortLabel {
+  font-size: 11px;
+  color: #bbb;
+}
+
+.sortBtn {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid #e0e0e0;
+  background: transparent;
+  color: #888;
+  text-transform: capitalize;
+}
+
+.sortBtnActive {
+  border-color: #1a1a1a;
+  background: #1a1a1a;
+  color: #fff;
+}
+
+/* Summary */
+.summary {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summarySep {
+  color: #d8d8d8;
+}
+
+.summaryRefund {
+  color: #16a34a;
+}
+
+/* Empty state */
+.empty {
+  text-align: center;
+  color: #aaa;
+  font-size: 13px;
+  padding-top: 40px;
+}
+
+/* Month group header */
+.monthHeader {
+  font-size: 11px;
+  font-weight: 600;
+  color: #aaa;
+  padding: 12px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Transaction row */
+.txnRow {
+  display: flex;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
+}
+
+.txnBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.txnPrimary {
+  font-size: 13px;
+  color: #1a1a1a;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.txnNoCategory {
+  color: #aaa;
+}
+
+.txnRefundBadge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #0F9D58;
+  background: #e8f5e9;
+  border-radius: 4px;
+  padding: 1px 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.txnNote {
+  color: #888;
+  font-size: 12px;
+}
+
+.txnMeta {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.txnAmount {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+  font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
+  flex-shrink: 0;
+}
+
+.txnAmountRefund {
+  color: #0F9D58;
+}
+
+/* ── Charts sub-tab ── */
+.charts {
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+}
+
+.chartSection {
+}
+
+.chartTitle {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.chartEmpty {
+  font-size: 13px;
+  color: #aaa;
+  text-align: center;
+  padding-top: 20px;
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: flex;
+  justify-content: center;
+  padding-top: 60px;
+}

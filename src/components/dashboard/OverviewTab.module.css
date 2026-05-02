@@ -1,0 +1,574 @@
+/* ── Shared tokens ── */
+/* Dynamic colors (ACCENT, WARN, DANGER) stay inline since they're computed */
+
+/* ── Spinner ── */
+.spinner {
+  padding: 40px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Hero section ── */
+.hero {
+  padding: 32px 0 24px;
+}
+
+.heroEyebrow {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 8px;
+}
+
+.heroAmountRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.heroAmount {
+  font-size: clamp(48px, 6vw, 80px);
+  font-weight: 600;
+  letter-spacing: -2.5px;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.heroIncome {
+  font-size: 14px;
+  color: #888;
+  padding-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Income edit */
+.incomeEditInput {
+  width: 90px;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 13px;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.incomeBtnSave {
+  border: none;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.incomeBtnReset {
+  border: 1px solid #d8d8d8;
+  background: none;
+  color: #888;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.incomeBtnCancel {
+  border: none;
+  background: none;
+  color: #aaa;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 3px 6px;
+}
+
+.customBadge {
+  font-size: 10px;
+  color: #0F9D58;
+  background: #e8f5e9;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 500;
+}
+
+.incomeEditBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+}
+
+/* Progress bar */
+.progressTrack {
+  height: 4px;
+  background: #ececec;
+  border-radius: 2px;
+  max-width: 520px;
+  overflow: hidden;
+}
+
+.progressFill {
+  display: flex;
+  height: 100%;
+  transition: width 0.4s;
+}
+
+.progressSegment {
+  min-width: 0;
+}
+
+/* Progress legend */
+.progressLegend {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: #888;
+  max-width: 520px;
+}
+
+.progressLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.progressLegendDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Over budget alert */
+.overBudgetAlert {
+  margin-top: 10px;
+  margin-bottom: 14px;
+  padding: 9px 14px;
+  background: oklch(0.97 0.03 25);
+  border: 1px solid oklch(0.88 0.07 25);
+  border-radius: 8px;
+  max-width: 520px;
+  font-size: 13px;
+}
+
+.overBudgetAlertAmount {
+  font-variant-numeric: tabular-nums;
+}
+
+.heroSpacer {
+  margin-bottom: 24px;
+}
+
+/* Stat mini-tiles */
+.statGrid {
+  display: grid;
+  gap: 32px;
+  max-width: 800px;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px;
+  background: #ececec;
+}
+
+/* ── Body grid ── */
+.body {
+  display: grid;
+  gap: 40px;
+  padding: 28px 0 36px;
+}
+
+/* ── Heatmap ── */
+.heatmapHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.heatmapTitle {
+  font-size: 12px;
+  color: #888;
+}
+
+.heatmapCount {
+  font-size: 11px;
+  color: #888;
+}
+
+.heatmapGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  max-width: 480px;
+  overflow: visible;
+}
+
+.heatmapDayLabel {
+  font-size: 10px;
+  color: #888;
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+/* Heatmap day cells are fully dynamic — kept inline in component */
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.tooltipDate {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.tooltipDateSpaced {
+  margin-bottom: 3px;
+}
+
+.tooltipAmount {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipEntries {
+  font-size: 9px;
+  color: #aaa;
+  margin-top: 2px;
+}
+
+.tooltipCaret {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #1a1a1a;
+}
+
+/* Heatmap legend */
+.heatmapLegend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  font-size: 10px;
+  color: #888;
+}
+
+.heatmapLegendDot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+}
+
+.heatmapTodayDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+/* Stat tiles (biggest day etc.) */
+.statTiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 22px;
+  max-width: 480px;
+}
+
+.statTile {
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.statTileLabel {
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.statTileValue {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.statTileSub {
+  font-size: 10px;
+  color: #888;
+  margin-top: 1px;
+}
+
+/* ── By category ── */
+.categoryTitle {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 14px;
+}
+
+.categoryEmpty {
+  font-size: 13px;
+  color: #888;
+}
+
+.categoryItem {
+  margin-bottom: 14px;
+}
+
+.categoryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.categoryName {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.categoryAmountRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.categoryAmount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.categoryResetBtn {
+  border: 1px solid #d8d8d8;
+  background: none;
+  color: #888;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.categoryBar {
+  height: 2px;
+  background: #ececec;
+  border-radius: 1px;
+}
+
+.categoryBarFill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.4s;
+}
+
+/* Fixed expense breakdown */
+.breakdownList {
+  padding-left: 8px;
+  border-left: 2px solid #ececec;
+}
+
+.breakdownItem {
+  padding: 5px 0;
+  border-bottom: 1px solid #ececec;
+}
+
+.breakdownEditRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.breakdownEditName {
+  font-size: 11px;
+  color: #888;
+  flex: 1;
+  min-width: 80px;
+}
+
+.breakdownEditSymbol {
+  font-size: 11px;
+  color: #888;
+}
+
+.breakdownEditInput {
+  width: 80px;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12px;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdownSaveBtn {
+  border: none;
+  background: #1a1a1a;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.breakdownCancelBtn {
+  border: none;
+  background: none;
+  color: #aaa;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.breakdownViewRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.breakdownViewName {
+  font-size: 11px;
+  color: #444;
+}
+
+.breakdownViewRight {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.breakdownResetBtn {
+  border: 1px solid #d8d8d8;
+  background: none;
+  color: #888;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.breakdownAmount {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #444;
+}
+
+.breakdownEditBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Saving goals ── */
+.goalsTitle {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 14px;
+}
+
+.goalsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.goalCard {
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.goalRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.goalName {
+  font-size: 12px;
+}
+
+.goalAmount {
+  font-size: 11px;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.goalFixedNote {
+  font-size: 10px;
+  color: #aaa;
+  margin-bottom: 6px;
+}
+
+.goalBar {
+  height: 3px;
+  background: #ececec;
+  border-radius: 2px;
+}
+
+.goalBarFill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s;
+}
+
+.goalPct {
+  font-size: 10px;
+  color: #888;
+  margin-top: 4px;
+  text-align: right;
+}

@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
+import s from './OverviewTab.module.css';
 
 const ACCENT = 'oklch(0.65 0.13 150)';
 const WARN = 'oklch(0.72 0.12 55)';
 const DANGER = 'oklch(0.58 0.18 25)';
 const INK = '#1a1a1a';
-const INK3 = '#888';
-const LINE2 = '#ececec';
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -41,7 +40,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
     [transactions, currentMonth, currentYear],
   );
 
-  const totalSpent = useMemo(() => monthTxns.reduce((s, t) => s + t.amount, 0), [monthTxns]);
+  const totalSpent = useMemo(() => monthTxns.reduce((sum, t) => sum + t.amount, 0), [monthTxns]);
 
   const dailyTotals = useMemo(() => {
     const map: Record<string, { amount: number; entryCount: number }> = {};
@@ -72,9 +71,9 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
 
   const thisMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
   const income = config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
-  const totalFixed = config.fixedExpenses.reduce((s, fe) => {
+  const totalFixed = config.fixedExpenses.reduce((sum, fe) => {
     const override = config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name];
-    return s + (override ?? fe.amount);
+    return sum + (override ?? fe.amount);
   }, 0);
   const totalCommitted = totalSpent + totalFixed;
   const pct = income > 0 ? (totalCommitted / income) * 100 : 0;
@@ -145,17 +144,16 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
       return (now.getFullYear() - ey) * 12 + (now.getMonth() + 1 - em) + 1;
     })();
     return config.savingGoals.map((g) => {
-      const txnSaved = transactions.filter((t) => t.category === g.name).reduce((s, t) => s + t.amount, 0);
+      const txnSaved = transactions.filter((t) => t.category === g.name).reduce((sum, t) => sum + t.amount, 0);
       const matchingFixed = config.fixedExpenses.find((fe) => fe.name.toLowerCase() === g.name.toLowerCase());
       const fixedSaved = matchingFixed ? matchingFixed.amount * monthsCount : 0;
       const saved = (g.initialAmount ?? 0) + txnSaved + fixedSaved;
-      const pct = g.amount > 0 ? Math.min(100, (saved / g.amount) * 100) : 0;
-      return { ...g, saved, pct, hasFixed: !!matchingFixed };
+      const goalPct = g.amount > 0 ? Math.min(100, (saved / g.amount) * 100) : 0;
+      return { ...g, saved, pct: goalPct, hasFixed: !!matchingFixed };
     });
   }, [transactions, config.savingGoals, config.fixedExpenses]);
 
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
-  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeDraft, setIncomeDraft] = useState('');
   const [savingIncomeDraft, setSavingIncomeDraft] = useState(false);
@@ -217,7 +215,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
 
   if (isLoading) {
     return (
-      <div style={{ padding: '40px 0', display: 'flex', justifyContent: 'center' }}>
+      <div className={s.spinner}>
         <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -226,27 +224,18 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
   const dayLabel = (day: number) =>
     new Date(currentYear, currentMonth, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+  const barColor = isOver ? DANGER : ACCENT;
+  const warnColor = isOver ? DANGER : WARN;
+
   return (
     <div>
-      {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div style={{ padding: '32px 0 24px' }}>
-        <div style={{ fontSize: 11, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 8 }}>
-          Spent this month
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 18, marginBottom: 10, flexWrap: 'wrap' }}>
-          <div
-            style={{
-              fontSize: 'clamp(48px, 6vw, 80px)',
-              fontWeight: 600,
-              letterSpacing: -2.5,
-              lineHeight: 0.9,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {fmt(totalCommitted)}
-          </div>
+      {/* ── Hero ── */}
+      <div className={s.hero}>
+        <div className={s.heroEyebrow}>Spent this month</div>
+        <div className={s.heroAmountRow}>
+          <div className={s.heroAmount}>{fmt(totalCommitted)}</div>
           {income > 0 && (
-            <div style={{ fontSize: 14, color: INK3, paddingBottom: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div className={s.heroIncome}>
               {editingIncome ? (
                 <>
                   <span>/ $</span>
@@ -258,41 +247,30 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                     value={incomeDraft}
                     onChange={(e) => setIncomeDraft(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') handleSaveIncomeOverride(); if (e.key === 'Escape') setEditingIncome(false); }}
-                    style={{ width: 90, border: '1px solid #d8d8d8', borderRadius: 6, padding: '3px 7px', fontSize: 13, outline: 'none', fontVariantNumeric: 'tabular-nums' }}
+                    className={s.incomeEditInput}
                   />
                   <span>· {monthLabel}</span>
-                  <button
-                    onClick={handleSaveIncomeOverride}
-                    disabled={savingIncomeDraft}
-                    style={{ border: 'none', background: '#1a1a1a', color: '#fff', padding: '3px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer' }}
-                  >
+                  <button onClick={handleSaveIncomeOverride} disabled={savingIncomeDraft} className={s.incomeBtnSave}>
                     {savingIncomeDraft ? '…' : 'Save'}
                   </button>
                   {hasOverride && (
                     <button
                       onClick={async () => { setSavingIncomeDraft(true); try { await onDeleteMonthlyIncomeOverride(thisMonthKey); setEditingIncome(false); } finally { setSavingIncomeDraft(false); } }}
                       disabled={savingIncomeDraft}
-                      style={{ border: '1px solid #d8d8d8', background: 'none', color: '#888', padding: '3px 10px', borderRadius: 999, fontSize: 11, cursor: 'pointer' }}
+                      className={s.incomeBtnReset}
                     >
                       Reset to default
                     </button>
                   )}
-                  <button
-                    onClick={() => setEditingIncome(false)}
-                    style={{ border: 'none', background: 'none', color: '#aaa', fontSize: 11, cursor: 'pointer', padding: '3px 6px' }}
-                  >
-                    Cancel
-                  </button>
+                  <button onClick={() => setEditingIncome(false)} className={s.incomeBtnCancel}>Cancel</button>
                 </>
               ) : (
                 <>
                   <span>/ {fmt(income)} · {monthLabel}</span>
-                  {hasOverride && (
-                    <span style={{ fontSize: 10, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 5px', fontWeight: 500 }}>custom</span>
-                  )}
+                  {hasOverride && <span className={s.customBadge}>custom</span>}
                   <button
                     onClick={() => { setIncomeDraft(String(income)); setEditingIncome(true); }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: '0 2px', display: 'flex', alignItems: 'center' }}
+                    className={s.incomeEditBtn}
                     title="Edit this month's income"
                   >
                     <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -304,46 +282,49 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
             </div>
           )}
         </div>
-        <div style={{ height: 4, background: LINE2, borderRadius: 2, maxWidth: 520, overflow: 'hidden' }}>
+
+        <div className={s.progressTrack}>
           {income > 0 && (
-            <div style={{ display: 'flex', height: '100%', width: `${Math.min(100, pct)}%`, transition: 'width 0.4s' }}>
+            <div className={s.progressFill} style={{ width: `${Math.min(100, pct)}%` }}>
               {totalFixed > 0 && (
-                <div style={{ flex: totalFixed, background: isOver ? DANGER : WARN, minWidth: 0 }} />
+                <div className={s.progressSegment} style={{ flex: totalFixed, background: warnColor }} />
               )}
               {totalSpent > 0 && (
-                <div style={{ flex: totalSpent, background: isOver ? DANGER : ACCENT, minWidth: 0 }} />
+                <div className={s.progressSegment} style={{ flex: totalSpent, background: barColor }} />
               )}
             </div>
           )}
         </div>
+
         {income > 0 && (
-          <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 10, color: INK3, maxWidth: 520 }}>
+          <div className={s.progressLegend}>
             {totalFixed > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: isOver ? DANGER : WARN, flexShrink: 0 }} />
+              <span className={s.progressLegendItem}>
+                <span className={s.progressLegendDot} style={{ background: warnColor }} />
                 Monthly {fmt(totalFixed)}
               </span>
             )}
             {totalSpent > 0 && (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: isOver ? DANGER : ACCENT, flexShrink: 0 }} />
+              <span className={s.progressLegendItem}>
+                <span className={s.progressLegendDot} style={{ background: barColor }} />
                 Variable {fmt(totalSpent)}
               </span>
             )}
           </div>
         )}
+
         {income > 0 && isOver ? (
-          <div style={{ marginTop: 10, marginBottom: 14, padding: '9px 14px', background: 'oklch(0.97 0.03 25)', border: '1px solid oklch(0.88 0.07 25)', borderRadius: 8, maxWidth: 520 }}>
-            <span style={{ fontSize: 13, color: DANGER }}>
-              Over budget by <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(totalCommitted - income)}</strong> — overspend carried to next month
+          <div className={s.overBudgetAlert}>
+            <span style={{ color: DANGER }}>
+              Over budget by <strong className={s.overBudgetAlertAmount}>{fmt(totalCommitted - income)}</strong> — overspend carried to next month
             </span>
           </div>
         ) : (
-          <div style={{ marginBottom: 24 }} />
+          <div className={s.heroSpacer} />
         )}
+
         <div
-          style={{ display: 'grid', gap: 32, maxWidth: 800 }}
-          className={`grid-cols-2 ${income > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}
+          className={`${s.statGrid} grid-cols-2 ${income > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}
         >
           {(
             [
@@ -354,20 +335,14 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
             ] as [string, string][]
           ).map(([label, value]) => (
             <div key={label}>
-              <div style={{ fontSize: 11, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
-                {label}
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>
-                {value}
-              </div>
+              <div className={s.statLabel}>{label}</div>
+              <div className={s.statValue}>{value}</div>
             </div>
           ))}
           {income > 0 && (
             <div>
-              <div style={{ fontSize: 11, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 6 }}>
-                Left to spend
-              </div>
-              <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums', color: isOver ? DANGER : ACCENT }}>
+              <div className={s.statLabel}>Left to spend</div>
+              <div className={s.statValue} style={{ color: isOver ? DANGER : ACCENT }}>
                 {isOver ? `-${fmt(totalCommitted - income)}` : fmt(income - totalCommitted)}
               </div>
             </div>
@@ -375,25 +350,21 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
         </div>
       </div>
 
-      <div style={{ height: 1, background: LINE2 }} />
+      <div className={s.divider} />
 
-      {/* ── Body: heatmap + by category + saving goals ───────────── */}
-      <div
-        style={{ display: 'grid', gap: 40, padding: '28px 0 36px' }}
-        className="grid-cols-1 xl:grid-cols-[1.3fr_1fr_1fr]"
-      >
+      {/* ── Body ── */}
+      <div className={`${s.body} grid-cols-1 xl:grid-cols-[1.3fr_1fr_1fr]`}>
+
         {/* Heatmap */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: INK3 }}>Daily spend</div>
-            <div style={{ fontSize: 11, color: INK3 }}>{monthTxns.length} entries</div>
+          <div className={s.heatmapHeader}>
+            <div className={s.heatmapTitle}>Daily spend</div>
+            <div className={s.heatmapCount}>{monthTxns.length} entries</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxWidth: 480, overflow: 'visible' }}>
+          <div className={s.heatmapGrid}>
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-              <div key={i} style={{ fontSize: 10, color: INK3, textAlign: 'center', marginBottom: 2 }}>
-                {d}
-              </div>
+              <div key={i} className={s.heatmapDayLabel}>{d}</div>
             ))}
             {Array.from({ length: firstDayOfWeek }, (_, i) => (
               <div key={`e${i}`} />
@@ -405,7 +376,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
               const alpha = data ? 0.08 + normalized * 0.9 : 0.05;
               const isFuture = day > today;
               const isToday = day === today;
-              const textColor = !isFuture && alpha > 0.5 ? '#fff' : (!isFuture && alpha > 0.25 ? INK : INK3);
+              const textColor = !isFuture && alpha > 0.5 ? '#fff' : (!isFuture && alpha > 0.25 ? INK : '#888');
               const isHovered = hoveredDay === day;
               return (
                 <div
@@ -415,7 +386,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                   style={{
                     aspectRatio: '1',
                     background: isFuture ? 'transparent' : `rgba(26,26,26,${alpha.toFixed(2)})`,
-                    border: isFuture ? `1px solid ${LINE2}` : 'none',
+                    border: isFuture ? '1px solid #ececec' : 'none',
                     borderRadius: 4,
                     position: 'relative',
                     fontSize: 9,
@@ -428,58 +399,21 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                   {isToday && (
                     <div
                       style={{
-                        position: 'absolute',
-                        top: 2,
-                        right: 2,
-                        width: 5,
-                        height: 5,
-                        borderRadius: '50%',
-                        background: ACCENT,
+                        position: 'absolute', top: 2, right: 2,
+                        width: 5, height: 5, borderRadius: '50%', background: ACCENT,
                       }}
                     />
                   )}
                   {isHovered && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 'calc(100% + 6px)',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: INK,
-                        color: '#fff',
-                        borderRadius: 6,
-                        padding: '6px 10px',
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                        pointerEvents: 'none',
-                        boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
-                      }}
-                    >
-                      <div style={{ fontSize: 10, fontWeight: 600, marginBottom: data ? 3 : 0 }}>{dayLabel(day)}</div>
+                    <div className={s.tooltip}>
+                      <div className={`${s.tooltipDate} ${data ? s.tooltipDateSpaced : ''}`}>{dayLabel(day)}</div>
                       {data && (
                         <>
-                          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: -0.3, fontVariantNumeric: 'tabular-nums' }}>
-                            {fmt(data.amount)}
-                          </div>
-                          <div style={{ fontSize: 9, color: '#aaa', marginTop: 2 }}>
-                            {data.entryCount} {data.entryCount === 1 ? 'entry' : 'entries'}
-                          </div>
+                          <div className={s.tooltipAmount}>{fmt(data.amount)}</div>
+                          <div className={s.tooltipEntries}>{data.entryCount} {data.entryCount === 1 ? 'entry' : 'entries'}</div>
                         </>
                       )}
-                      {/* caret */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          width: 0,
-                          height: 0,
-                          borderLeft: '5px solid transparent',
-                          borderRight: '5px solid transparent',
-                          borderTop: `5px solid ${INK}`,
-                        }}
-                      />
+                      <div className={s.tooltipCaret} />
                     </div>
                   )}
                 </div>
@@ -487,35 +421,28 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
             })}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 14, fontSize: 10, color: INK3 }}>
+          <div className={s.heatmapLegend}>
             less
             {[0.1, 0.25, 0.45, 0.7, 0.95].map((o) => (
               <div key={o} style={{ width: 11, height: 11, background: `rgba(26,26,26,${o})`, borderRadius: 2, flexShrink: 0 }} />
             ))}
             more
-            <span style={{ marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span
-                style={{ display: 'inline-block', width: 5, height: 5, background: ACCENT, borderRadius: '50%' }}
-              />
+            <span className={s.heatmapLegendDot}>
+              <span className={s.heatmapTodayDot} style={{ background: ACCENT }} />
               today
             </span>
           </div>
 
-          {/* Stat tiles */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 22, maxWidth: 480 }}>
+          <div className={s.statTiles}>
             {[
               { label: 'Biggest day', value: biggestDay ? fmt(biggestDay.amount) : '—', sub: biggestDay ? dayLabel(biggestDay.day) : '' },
               { label: 'Cheapest day', value: cheapestDay ? fmt(cheapestDay.amount) : '—', sub: cheapestDay ? dayLabel(cheapestDay.day) : '' },
               { label: 'No-spend streak', value: `${noSpendStreak} day${noSpendStreak !== 1 ? 's' : ''}`, sub: 'current' },
             ].map(({ label, value, sub }) => (
-              <div key={label} style={{ border: `1px solid ${LINE2}`, borderRadius: 8, padding: '10px 12px' }}>
-                <div style={{ fontSize: 9, color: INK3, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 4 }}>
-                  {label}
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.3, fontVariantNumeric: 'tabular-nums' }}>
-                  {value}
-                </div>
-                {sub && <div style={{ fontSize: 10, color: INK3, marginTop: 1 }}>{sub}</div>}
+              <div key={label} className={s.statTile}>
+                <div className={s.statTileLabel}>{label}</div>
+                <div className={s.statTileValue}>{value}</div>
+                {sub && <div className={s.statTileSub}>{sub}</div>}
               </div>
             ))}
           </div>
@@ -523,45 +450,41 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
 
         {/* By category */}
         <div>
-          <div style={{ fontSize: 12, color: INK3, marginBottom: 14 }}>By category</div>
+          <div className={s.categoryTitle}>By category</div>
           {categoryData.length === 0 ? (
-            <div style={{ fontSize: 13, color: INK3 }}>No transactions this month</div>
+            <div className={s.categoryEmpty}>No transactions this month</div>
           ) : (
-            categoryData.map(({ name, amount, isFixed, pct, breakdown }) => (
-              <div key={name} style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                  <span
-                    style={{ display: 'flex', alignItems: 'center', gap: 5 }}
-                  >
+            categoryData.map(({ name, amount, isFixed, pct: catPct, breakdown }) => (
+              <div key={name} className={s.categoryItem}>
+                <div className={s.categoryRow}>
+                  <span className={s.categoryName}>
                     {name}
-                    {isFixed && hasAnyFixedOverride && (
-                      <span style={{ fontSize: 10, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 5px', fontWeight: 500 }}>custom</span>
-                    )}
+                    {isFixed && hasAnyFixedOverride && <span className={s.customBadge}>custom</span>}
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className={s.categoryAmountRow}>
                     {isFixed && hasAnyFixedOverride && (
                       <button
                         onClick={() => handleResetAllFixed()}
                         disabled={resettingAllFixed}
-                        style={{ border: '1px solid #d8d8d8', background: 'none', color: '#888', padding: '1px 8px', borderRadius: 999, fontSize: 10, cursor: 'pointer' }}
+                        className={s.categoryResetBtn}
                       >
                         {resettingAllFixed ? '…' : 'Reset to default'}
                       </button>
                     )}
-                    <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500 }}>{fmt(amount)}</span>
+                    <span className={s.categoryAmount}>{fmt(amount)}</span>
                   </span>
                 </div>
-                <div style={{ height: 2, background: LINE2, borderRadius: 1, marginBottom: isFixed ? 8 : 0 }}>
-                  <div style={{ height: '100%', width: `${pct}%`, background: isFixed ? WARN : INK, borderRadius: 1, transition: 'width 0.4s' }} />
+                <div className={s.categoryBar} style={{ marginBottom: isFixed ? 8 : 0 }}>
+                  <div className={s.categoryBarFill} style={{ width: `${catPct}%`, background: isFixed ? WARN : INK }} />
                 </div>
                 {isFixed && breakdown && (
-                  <div style={{ paddingLeft: 8, borderLeft: `2px solid ${LINE2}` }}>
+                  <div className={s.breakdownList}>
                     {breakdown.map((item) => (
-                      <div key={item.name} style={{ padding: '5px 0', borderBottom: `1px solid ${LINE2}` }}>
+                      <div key={item.name} className={s.breakdownItem}>
                         {editingFixedItem === item.name ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 11, color: INK3, flex: 1, minWidth: 80 }}>{item.name}</span>
-                            <span style={{ fontSize: 11, color: INK3 }}>$</span>
+                          <div className={s.breakdownEditRow}>
+                            <span className={s.breakdownEditName}>{item.name}</span>
+                            <span className={s.breakdownEditSymbol}>$</span>
                             <input
                               autoFocus
                               type="number"
@@ -570,37 +493,33 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                               value={fixedItemDraft}
                               onChange={(e) => setFixedItemDraft(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFixedItem(item); if (e.key === 'Escape') setEditingFixedItem(null); }}
-                              style={{ width: 80, border: '1px solid #d8d8d8', borderRadius: 6, padding: '2px 6px', fontSize: 12, outline: 'none', fontVariantNumeric: 'tabular-nums' }}
+                              className={s.breakdownEditInput}
                             />
-                            <button onClick={() => handleSaveFixedItem(item)} disabled={savingFixedItem}
-                              style={{ border: 'none', background: '#1a1a1a', color: '#fff', padding: '2px 8px', borderRadius: 999, fontSize: 11, cursor: 'pointer' }}>
+                            <button onClick={() => handleSaveFixedItem(item)} disabled={savingFixedItem} className={s.breakdownSaveBtn}>
                               {savingFixedItem ? '…' : 'Save'}
                             </button>
-                            <button onClick={() => setEditingFixedItem(null)}
-                              style={{ border: 'none', background: 'none', color: '#aaa', fontSize: 11, cursor: 'pointer' }}>
-                              Cancel
-                            </button>
+                            <button onClick={() => setEditingFixedItem(null)} className={s.breakdownCancelBtn}>Cancel</button>
                           </div>
                         ) : (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 11, color: '#444' }}>{item.name}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <div className={s.breakdownViewRow}>
+                            <span className={s.breakdownViewName}>{item.name}</span>
+                            <span className={s.breakdownViewRight}>
                               {item.hasOverride && (
                                 <>
-                                  <span style={{ fontSize: 10, color: '#0F9D58', background: '#e8f5e9', borderRadius: 4, padding: '1px 4px', fontWeight: 500 }}>custom</span>
+                                  <span className={s.customBadge}>custom</span>
                                   <button
                                     onClick={async (e) => { e.stopPropagation(); setResettingFixedItem(item.name); try { await onDeleteFixedExpenseOverride(thisMonthKey, item.name); } finally { setResettingFixedItem(null); } }}
                                     disabled={resettingFixedItem === item.name}
-                                    style={{ border: '1px solid #d8d8d8', background: 'none', color: '#888', padding: '1px 6px', borderRadius: 999, fontSize: 10, cursor: 'pointer' }}
+                                    className={s.breakdownResetBtn}
                                   >
                                     {resettingFixedItem === item.name ? '…' : 'Reset'}
                                   </button>
                                 </>
                               )}
-                              <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: '#444' }}>{fmt(item.amount)}</span>
+                              <span className={s.breakdownAmount}>{fmt(item.amount)}</span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setEditingFixedItem(item.name); setFixedItemDraft(String(item.amount)); }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ccc', padding: '0 2px', display: 'flex', alignItems: 'center' }}
+                                className={s.breakdownEditBtn}
                                 title={`Override ${item.name} for ${monthLabel}`}
                               >
                                 <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -622,33 +541,19 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
         {/* Saving goals */}
         {savingGoalProgress.length > 0 && (
           <div>
-            <div style={{ fontSize: 12, color: INK3, marginBottom: 14 }}>Saving goals</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className={s.goalsTitle}>Saving goals</div>
+            <div className={s.goalsList}>
               {savingGoalProgress.map((g) => (
-                <div key={g.id} style={{ border: `1px solid ${LINE2}`, borderRadius: 8, padding: '12px 14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12 }}>{g.name}</span>
-                    <span style={{ fontSize: 11, color: INK3, fontVariantNumeric: 'tabular-nums' }}>
-                      {fmt(g.saved)} / {fmt(g.amount)}
-                    </span>
+                <div key={g.id} className={s.goalCard}>
+                  <div className={s.goalRow}>
+                    <span className={s.goalName}>{g.name}</span>
+                    <span className={s.goalAmount}>{fmt(g.saved)} / {fmt(g.amount)}</span>
                   </div>
-                  {g.hasFixed && (
-                    <div style={{ fontSize: 10, color: '#aaa', marginBottom: 6 }}>includes monthly fixed</div>
-                  )}
-                  <div style={{ height: 3, background: LINE2, borderRadius: 2 }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        width: `${g.pct}%`,
-                        background: ACCENT,
-                        borderRadius: 2,
-                        transition: 'width 0.4s',
-                      }}
-                    />
+                  {g.hasFixed && <div className={s.goalFixedNote}>includes monthly fixed</div>}
+                  <div className={s.goalBar}>
+                    <div className={s.goalBarFill} style={{ width: `${g.pct}%`, background: ACCENT }} />
                   </div>
-                  <div style={{ fontSize: 10, color: INK3, marginTop: 4, textAlign: 'right' }}>
-                    {g.pct.toFixed(0)}%
-                  </div>
+                  <div className={s.goalPct}>{g.pct.toFixed(0)}%</div>
                 </div>
               ))}
             </div>
