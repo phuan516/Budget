@@ -6,9 +6,9 @@
     {
       "label": "next-env.d.ts",
       "file_type": "code",
-      "source_file": "/home/peterhuang/Budget/next-env.d.ts",
+      "source_file": "next-env.d.ts",
       "source_location": "L1",
-      "id": "home_peterhuang_budget_next_env_d_ts",
+      "id": "next_env_d_ts",
       "community": 20,
       "norm_label": "next-env.d.ts"
     },
