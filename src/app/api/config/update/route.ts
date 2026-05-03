@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SheetsService, currentMonthLabel } from '@/lib/google/sheets';
+import { SheetsService, currentMonthLabel, monthKeyToLabel } from '@/lib/google/sheets';
 import { google } from 'googleapis';
 
 export async function POST(req: NextRequest) {
@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!accessToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { sheetId, action, type, name, value, extra, rowIndex, income, monthKey, expenseName, pastMonths, note } = body;
+    const { sheetId, action, type, name, value, extra, rowIndex, income, monthKey, expenseName, note } = body;
 
     if (!sheetId) return NextResponse.json({ error: 'sheetId is required' }, { status: 400 });
 
@@ -22,14 +22,8 @@ export async function POST(req: NextRequest) {
       await service.addConfigItem(sheetId, type, name, value ?? '', extra ?? '');
       if (type === 'fixed_expense') {
         const updated = await service.readConfig(sheetId);
+        // Sync only to current month onward — past month tabs keep their own fixed expenses
         await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses, thisMonth);
-        // Protect past months: new expense shouldn't inflate historical budgets
-        if (Array.isArray(pastMonths) && pastMonths.length > 0) {
-          const toProtect = (pastMonths as string[])
-            .filter(m => updated.fixedExpenseOverrides[m]?.[name] === undefined)
-            .map(m => ({ monthKey: m, expenseName: name, amount: 0 }));
-          await service.setManyFixedExpenseOverrides(sheetId, toProtect);
-        }
       }
     } else if (action === 'delete') {
       await service.deleteConfigItem(sheetId, rowIndex);
@@ -38,16 +32,6 @@ export async function POST(req: NextRequest) {
         await service.syncFixedExpensesToAllMonthSheets(sheetId, updated.fixedExpenses, thisMonth);
       }
     } else if (action === 'update') {
-      if (type === 'fixed_expense' && Array.isArray(pastMonths) && pastMonths.length > 0) {
-        const current = await service.readConfig(sheetId);
-        const oldExpense = current.fixedExpenses.find(fe => parseInt(fe.id) === rowIndex);
-        if (oldExpense) {
-          const toProtect = (pastMonths as string[])
-            .filter(m => current.fixedExpenseOverrides[m]?.[name] === undefined)
-            .map(m => ({ monthKey: m, expenseName: name, amount: oldExpense.amount }));
-          await service.setManyFixedExpenseOverrides(sheetId, toProtect);
-        }
-      }
       await service.updateConfigItem(sheetId, rowIndex, type, name, value ?? '', extra ?? '');
       if (type === 'fixed_expense') {
         const updated = await service.readConfig(sheetId);
@@ -55,26 +39,33 @@ export async function POST(req: NextRequest) {
       }
     } else if (action === 'setIncome') {
       const current = await service.readConfig(sheetId);
-      // Protect past months: lock them to the current income before changing the default
-      if (Array.isArray(pastMonths) && pastMonths.length > 0) {
-        const toProtect = (pastMonths as string[])
-          .filter(m => current.monthlyIncomeOverrides[m] === undefined)
-          .map(m => ({ monthKey: m, amount: current.monthlyIncome }));
-        await service.setManyMonthlyIncomeOverrides(sheetId, toProtect);
-      }
       if (current.incomeRowIndex) {
         await service.updateConfigItem(sheetId, current.incomeRowIndex, 'income', 'monthly_income', String(income));
       } else {
         await service.addConfigItem(sheetId, 'income', 'monthly_income', String(income));
       }
+      // Keep the current month tab in sync — create it if needed, then update its income
+      await service.ensureMonthTabExists(sheetId, thisMonth, current.fixedExpenses, income);
+      await service.setMonthTabIncome(sheetId, thisMonth, income);
     } else if (action === 'setMonthlyIncomeOverride') {
-      await service.setMonthlyIncomeOverride(sheetId, monthKey, income, note ?? undefined);
+      const label = monthKeyToLabel(monthKey);
+      const current = await service.readConfig(sheetId);
+      await service.ensureMonthTabExists(sheetId, label, current.fixedExpenses, current.monthlyIncome);
+      await service.setMonthTabIncome(sheetId, label, income, note ?? undefined);
     } else if (action === 'deleteMonthlyIncomeOverride') {
-      await service.deleteMonthlyIncomeOverride(sheetId, monthKey);
+      const label = monthKeyToLabel(monthKey);
+      const current = await service.readConfig(sheetId);
+      await service.setMonthTabIncome(sheetId, label, current.monthlyIncome);
     } else if (action === 'setFixedExpenseOverride') {
-      await service.setFixedExpenseOverride(sheetId, monthKey, expenseName, income, note ?? undefined);
+      const label = monthKeyToLabel(monthKey);
+      const current = await service.readConfig(sheetId);
+      await service.ensureMonthTabExists(sheetId, label, current.fixedExpenses, current.monthlyIncome);
+      await service.setMonthTabFixedExpenseAmount(sheetId, label, expenseName, income, note ?? undefined);
     } else if (action === 'deleteFixedExpenseOverride') {
-      await service.deleteFixedExpenseOverride(sheetId, monthKey, expenseName);
+      const label = monthKeyToLabel(monthKey);
+      const current = await service.readConfig(sheetId);
+      const defaultAmount = current.fixedExpenses.find(fe => fe.name === expenseName)?.amount ?? 0;
+      await service.setMonthTabFixedExpenseAmount(sheetId, label, expenseName, defaultAmount);
     } else {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

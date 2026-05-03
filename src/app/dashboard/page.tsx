@@ -26,6 +26,10 @@ export default function DashboardPage() {
   const updateConfig = useStore((s) => s.updateConfig);
   const transactions = useStore((s) => s.transactions);
   const setTransactions = useStore((s) => s.setTransactions);
+  const monthTabKeys = useStore((s) => s.monthTabKeys);
+  const setMonthTabKeys = useStore((s) => s.setMonthTabKeys);
+  const monthConfigs = useStore((s) => s.monthConfigs);
+  const setMonthConfigs = useStore((s) => s.setMonthConfigs);
   const activeTab = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
 
@@ -101,13 +105,16 @@ export default function DashboardPage() {
       });
       if (res.status === 401) { logout(); return; }
       if (!res.ok) throw new Error('Failed to load transactions');
-      setTransactions(await res.json());
+      const { transactions, monthTabKeys, monthConfigs } = await res.json();
+      setTransactions(transactions);
+      setMonthTabKeys(monthTabKeys);
+      setMonthConfigs(monthConfigs);
     } catch (err) {
       console.error(err);
     } finally {
       setTxnLoading(false);
     }
-  }, [accessToken, selectedSheet, setTransactions, logout]);
+  }, [accessToken, selectedSheet, setTransactions, setMonthTabKeys, setMonthConfigs, logout]);
 
   const loadTransactionsSilent = useCallback(async () => {
     if (!accessToken || !selectedSheet) return;
@@ -116,9 +123,14 @@ export default function DashboardPage() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.status === 401) { logout(); return; }
-      if (res.ok) setTransactions(await res.json());
+      if (res.ok) {
+        const { transactions, monthTabKeys, monthConfigs } = await res.json();
+        setTransactions(transactions);
+        setMonthTabKeys(monthTabKeys);
+        setMonthConfigs(monthConfigs);
+      }
     } catch { /* silent */ }
-  }, [accessToken, selectedSheet, setTransactions, logout]);
+  }, [accessToken, selectedSheet, setTransactions, setMonthTabKeys, setMonthConfigs, logout]);
 
   const loadConfigSilent = useCallback(async () => {
     if (!accessToken || !selectedSheet) return;
@@ -140,12 +152,6 @@ export default function DashboardPage() {
   }, [isInitializing, accessToken, selectedSheet, syncSheetName, loadConfig, loadTransactions]);
 
   /* ── Config mutations ──────────────────────────────────────── */
-  function getPastMonthKeys(): string[] {
-    const now = new Date();
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    return [...new Set(transactions.map(t => t.date.slice(0, 7)))].filter(m => m < currentMonthKey);
-  }
-
   async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
     if (!accessToken || !selectedSheet) return;
     const tempId = `tmp_${Date.now()}`;
@@ -156,7 +162,7 @@ export default function DashboardPage() {
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '', extra: extra ?? '', pastMonths: type === 'fixed_expense' ? getPastMonthKeys() : undefined }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfigSilent();
   }
@@ -171,7 +177,7 @@ export default function DashboardPage() {
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'update', type, rowIndex, name, value: value ?? '', extra: extra ?? '', pastMonths: type === 'fixed_expense' ? getPastMonthKeys() : undefined }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'update', type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfigSilent();
   }
@@ -196,7 +202,7 @@ export default function DashboardPage() {
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setIncome', income: amount, pastMonths: getPastMonthKeys() }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setIncome', income: amount }),
     });
     loadConfigSilent();
   }
@@ -278,7 +284,7 @@ export default function DashboardPage() {
     // Check if this transaction pushes the current month over budget
     const now = new Date();
     const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const effectiveIncome = config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
+    const effectiveIncome = monthConfigs[thisMonthKey]?.income ?? config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
     if (effectiveIncome > 0) {
       const [tYear, tMonth] = t.date.split('-').map(Number);
       const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
@@ -290,7 +296,10 @@ export default function DashboardPage() {
             return y === now.getFullYear() && m - 1 === now.getMonth();
           })
           .reduce((s, txn) => s + txn.amount, 0);
-        const fixedTotal = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
+        const monthFEs = monthConfigs[thisMonthKey]?.fixedExpenses;
+        const fixedTotal = monthFEs
+          ? monthFEs.reduce((s, fe) => s + fe.amount, 0)
+          : config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
         const newTotal = txnTotal + fixedTotal;
 
         if (newTotal > effectiveIncome) {
@@ -348,7 +357,7 @@ export default function DashboardPage() {
     // Sync carry-over when deleting a current-month transaction
     const nowDel = new Date();
     const delMonthKey = `${nowDel.getFullYear()}-${String(nowDel.getMonth() + 1).padStart(2, '0')}`;
-    const effectiveIncomeDel = config.monthlyIncomeOverrides?.[delMonthKey] ?? config.monthlyIncome;
+    const effectiveIncomeDel = monthConfigs[delMonthKey]?.income ?? config.monthlyIncomeOverrides?.[delMonthKey] ?? config.monthlyIncome;
     if (txn && effectiveIncomeDel > 0) {
       const now = nowDel;
       const [tYear, tMonth] = txn.date.split('-').map(Number);
@@ -362,7 +371,10 @@ export default function DashboardPage() {
             return y === now.getFullYear() && m - 1 === now.getMonth();
           })
           .reduce((s, t) => s + t.amount, 0);
-        const fixedTotal = config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
+        const delMonthFEs = monthConfigs[delMonthKey]?.fixedExpenses;
+        const fixedTotal = delMonthFEs
+          ? delMonthFEs.reduce((s, fe) => s + fe.amount, 0)
+          : config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
         const newTotal = txnTotal + fixedTotal;
 
         const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
@@ -536,6 +548,7 @@ export default function DashboardPage() {
           <OverviewTab
             transactions={transactions}
             config={config}
+            monthConfigs={monthConfigs}
             isLoading={configLoading || txnLoading}
             onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
             onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
@@ -566,6 +579,7 @@ export default function DashboardPage() {
           <EverythingTab
             transactions={transactions}
             config={config}
+            monthConfigs={monthConfigs}
             isLoading={configLoading || txnLoading}
           />
         )}

@@ -46,6 +46,12 @@ interface BudgetStore {
   transactions: Transaction[];
   setTransactions: (txns: Transaction[]) => void;
 
+  monthTabKeys: string[];
+  setMonthTabKeys: (keys: string[]) => void;
+
+  monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }>;
+  setMonthConfigs: (configs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }>) => void;
+
   activeTab: DashboardTab;
   setActiveTab: (tab: DashboardTab) => void;
 
@@ -82,6 +88,12 @@ export const useStore = create<BudgetStore>()(
 
       transactions: [],
       setTransactions: (transactions) => set({ transactions }),
+
+      monthTabKeys: [],
+      setMonthTabKeys: (monthTabKeys) => set({ monthTabKeys }),
+
+      monthConfigs: {},
+      setMonthConfigs: (monthConfigs) => set({ monthConfigs }),
 
       activeTab: 'overview',
       setActiveTab: (activeTab) => set({ activeTab }),

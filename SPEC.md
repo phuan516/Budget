@@ -56,16 +56,28 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] Manage payment cards/methods
 - [x] Manage fixed expenses (name + amount)
 - [x] Manage savings goals (name + target + initial amount)
-- [x] Set monthly income
-- [x] All config stored in the Google Sheet (Config tab)
+- [x] Set monthly income (default for new months)
+- [x] All config stored in the Google Sheet (Config tab) as defaults
+- [x] Per-month income override with optional note
+- [x] Per-month fixed expense amount override with optional note
+
+### Per-Month Config (Self-Contained Months)
+- [x] Each month tab stores its own copy of income and fixed expenses at creation time
+- [x] Config tab serves as defaults only — past months are never retroactively changed
+- [x] Missing past month tabs (between latest existing tab and today) are auto-generated with current defaults
+- [x] Completed months are locked — only adding/removing transactions can change them
+- [x] Overriding income or a fixed expense for a month writes directly to that month's tab
 
 ### Dashboard & Analytics
 - [x] Monthly spending summary
 - [x] Category breakdown
-- [x] Fixed expenses card
+- [x] Fixed expenses card (per-month amounts, with override support)
 - [x] Savings progress (goal vs. current)
-- [x] Overspending carry-over for savings calculations (includes fixed expenses in overspend total)
-- [ ] Spending trends (multi-month)
+- [x] Overspending carry-over for savings calculations (excess spending carried to next month)
+- [x] Everything tab — searchable/filterable view of all transactions across all months
+- [x] Everything tab — income vs. spending chart (per month)
+- [x] Everything tab — category breakdown chart (all time)
+- [x] Everything tab — fixed expense chart (per month)
 - [ ] Budget vs. actual comparisons
 
 ### Mobile Experience
@@ -82,7 +94,8 @@ A mobile-first web application that uses Google Sheets as a backend database for
 │         Next.js Application             │
 │  ┌───────────────────────────────────┐  │
 │  │     Pages/Components (React)      │  │
-│  │  - Dashboard (Overview/Txns/Settings) │
+│  │  - Dashboard (Overview/Txns/      │  │
+│  │    Settings/Everything)           │  │
 │  │  - Sheet Selector                 │  │
 │  │  - Landing / Sign-in              │  │
 │  └───────────────┬───────────────────┘  │
@@ -92,6 +105,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 │  │  - selectedSheet (persisted)      │  │
 │  │  - config (categories, cards...)  │  │
 │  │  - transactions                   │  │
+│  │  - monthTabKeys, monthConfigs     │  │
 │  │  - activeTab, isSidebarOpen       │  │
 │  └───────────────┬───────────────────┘  │
 │                  │                       │
@@ -131,7 +145,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 
 ### Tab: "Config"
 
-All user configuration in one tab, organized into labeled sections.
+All user configuration defaults in one tab, organized into labeled sections. This tab is the source of truth for **defaults only** — past month tabs are never retroactively changed when config is updated.
 
 ```
 Row 1:  INCOME          (section header — bold)
@@ -159,15 +173,21 @@ Each section is separated by a blank row. The parser locates section headers by 
 
 ### Tab: "MMM YYYY" (one per month, e.g. "Apr 2026")
 
-Created automatically the first time a transaction is added for that month.
+Created automatically when a transaction is added for a new month, or auto-generated for any gap between the latest existing tab and the current month. Each tab is **self-contained** — it stores its own income and fixed expense amounts, initialized from Config defaults at creation time.
 
 ```
-Row 1:  Fixed Expenses  (section header)
-Row 2:  Name  Amount    (column headers)
-Row 3+: <fixed expense rows, synced from Config>
+Row 1:  [Month] Budget  (title — bold, e.g. "Apr 2026 Budget")
+Row 2:  (blank)
+Row 3:  INCOME          (section header — bold)
+Row 4:  Amount  Note    (column headers — bold)
+Row 5:  <income value>  <optional note>
+Row 6:  (blank)
+Row 7:  FIXED EXPENSES  (section header — bold)
+Row 8:  Name  Amount  Note  (column headers — bold)
+Row 9+: <fixed expense rows with amounts and optional notes>
 Row N:  (blank)
-Row N+1: Transactions   (section header)
-Row N+2: Date  Amount  Category  Card  Note  (column headers)
+Row N+1: TRANSACTIONS   (section header — bold)
+Row N+2: Date  Amount  Category  Card  Note  (column headers — bold)
 Row N+3+: <transaction rows>
 ```
 
@@ -175,6 +195,7 @@ Row N+3+: <transaction rows>
 - **Amount:** numeric (no currency symbol)
 - **Category / Card:** must match names in Config
 - **Note:** optional free text
+- Past month tabs are locked — only adding or removing transactions can change them (income and fixed expenses reflect what was stored at creation or override time)
 
 ---
 
@@ -215,18 +236,31 @@ All API routes accept an `Authorization: Bearer <token>` header. The token is us
 - Returns: `{ categories, cards, fixedExpenses, monthlyIncome, savingGoals }`
 
 **POST /api/config/update**
-- Adds, updates, or deletes a single config item
-- Body: `{ sheetId, action: 'add' | 'update' | 'delete', type: 'category' | 'card' | 'fixed_expense' | 'saving_goal' | 'income', item?: {...}, rowIndex?: number }`
+- Mutates config or per-month overrides
+- Body fields: `{ sheetId, action, type?, name?, value?, extra?, rowIndex?, income?, monthKey?, expenseName?, note? }`
+
+| `action` | Description |
+|---|---|
+| `add` | Add a config item (category, card, fixed_expense, saving_goal) |
+| `update` | Edit a config item by row index |
+| `delete` | Remove a config item by row index |
+| `setIncome` | Update default income in Config + sync current month tab |
+| `setMonthlyIncomeOverride` | Write income override to a specific month tab |
+| `deleteMonthlyIncomeOverride` | Reset month tab income to current Config default |
+| `setFixedExpenseOverride` | Write a fixed expense amount override to a specific month tab |
+| `deleteFixedExpenseOverride` | Reset a month tab fixed expense to current Config default |
+
+When adding/updating/deleting a `fixed_expense`, the change is synced to the current month tab and all future month tabs; past month tabs are left unchanged.
 
 ### Transactions
 
 **GET /api/transactions**
-- Fetches all transactions from all month tabs
+- Reads all month tabs; auto-generates any missing past month tabs; reads per-month income and fixed expenses from each tab
 - Query: `?sheetId=<id>`
-- Returns: `Transaction[]`
+- Returns: `{ transactions: Transaction[], monthTabKeys: string[], monthConfigs: Record<string, MonthConfig> }`
 
 **POST /api/transactions/add**
-- Appends a transaction to the correct month tab (creates the tab if it doesn't exist)
+- Appends a transaction to the correct month tab (creates the tab with current Config defaults if it doesn't exist)
 - Body: `{ sheetId, date, amount, category, card, note }`
 - Returns: `{ success: true, transaction }`
 
@@ -262,13 +296,20 @@ interface SelectedSheet {
   url: string;
 }
 
-// Config
+// Config (defaults only — stored in Config tab)
 interface Config {
   categories: { id: string; name: string }[];
   cards: { id: string; name: string }[];
   fixedExpenses: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
   savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
+}
+
+// Per-month config (stored in each month tab, returned alongside transactions)
+interface MonthConfig {
+  income?: number;
+  incomeNote?: string;
+  fixedExpenses: { name: string; amount: number; note?: string }[];
 }
 
 // Transactions
@@ -292,7 +333,9 @@ interface BudgetStore {
   availableSheets: SheetMetadata[];
   config: Config;
   transactions: Transaction[];
-  activeTab: 'overview' | 'transactions' | 'settings';
+  monthTabKeys: string[];                        // keys of all existing month tabs (e.g. "2026-04")
+  monthConfigs: Record<string, MonthConfig>;     // per-month income + fixed expenses, keyed by "YYYY-MM"
+  activeTab: 'overview' | 'transactions' | 'settings' | 'everything';
   isSidebarOpen: boolean;
 }
 ```
@@ -312,7 +355,7 @@ src/
 │       ├── sheets/list/route.ts
 │       ├── sheets/create/route.ts
 │       ├── sheets/select/route.ts
-│       ├── transactions/route.ts
+│       ├── transactions/route.ts       # GET — returns transactions + monthTabKeys + monthConfigs
 │       ├── transactions/add/route.ts
 │       ├── transactions/delete/route.ts
 │       ├── config/route.ts
@@ -320,11 +363,12 @@ src/
 ├── components/
 │   ├── sheets/SheetSelector.tsx        # Sheet list + create form
 │   └── dashboard/
-│       ├── OverviewTab.tsx             # Spending summary, savings, fixed expenses
+│       ├── OverviewTab.tsx             # Spending summary, savings, fixed expenses (per-month config)
 │       ├── TransactionsTab.tsx         # Transaction list + add form
-│       └── SettingsTab.tsx             # All config management
+│       ├── SettingsTab.tsx             # All config management (defaults)
+│       └── EverythingTab.tsx           # All-time transaction list + income/category/fixed expense charts
 └── lib/
-    ├── google/sheets.ts                # SheetsService class
+    ├── google/sheets.ts                # SheetsService class + exported helpers (monthKeyToLabel, etc.)
     ├── hooks/useGoogleOAuth.ts         # Auth hook
     └── store/useStore.ts               # Zustand store
 ```
@@ -403,7 +447,7 @@ Dashboard → Transactions tab
       → Error: message shown, form stays open
 ```
 
-### Edit Config
+### Edit Config (Defaults)
 
 ```
 Dashboard → Settings tab
@@ -411,6 +455,17 @@ Dashboard → Settings tab
     → POST /api/config/update
       → Optimistic update in Zustand
         → Refreshes from sheet on next load
+        → Fixed expense changes synced to current + future month tabs only
+```
+
+### Override Income or Fixed Expense for a Month
+
+```
+Dashboard → Overview tab
+  → Edit income or fixed expense for current month
+    → POST /api/config/update (setMonthlyIncomeOverride / setFixedExpenseOverride)
+      → Written directly to that month's tab in the sheet
+      → Past months unaffected; change visible immediately
 ```
 
 ---
@@ -434,11 +489,14 @@ Dashboard → Settings tab
 - [x] Config management (categories, cards, fixed expenses)
 - [x] Savings goals + monthly income configuration
 
-### Phase 3: Dashboard
+### Phase 3: Dashboard & Analytics
 - [x] Monthly spending overview
 - [x] Fixed expenses card
 - [x] Category breakdown
 - [x] Savings progress (with overspending carry-over)
+- [x] Everything tab (all-time transaction list + charts)
+- [x] Per-month config (self-contained month tabs, income + fixed expense overrides)
+- [x] Auto-generation of missing past month tabs
 - [ ] Multi-month trend chart
 
 ### Phase 4: Polish

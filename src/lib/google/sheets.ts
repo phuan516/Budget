@@ -57,6 +57,24 @@ export function currentMonthLabel(): string {
   return `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+export function monthKeyToLabel(key: string): string {
+  const [yr, mo] = key.split('-').map(Number);
+  return `${MONTH_NAMES[mo - 1]} ${yr}`;
+}
+
+// Convert a month label like "Apr 2026" to a YYYY-MM key like "2026-04"
+function monthLabelToKey(label: string): string {
+  const [mon, yr] = label.split(' ');
+  return `${yr}-${String(MONTH_NAMES.indexOf(mon) + 1).padStart(2, '0')}`;
+}
+
+// Increment a YYYY-MM key by one month
+function nextMonthKey(key: string): string {
+  const [yr, mo] = key.split('-').map(Number);
+  if (mo === 12) return `${yr + 1}-01`;
+  return `${yr}-${String(mo + 1).padStart(2, '0')}`;
+}
+
 export class SheetsService {
   private auth: Auth.OAuth2Client;
   private sheets: sheets_v4.Sheets;
@@ -510,11 +528,12 @@ export class SheetsService {
     }
   }
 
-  // Creates a monthly tab with a Fixed Expenses table and a Transactions table.
+  // Creates a monthly tab with an INCOME section, a Fixed Expenses table, and a Transactions table.
   private async createMonthSheet(
     spreadsheetId: string,
     monthLabel: string,
     fixedExpenses: { name: string; amount: number }[],
+    income: number = 0,
   ): Promise<void> {
     await this.sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -523,13 +542,16 @@ export class SheetsService {
       },
     });
 
-    const expenseRows = fixedExpenses.map(fe => [fe.name, fe.amount]);
+    const expenseRows = fixedExpenses.map(fe => [fe.name, fe.amount, '']);
     const rows: (string | number)[][] = [
-      [`${monthLabel} Budget`],
-      [],
-      ['FIXED EXPENSES'],
-      ['Name', 'Amount'],
-      ...expenseRows,
+      [`${monthLabel} Budget`],   // row 0 (1-based: 1)
+      [],                          // row 1
+      ['INCOME'],                  // row 2
+      [income, ''],                // row 3 — col A = amount, col B = note
+      [],                          // row 4
+      ['FIXED EXPENSES'],          // row 5
+      ['Name', 'Amount', 'Note'],  // row 6
+      ...expenseRows,              // rows 7+
       [],
       ['TRANSACTIONS'],
       ['Date', 'Amount', 'Category', 'Card', 'Note'],
@@ -553,13 +575,17 @@ export class SheetsService {
 
     if (numericSheetId == null) return;
 
+    // 0-based row indices to bold:
+    // 0: title, 2: INCOME, 5: FIXED EXPENSES, 6: Name|Amount|Note header
+    // 7+expenseRows.length+1: TRANSACTIONS, 7+expenseRows.length+2: Date|Amount|... header
+    const afterExpenses = 7 + expenseRows.length;
     const boldRows = [
-      0,                              // title (row 1)
-      2,                              // FIXED EXPENSES (row 3)
-      3,                              // Name | Amount header (row 4)
-      4 + expenseRows.length,         // blank row separator
-      5 + expenseRows.length,         // TRANSACTIONS (row N+6)
-      6 + expenseRows.length,         // Date | Amount | … header (row N+7)
+      0,               // title
+      2,               // INCOME label
+      5,               // FIXED EXPENSES label
+      6,               // Name | Amount | Note header
+      afterExpenses + 1, // TRANSACTIONS label (blank row at afterExpenses, then TRANSACTIONS)
+      afterExpenses + 2, // Date | Amount | … header
     ];
 
     await this.sheets.spreadsheets.batchUpdate({
@@ -580,9 +606,155 @@ export class SheetsService {
     });
   }
 
+  // Ensures a month tab exists; creates it with the given fixedExpenses and income if missing.
+  async ensureMonthTabExists(
+    spreadsheetId: string,
+    monthLabel: string,
+    fixedExpenses: { name: string; amount: number }[],
+    income: number,
+  ): Promise<void> {
+    const spreadsheet = await this.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const tabExists = (spreadsheet.data.sheets || []).some(
+      s => s.properties?.title === monthLabel
+    );
+    if (!tabExists) {
+      await this.createMonthSheet(spreadsheetId, monthLabel, fixedExpenses, income);
+    }
+  }
+
+  // Creates tabs for any months between the latest existing past month tab and the current month.
+  async ensurePastMonthTabs(
+    spreadsheetId: string,
+    income: number,
+    fixedExpenses: { name: string; amount: number }[],
+  ): Promise<void> {
+    const spreadsheet = await this.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties',
+    });
+
+    const existingMonthTabs = (spreadsheet.data.sheets || [])
+      .map(s => s.properties?.title ?? '')
+      .filter(title => MONTH_TAB_REGEX.test(title));
+
+    if (existingMonthTabs.length === 0) return;
+
+    const existingKeys = new Set(existingMonthTabs.map(label => monthLabelToKey(label)));
+
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // Find the latest past month key (keys < currentMonthKey)
+    const pastKeys = [...existingKeys].filter(k => k < currentMonthKey).sort();
+    if (pastKeys.length === 0) return;
+
+    const latestPastKey = pastKeys[pastKeys.length - 1];
+
+    // Iterate from the month after latestPastKey up to (but not including) currentMonthKey
+    let key = nextMonthKey(latestPastKey);
+    while (key < currentMonthKey) {
+      if (!existingKeys.has(key)) {
+        const label = monthKeyToLabel(key);
+        try {
+          await this.createMonthSheet(spreadsheetId, label, fixedExpenses, income);
+        } catch (err) {
+          console.error(`Failed to create past month tab ${label}:`, err);
+        }
+      }
+      key = nextMonthKey(key);
+    }
+  }
+
+  // Writes the income value (and optional note) into the INCOME section of a month tab.
+  // If the tab does not have an INCOME section (old format), does nothing.
+  async setMonthTabIncome(
+    spreadsheetId: string,
+    monthLabel: string,
+    income: number,
+    note?: string,
+  ): Promise<void> {
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${quoteSheet(monthLabel)}!A:B`,
+      });
+      const rows = (response.data.values || []) as string[][];
+
+      const incomeLabelIdx = rows.findIndex(
+        r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME'
+      );
+      if (incomeLabelIdx === -1) return; // old-format tab — Config override handles it
+
+      // The value row is immediately after the label (1-based: incomeLabelIdx + 2)
+      const valueRowNum = incomeLabelIdx + 2;
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${quoteSheet(monthLabel)}!A${valueRowNum}:B${valueRowNum}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[income, note ?? '']] },
+      });
+    } catch (error) {
+      console.error(`Error setting income in month tab ${monthLabel}:`, error);
+      throw new Error(`Failed to set income in month tab ${monthLabel}`);
+    }
+  }
+
+  // Writes a fixed expense amount (and optional note) directly into the month tab's FIXED EXPENSES section.
+  async setMonthTabFixedExpenseAmount(
+    spreadsheetId: string,
+    monthLabel: string,
+    expenseName: string,
+    amount: number,
+    note?: string,
+  ): Promise<void> {
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${quoteSheet(monthLabel)}!A:C`,
+      });
+      const rows = (response.data.values || []) as string[][];
+
+      const feLabelIdx = rows.findIndex(
+        r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSES'
+      );
+      if (feLabelIdx === -1) return;
+
+      // dataStart = feLabelIdx + 2 (skip label row + header row)
+      const dataStart = feLabelIdx + 2;
+
+      // Scan until blank or TRANSACTIONS
+      let i = dataStart;
+      while (i < rows.length) {
+        const cell = (rows[i]?.[0] ?? '').toString().trim().toUpperCase();
+        if (cell === '' || cell === 'TRANSACTIONS') break;
+        if ((rows[i]?.[0] ?? '').toString().trim() === expenseName) {
+          // 1-based row number
+          const rowNum = i + 1;
+          await this.sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `${quoteSheet(monthLabel)}!B${rowNum}:C${rowNum}`,
+            valueInputOption: 'RAW',
+            requestBody: { values: [[amount, note ?? '']] },
+          });
+          return;
+        }
+        i++;
+      }
+      // Expense name not found in the tab — nothing to update
+    } catch (error) {
+      console.error(`Error setting fixed expense in month tab ${monthLabel}:`, error);
+      throw new Error(`Failed to set fixed expense in month tab ${monthLabel}`);
+    }
+  }
+
   async readTransactions(spreadsheetId: string): Promise<{
-    id: string; date: string; amount: number; category: string; card: string; note: string;
-  }[]> {
+    transactions: { id: string; date: string; amount: number; category: string; card: string; note: string }[];
+    monthTabKeys: string[];
+    monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }>;
+  }> {
     try {
       const spreadsheet = await this.sheets.spreadsheets.get({
         spreadsheetId,
@@ -593,17 +765,70 @@ export class SheetsService {
         .map(s => s.properties?.title ?? '')
         .filter(title => MONTH_TAB_REGEX.test(title));
 
-      const transactions: { id: string; date: string; amount: number; category: string; card: string; note: string }[] = [];
+      const monthTabKeys = monthTabs.map(title => {
+        const [mon, yr] = title.split(' ');
+        return `${yr}-${String(MONTH_NAMES.indexOf(mon) + 1).padStart(2, '0')}`;
+      });
 
-      for (const tabName of monthTabs) {
+      const transactions: { id: string; date: string; amount: number; category: string; card: string; note: string }[] = [];
+      const monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }> = {};
+
+      for (let tabIdx = 0; tabIdx < monthTabs.length; tabIdx++) {
+        const tabName = monthTabs[tabIdx];
+        const monthKey = monthTabKeys[tabIdx];
+
         const response = await this.sheets.spreadsheets.values.get({
           spreadsheetId,
           range: `${quoteSheet(tabName)}!A:E`,
         });
 
-        const rows = response.data.values || [];
+        const rows = (response.data.values || []) as string[][];
 
-        // Find the "TRANSACTIONS" marker row
+        // --- Read INCOME section ---
+        let tabIncome: number | undefined;
+        let tabIncomeNote: string | undefined;
+        const incomeLabelIdx = rows.findIndex(
+          r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME'
+        );
+        if (incomeLabelIdx !== -1) {
+          const incomeValueRow = rows[incomeLabelIdx + 1];
+          if (incomeValueRow) {
+            const rawAmt = (incomeValueRow[0] ?? '').toString().trim();
+            if (rawAmt !== '') {
+              tabIncome = parseFloat(rawAmt) || 0;
+              const rawNote = (incomeValueRow[1] ?? '').toString().trim();
+              if (rawNote) tabIncomeNote = rawNote;
+            }
+          }
+        }
+
+        // --- Read FIXED EXPENSES section ---
+        const tabFixedExpenses: { name: string; amount: number; note?: string }[] = [];
+        const feLabelIdx = rows.findIndex(
+          r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSES'
+        );
+        if (feLabelIdx !== -1) {
+          const feDataStart = feLabelIdx + 2; // skip label + header row
+          let feIdx = feDataStart;
+          while (feIdx < rows.length) {
+            const cell = (rows[feIdx]?.[0] ?? '').toString().trim();
+            const cellUpper = cell.toUpperCase();
+            if (cell === '' || cellUpper === 'TRANSACTIONS') break;
+            const name = cell;
+            const amount = parseFloat((rows[feIdx]?.[1] ?? '').toString()) || 0;
+            const note = (rows[feIdx]?.[2] ?? '').toString().trim() || undefined;
+            tabFixedExpenses.push({ name, amount, note });
+            feIdx++;
+          }
+        }
+
+        monthConfigs[monthKey] = {
+          income: tabIncome,
+          incomeNote: tabIncomeNote,
+          fixedExpenses: tabFixedExpenses,
+        };
+
+        // --- Read TRANSACTIONS section ---
         let txnLabelIdx = -1;
         for (let i = 0; i < rows.length; i++) {
           if ((rows[i][0] ?? '').toString().toUpperCase() === 'TRANSACTIONS') {
@@ -632,7 +857,7 @@ export class SheetsService {
         });
       }
 
-      return transactions;
+      return { transactions, monthTabKeys, monthConfigs };
     } catch (error) {
       console.error('Error reading transactions:', error);
       throw new Error('Failed to read transactions');
@@ -894,7 +1119,7 @@ export class SheetsService {
 
       if (!tabExists) {
         const config = await this.readConfig(spreadsheetId);
-        await this.createMonthSheet(spreadsheetId, monthLabel, config.fixedExpenses);
+        await this.createMonthSheet(spreadsheetId, monthLabel, config.fixedExpenses, config.monthlyIncome);
       }
 
       await this.sheets.spreadsheets.values.append({

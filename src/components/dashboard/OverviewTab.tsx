@@ -13,9 +13,12 @@ function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }
 
+type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
+
 interface Props {
   transactions: Transaction[];
   config: Config;
+  monthConfigs: Record<string, MonthConfig>;
   isLoading: boolean;
   onSetMonthlyIncomeOverride: (monthKey: string, amount: number, note?: string) => Promise<void>;
   onDeleteMonthlyIncomeOverride: (monthKey: string) => Promise<void>;
@@ -23,7 +26,7 @@ interface Props {
   onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
 }
 
-export default function OverviewTab({ transactions, config, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride }: Props) {
+export default function OverviewTab({ transactions, config, monthConfigs, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride }: Props) {
   const now = new Date();
   const today = now.getDate();
   const currentMonth = now.getMonth();
@@ -70,10 +73,12 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
   const projected = today > 0 ? Math.round((totalSpent / today) * daysInMonth / 10) * 10 : 0;
 
   const thisMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-  const income = config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
+  const monthFEs = monthConfigs?.[thisMonthKey]?.fixedExpenses ?? [];
+  const income = monthConfigs?.[thisMonthKey]?.income ?? config.monthlyIncome;
+  const incomeNote = monthConfigs?.[thisMonthKey]?.incomeNote;
   const totalFixed = config.fixedExpenses.reduce((sum, fe) => {
-    const override = config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name];
-    return sum + (override ?? fe.amount);
+    const monthFE = monthFEs.find(mfe => mfe.name === fe.name);
+    return sum + (monthFE?.amount ?? fe.amount);
   }, 0);
   const totalCommitted = totalSpent + totalFixed;
   const pct = income > 0 ? (totalCommitted / income) * 100 : 0;
@@ -111,13 +116,13 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
         amount: totalFixed,
         isFixed: true,
         pct: total > 0 ? (totalFixed / total) * 100 : 0,
-        breakdown: config.fixedExpenses.map((fe) => ({
-          name: fe.name,
-          amount: config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name] ?? fe.amount,
-          defaultAmount: fe.amount,
-          hasOverride: !!config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name],
-          note: config.fixedExpenseOverrideNotes?.[thisMonthKey]?.[fe.name],
-        })),
+        breakdown: config.fixedExpenses.map((fe) => {
+          const monthFE = monthFEs.find(mfe => mfe.name === fe.name);
+          const amt = monthFE?.amount ?? fe.amount;
+          const hasOvr = monthFE !== undefined && monthFE.amount !== fe.amount;
+          const note = monthFE?.note;
+          return { name: fe.name, amount: amt, defaultAmount: fe.amount, hasOverride: hasOvr, note };
+        }),
       });
     }
 
@@ -166,8 +171,11 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
   const [resettingFixedItem, setResettingFixedItem] = useState<string | null>(null);
   const [resettingAllFixed, setResettingAllFixed] = useState(false);
 
-  const hasOverride = !!config.monthlyIncomeOverrides?.[thisMonthKey];
-  const hasAnyFixedOverride = Object.keys(config.fixedExpenseOverrides?.[thisMonthKey] ?? {}).length > 0;
+  const hasOverride = income !== config.monthlyIncome;
+  const hasAnyFixedOverride = config.fixedExpenses.some(fe => {
+    const monthFE = monthFEs.find(mfe => mfe.name === fe.name);
+    return monthFE !== undefined && monthFE.amount !== fe.amount;
+  });
 
   async function handleSaveIncomeOverride() {
     const val = parseFloat(incomeDraft);
@@ -191,9 +199,8 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
     setSavingFixedItem(true);
     try {
       if (val === fe.defaultAmount && !fixedItemNoteDraft.trim()) {
-        if (config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name]) {
-          await onDeleteFixedExpenseOverride(thisMonthKey, fe.name);
-        }
+        // User entered the default amount — reset the month tab back to default
+        await onDeleteFixedExpenseOverride(thisMonthKey, fe.name);
       } else {
         await onSetFixedExpenseOverride(thisMonthKey, fe.name, val, fixedItemNoteDraft.trim() || undefined);
       }
@@ -204,11 +211,16 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
   }
 
   async function handleResetAllFixed() {
-    const overrideKeys = Object.keys(config.fixedExpenseOverrides?.[thisMonthKey] ?? {});
-    if (overrideKeys.length === 0) return;
+    const overriddenNames = config.fixedExpenses
+      .filter(fe => {
+        const monthFE = monthFEs.find(mfe => mfe.name === fe.name);
+        return monthFE !== undefined && monthFE.amount !== fe.amount;
+      })
+      .map(fe => fe.name);
+    if (overriddenNames.length === 0) return;
     setResettingAllFixed(true);
     try {
-      for (const name of overrideKeys) {
+      for (const name of overriddenNames) {
         await onDeleteFixedExpenseOverride(thisMonthKey, name);
       }
     } finally {
@@ -279,11 +291,11 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                 <>
                   <span>/ {fmt(income)} · {monthLabel}</span>
                   {hasOverride && <span className={s.customBadge}>custom</span>}
-                  {hasOverride && config.monthlyIncomeOverrideNotes?.[thisMonthKey] && (
-                    <span className={s.overrideNote}>{config.monthlyIncomeOverrideNotes[thisMonthKey]}</span>
+                  {hasOverride && incomeNote && (
+                    <span className={s.overrideNote}>{incomeNote}</span>
                   )}
                   <button
-                    onClick={() => { setIncomeDraft(String(income)); setIncomeNoteDraft(config.monthlyIncomeOverrideNotes?.[thisMonthKey] ?? ''); setEditingIncome(true); }}
+                    onClick={() => { setIncomeDraft(String(income)); setIncomeNoteDraft(incomeNote ?? ''); setEditingIncome(true); }}
                     className={s.incomeEditBtn}
                     title="Edit this month's income"
                   >

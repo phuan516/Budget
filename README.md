@@ -22,6 +22,12 @@ A mobile-first personal budget tracker that uses Google Sheets as a backend. Sig
 - Dashboard with monthly spending summary, category breakdown, fixed expenses, and savings progress
 - Manage categories, payment cards, fixed expenses, savings goals, and monthly income
 - Transactions organized into monthly tabs (e.g. "Apr 2026") inside your sheet
+- **Per-month config:** each month tab stores its own income and fixed expense amounts, initialized from settings defaults at creation time
+- **Self-contained past months:** completed months are locked — their income and fixed expenses are frozen in the sheet; only adding/removing transactions can change them
+- **Auto-generated months:** missing months between the last recorded month and today are created automatically with current defaults
+- **Per-month overrides:** income and fixed expenses can be customized per month; changes write directly to that month's tab
+- **Everything tab:** searchable/filterable view of all transactions across all months, plus income vs. spending, category, and fixed expense charts
+- Overspend carry-over: excess spending in a month is carried to the next month as a transaction
 - Mobile-first responsive design
 
 ## Getting Started
@@ -68,9 +74,6 @@ cd Budget
 # Install dependencies
 npm install
 
-# (Optional) Install graphify for AI-assisted codebase exploration in Claude Code
-pip install graphifyy
-
 # Set up environment
 cp .env.example .env.local
 ```
@@ -106,7 +109,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with the Google acc
 src/
 ├── app/
 │   ├── page.tsx                    # Landing / sign-in page
-│   ├── dashboard/page.tsx          # Main dashboard (Overview, Transactions, Settings tabs)
+│   ├── dashboard/page.tsx          # Main dashboard (Overview, Transactions, Settings, Everything tabs)
 │   ├── sheets/select/page.tsx      # Sheet selector
 │   ├── globals.css                 # Tailwind v4 theme + global styles
 │   └── api/
@@ -115,18 +118,19 @@ src/
 │       │   ├── create/route.ts     # POST — create new budget sheet
 │       │   └── select/route.ts     # POST — validate and select a sheet
 │       ├── transactions/
-│       │   ├── route.ts            # GET  — fetch transactions
+│       │   ├── route.ts            # GET  — fetch all transactions + per-month configs
 │       │   ├── add/route.ts        # POST — add a transaction
-│       │   └── delete/route.ts     # DELETE — delete a transaction
+│       │   └── delete/route.ts     # POST — delete a transaction
 │       └── config/
-│           ├── route.ts            # GET  — fetch config
-│           └── update/route.ts     # POST — update config item
+│           ├── route.ts            # GET  — fetch config (defaults)
+│           └── update/route.ts     # POST — update config or per-month override
 ├── components/
 │   ├── sheets/SheetSelector.tsx    # Sheet list + create form
 │   └── dashboard/
-│       ├── OverviewTab.tsx         # Monthly summary, savings, fixed expenses
+│       ├── OverviewTab.tsx         # Current month summary, savings, fixed expenses
 │       ├── TransactionsTab.tsx     # Transaction list + add form
-│       └── SettingsTab.tsx         # Categories, cards, expenses, goals, income
+│       ├── SettingsTab.tsx         # Categories, cards, expenses, goals, income
+│       └── EverythingTab.tsx       # All-time transaction list + charts
 └── lib/
     ├── google/sheets.ts            # SheetsService class (all Google Sheets operations)
     ├── hooks/useGoogleOAuth.ts     # Auth state, sign-in/out, token expiry

@@ -30,13 +30,16 @@ function keyToFullLabel(key: string): string {
   return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
 }
 
+type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
+
 interface Props {
   transactions: Transaction[];
   config: Config;
+  monthConfigs: Record<string, MonthConfig>;
   isLoading: boolean;
 }
 
-export default function EverythingTab({ transactions, config, isLoading }: Props) {
+export default function EverythingTab({ transactions, config, monthConfigs, isLoading }: Props) {
   const [subTab, setSubTab] = useState<'transactions' | 'charts'>('transactions');
   const [search, setSearch] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
@@ -98,11 +101,11 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
   const monthChartData = useMemo(
     () =>
       allMonthKeys.map(key => {
-        const income = config.monthlyIncomeOverrides?.[key] ?? config.monthlyIncome;
-        const fixed = config.fixedExpenses.reduce(
-          (sum, fe) => sum + (config.fixedExpenseOverrides?.[key]?.[fe.name] ?? fe.amount),
-          0
-        );
+        const income = monthConfigs?.[key]?.income ?? config.monthlyIncome;
+        const monthFEs = monthConfigs?.[key]?.fixedExpenses;
+        const fixed = monthFEs
+          ? monthFEs.reduce((sum, fe) => sum + fe.amount, 0)
+          : config.fixedExpenses.reduce((sum, fe) => sum + fe.amount, 0);
         const variable = transactions
           .filter(t => t.date.startsWith(key) && t.amount > 0 && t.category !== 'Carry Over')
           .reduce((sum, t) => sum + t.amount, 0);
@@ -138,7 +141,8 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
       allMonthKeys.map(key => {
         const point: Record<string, string | number> = { month: keyToShortLabel(key) };
         config.fixedExpenses.forEach(fe => {
-          point[fe.name] = config.fixedExpenseOverrides?.[key]?.[fe.name] ?? fe.amount;
+          const monthFE = monthConfigs?.[key]?.fixedExpenses?.find(mfe => mfe.name === fe.name);
+          point[fe.name] = monthFE?.amount ?? fe.amount;
         });
         return point;
       }),

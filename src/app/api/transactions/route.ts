@@ -15,8 +15,10 @@ export async function GET(req: NextRequest) {
     oauth2Client.setCredentials({ access_token: accessToken });
     const service = new SheetsService(oauth2Client);
 
-    const transactions = await service.readTransactions(sheetId);
-    return NextResponse.json(transactions);
+    const config = await service.readConfig(sheetId);
+    await service.ensurePastMonthTabs(sheetId, config.monthlyIncome, config.fixedExpenses);
+    const result = await service.readTransactions(sheetId);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Transactions GET error:', error);
     return NextResponse.json({ error: 'Failed to load transactions' }, { status: 500 });
