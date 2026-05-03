@@ -212,18 +212,15 @@ export default function DashboardPage() {
 
   async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number, note?: string) {
     if (!accessToken || !selectedSheet) return;
-    updateConfig({
-      monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount },
-      monthlyIncomeOverrideNotes: note
-        ? { ...config.monthlyIncomeOverrideNotes, [monthKey]: note }
-        : (() => { const n = { ...config.monthlyIncomeOverrideNotes }; delete n[monthKey]; return n; })(),
-    });
+    updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount } });
+    const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
+    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, income: amount, incomeNote: note } });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setMonthlyIncomeOverride', monthKey, income: amount, note }),
     });
-    loadConfigSilent();
+    loadTransactionsSilent();
   }
 
   async function handleDeleteMonthlyIncomeOverride(monthKey: string) {
@@ -231,45 +228,46 @@ export default function DashboardPage() {
     const next = { ...config.monthlyIncomeOverrides };
     delete next[monthKey];
     updateConfig({ monthlyIncomeOverrides: next });
+    const existing = monthConfigs[monthKey];
+    if (existing) {
+      const { income: _i, incomeNote: _n, ...rest } = existing;
+      setMonthConfigs({ ...monthConfigs, [monthKey]: { fixedExpenses: [], ...rest } });
+    }
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'deleteMonthlyIncomeOverride', monthKey }),
     });
-    loadConfigSilent();
+    loadTransactionsSilent();
   }
 
   async function handleSetFixedExpenseOverride(monthKey: string, expenseName: string, amount: number, note?: string) {
     if (!accessToken || !selectedSheet) return;
-    const monthOverrides = { ...(config.fixedExpenseOverrides?.[monthKey] ?? {}), [expenseName]: amount };
-    const monthNotes = { ...(config.fixedExpenseOverrideNotes?.[monthKey] ?? {}) };
-    if (note) monthNotes[expenseName] = note; else delete monthNotes[expenseName];
-    updateConfig({
-      fixedExpenseOverrides: { ...config.fixedExpenseOverrides, [monthKey]: monthOverrides },
-      fixedExpenseOverrideNotes: { ...config.fixedExpenseOverrideNotes, [monthKey]: monthNotes },
-    });
+    const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
+    const fes = existing.fixedExpenses.some((fe) => fe.name === expenseName)
+      ? existing.fixedExpenses.map((fe) => fe.name === expenseName ? { ...fe, amount, note } : fe)
+      : [...existing.fixedExpenses, { name: expenseName, amount, note }];
+    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setFixedExpenseOverride', monthKey, expenseName, income: amount, note }),
     });
-    loadConfigSilent();
+    loadTransactionsSilent();
   }
 
   async function handleDeleteFixedExpenseOverride(monthKey: string, expenseName: string) {
     if (!accessToken || !selectedSheet) return;
-    const monthOverrides = { ...(config.fixedExpenseOverrides?.[monthKey] ?? {}) };
-    delete monthOverrides[expenseName];
-    const next = { ...config.fixedExpenseOverrides };
-    if (Object.keys(monthOverrides).length === 0) delete next[monthKey];
-    else next[monthKey] = monthOverrides;
-    updateConfig({ fixedExpenseOverrides: next });
+    const defaultAmount = config.fixedExpenses.find((fe) => fe.name === expenseName)?.amount ?? 0;
+    const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
+    const fes = existing.fixedExpenses.map((fe) => fe.name === expenseName ? { name: fe.name, amount: defaultAmount } : fe);
+    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'deleteFixedExpenseOverride', monthKey, expenseName }),
     });
-    loadConfigSilent();
+    loadTransactionsSilent();
   }
 
   /* ── Transaction mutations ─────────────────────────────────── */
