@@ -165,6 +165,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfigSilent();
+    if (type === 'fixed_expense') loadTransactionsSilent();
   }
 
   async function handleConfigEdit(type: string, id: string, name: string, value?: string, extra?: string) {
@@ -180,6 +181,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'update', type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfigSilent();
+    if (type === 'fixed_expense') loadTransactionsSilent();
   }
 
   async function handleConfigDelete(type: string, id: string) {
@@ -194,6 +196,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'delete', type, rowIndex: parseInt(id) }),
     });
     loadConfigSilent();
+    if (type === 'fixed_expense') loadTransactionsSilent();
   }
 
   async function handleSetIncome(amount: number) {
