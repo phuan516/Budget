@@ -212,7 +212,9 @@ export default function DashboardPage() {
 
   async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number, note?: string) {
     if (!accessToken || !selectedSheet) return;
-    updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount } });
+    const nextNotes = { ...config.monthlyIncomeOverrideNotes };
+    if (note) nextNotes[monthKey] = note; else delete nextNotes[monthKey];
+    updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount }, monthlyIncomeOverrideNotes: nextNotes });
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, income: amount, incomeNote: note } });
     await fetch('/api/config/update', {
@@ -227,7 +229,9 @@ export default function DashboardPage() {
     if (!accessToken || !selectedSheet) return;
     const next = { ...config.monthlyIncomeOverrides };
     delete next[monthKey];
-    updateConfig({ monthlyIncomeOverrides: next });
+    const nextNotes = { ...config.monthlyIncomeOverrideNotes };
+    delete nextNotes[monthKey];
+    updateConfig({ monthlyIncomeOverrides: next, monthlyIncomeOverrideNotes: nextNotes });
     const existing = monthConfigs[monthKey];
     if (existing) {
       const { income: _i, incomeNote: _n, ...rest } = existing;
