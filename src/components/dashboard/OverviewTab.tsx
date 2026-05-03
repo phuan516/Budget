@@ -171,7 +171,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   const [resettingFixedItem, setResettingFixedItem] = useState<string | null>(null);
   const [resettingAllFixed, setResettingAllFixed] = useState(false);
 
-  const hasOverride = income !== config.monthlyIncome;
+  const hasOverride = income !== config.monthlyIncome || !!incomeNote;
   const hasAnyFixedOverride = config.fixedExpenses.some(fe => {
     const monthFE = monthFEs.find(mfe => mfe.name === fe.name);
     return monthFE !== undefined && monthFE.amount !== fe.amount;
