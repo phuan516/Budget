@@ -74,8 +74,8 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
 
   const thisMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
   const monthFEs = monthConfigs?.[thisMonthKey]?.fixedExpenses ?? [];
-  const income = monthConfigs?.[thisMonthKey]?.income ?? config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
-  const incomeNote = monthConfigs?.[thisMonthKey]?.incomeNote ?? (config.monthlyIncomeOverrideNotes?.[thisMonthKey] || undefined);
+  const income = monthConfigs?.[thisMonthKey]?.income ?? config.monthlyIncome;
+  const incomeNote = monthConfigs?.[thisMonthKey]?.incomeNote;
   const totalFixed = config.fixedExpenses.reduce((sum, fe) => {
     const monthFE = monthFEs.find(mfe => mfe.name === fe.name);
     return sum + (monthFE?.amount ?? fe.amount);

@@ -52,12 +52,10 @@ export async function POST(req: NextRequest) {
       const current = await service.readConfig(sheetId);
       await service.ensureMonthTabExists(sheetId, label, current.fixedExpenses, current.monthlyIncome);
       await service.setMonthTabIncome(sheetId, label, income, note ?? undefined);
-      await service.setMonthlyIncomeOverride(sheetId, monthKey, income, note ?? undefined);
     } else if (action === 'deleteMonthlyIncomeOverride') {
       const label = monthKeyToLabel(monthKey);
       const current = await service.readConfig(sheetId);
       await service.setMonthTabIncome(sheetId, label, current.monthlyIncome);
-      await service.deleteMonthlyIncomeOverride(sheetId, monthKey);
     } else if (action === 'setFixedExpenseOverride') {
       const label = monthKeyToLabel(monthKey);
       const current = await service.readConfig(sheetId);
