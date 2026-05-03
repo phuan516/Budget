@@ -231,7 +231,7 @@ export default function DashboardPage() {
     const existing = monthConfigs[monthKey];
     if (existing) {
       const { income: _i, incomeNote: _n, ...rest } = existing;
-      setMonthConfigs({ ...monthConfigs, [monthKey]: { fixedExpenses: [], ...rest } });
+      setMonthConfigs({ ...monthConfigs, [monthKey]: rest });
     }
     await fetch('/api/config/update', {
       method: 'POST',
