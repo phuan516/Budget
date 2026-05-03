@@ -17,9 +17,9 @@ interface Props {
   transactions: Transaction[];
   config: Config;
   isLoading: boolean;
-  onSetMonthlyIncomeOverride: (monthKey: string, amount: number) => Promise<void>;
+  onSetMonthlyIncomeOverride: (monthKey: string, amount: number, note?: string) => Promise<void>;
   onDeleteMonthlyIncomeOverride: (monthKey: string) => Promise<void>;
-  onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number) => Promise<void>;
+  onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number, note?: string) => Promise<void>;
   onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
 }
 
@@ -100,7 +100,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
       .map(([name, amount]) => ({
         name, amount, isFixed: false,
         pct: total > 0 ? (amount / total) * 100 : 0,
-        breakdown: null as { name: string; amount: number; defaultAmount: number; hasOverride: boolean }[] | null,
+        breakdown: null as { name: string; amount: number; defaultAmount: number; hasOverride: boolean; note?: string }[] | null,
       }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 7);
@@ -116,6 +116,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
           amount: config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name] ?? fe.amount,
           defaultAmount: fe.amount,
           hasOverride: !!config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name],
+          note: config.fixedExpenseOverrideNotes?.[thisMonthKey]?.[fe.name],
         })),
       });
     }
@@ -156,9 +157,11 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeDraft, setIncomeDraft] = useState('');
+  const [incomeNoteDraft, setIncomeNoteDraft] = useState('');
   const [savingIncomeDraft, setSavingIncomeDraft] = useState(false);
   const [editingFixedItem, setEditingFixedItem] = useState<string | null>(null);
   const [fixedItemDraft, setFixedItemDraft] = useState('');
+  const [fixedItemNoteDraft, setFixedItemNoteDraft] = useState('');
   const [savingFixedItem, setSavingFixedItem] = useState(false);
   const [resettingFixedItem, setResettingFixedItem] = useState<string | null>(null);
   const [resettingAllFixed, setResettingAllFixed] = useState(false);
@@ -171,10 +174,10 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
     if (!val || val < 0) { setEditingIncome(false); return; }
     setSavingIncomeDraft(true);
     try {
-      if (val === config.monthlyIncome) {
+      if (val === config.monthlyIncome && !incomeNoteDraft.trim()) {
         if (hasOverride) await onDeleteMonthlyIncomeOverride(thisMonthKey);
       } else {
-        await onSetMonthlyIncomeOverride(thisMonthKey, val);
+        await onSetMonthlyIncomeOverride(thisMonthKey, val, incomeNoteDraft.trim() || undefined);
       }
       setEditingIncome(false);
     } finally {
@@ -187,12 +190,12 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
     if (!val || val < 0) { setEditingFixedItem(null); return; }
     setSavingFixedItem(true);
     try {
-      if (val === fe.defaultAmount) {
+      if (val === fe.defaultAmount && !fixedItemNoteDraft.trim()) {
         if (config.fixedExpenseOverrides?.[thisMonthKey]?.[fe.name]) {
           await onDeleteFixedExpenseOverride(thisMonthKey, fe.name);
         }
       } else {
-        await onSetFixedExpenseOverride(thisMonthKey, fe.name, val);
+        await onSetFixedExpenseOverride(thisMonthKey, fe.name, val, fixedItemNoteDraft.trim() || undefined);
       }
       setEditingFixedItem(null);
     } finally {
@@ -249,6 +252,14 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                     onKeyDown={(e) => { if (e.key === 'Enter') handleSaveIncomeOverride(); if (e.key === 'Escape') setEditingIncome(false); }}
                     className={s.incomeEditInput}
                   />
+                  <input
+                    type="text"
+                    placeholder="Note (optional)"
+                    value={incomeNoteDraft}
+                    onChange={(e) => setIncomeNoteDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveIncomeOverride(); if (e.key === 'Escape') setEditingIncome(false); }}
+                    className={s.incomeNoteInput}
+                  />
                   <span>· {monthLabel}</span>
                   <button onClick={handleSaveIncomeOverride} disabled={savingIncomeDraft} className={s.incomeBtnSave}>
                     {savingIncomeDraft ? '…' : 'Save'}
@@ -268,8 +279,11 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                 <>
                   <span>/ {fmt(income)} · {monthLabel}</span>
                   {hasOverride && <span className={s.customBadge}>custom</span>}
+                  {hasOverride && config.monthlyIncomeOverrideNotes?.[thisMonthKey] && (
+                    <span className={s.overrideNote}>{config.monthlyIncomeOverrideNotes[thisMonthKey]}</span>
+                  )}
                   <button
-                    onClick={() => { setIncomeDraft(String(income)); setEditingIncome(true); }}
+                    onClick={() => { setIncomeDraft(String(income)); setIncomeNoteDraft(config.monthlyIncomeOverrideNotes?.[thisMonthKey] ?? ''); setEditingIncome(true); }}
                     className={s.incomeEditBtn}
                     title="Edit this month's income"
                   >
@@ -495,6 +509,14 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                               onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFixedItem(item); if (e.key === 'Escape') setEditingFixedItem(null); }}
                               className={s.breakdownEditInput}
                             />
+                            <input
+                              type="text"
+                              placeholder="Note (optional)"
+                              value={fixedItemNoteDraft}
+                              onChange={(e) => setFixedItemNoteDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFixedItem(item); if (e.key === 'Escape') setEditingFixedItem(null); }}
+                              className={s.breakdownNoteInput}
+                            />
                             <button onClick={() => handleSaveFixedItem(item)} disabled={savingFixedItem} className={s.breakdownSaveBtn}>
                               {savingFixedItem ? '…' : 'Save'}
                             </button>
@@ -502,7 +524,12 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                           </div>
                         ) : (
                           <div className={s.breakdownViewRow}>
-                            <span className={s.breakdownViewName}>{item.name}</span>
+                            <span className={s.breakdownViewName}>
+                              {item.name}
+                              {item.hasOverride && item.note && (
+                                <span className={s.breakdownNote}>{item.note}</span>
+                              )}
+                            </span>
                             <span className={s.breakdownViewRight}>
                               {item.hasOverride && (
                                 <>
@@ -518,7 +545,7 @@ export default function OverviewTab({ transactions, config, isLoading, onSetMont
                               )}
                               <span className={s.breakdownAmount}>{fmt(item.amount)}</span>
                               <button
-                                onClick={(e) => { e.stopPropagation(); setEditingFixedItem(item.name); setFixedItemDraft(String(item.amount)); }}
+                                onClick={(e) => { e.stopPropagation(); setEditingFixedItem(item.name); setFixedItemDraft(String(item.amount)); setFixedItemNoteDraft(item.note ?? ''); }}
                                 className={s.breakdownEditBtn}
                                 title={`Override ${item.name} for ${monthLabel}`}
                               >

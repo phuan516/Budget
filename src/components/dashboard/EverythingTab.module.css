@@ -41,34 +41,137 @@
   box-sizing: border-box;
 }
 
-/* Month filter pills */
-.pillRow {
+/* Month filter row */
+.monthFilterRow {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
   align-items: center;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
 .pillLabel {
   font-size: 11px;
   color: #bbb;
+  flex-shrink: 0;
 }
 
-.pill {
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 11px;
+/* Month dropdown */
+.monthDropdownWrap {
+  position: relative;
+}
+
+.monthDropdownBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
   cursor: pointer;
   border: 1px solid #e0e0e0;
   background: transparent;
-  color: #888;
+  color: #555;
+  white-space: nowrap;
 }
 
-.pillActive {
+.monthDropdownBtn:hover {
+  border-color: #bbb;
+  color: #1a1a1a;
+}
+
+.monthDropdownBtnActive {
   border-color: #1a1a1a;
   background: #1a1a1a;
   color: #fff;
+}
+
+.monthDropdownBtnActive:hover {
+  border-color: #333;
+  background: #333;
+  color: #fff;
+}
+
+.monthDropdownChevron {
+  font-size: 11px;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.monthDropdownChevronOpen {
+  transform: rotate(180deg);
+}
+
+.monthDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  min-width: 180px;
+  padding: 6px;
+}
+
+.monthDropdownSearch {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  outline: none;
+  background: #fafafa;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+}
+
+.monthDropdownList {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.monthDropdownOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #444;
+}
+
+.monthDropdownOption:hover {
+  background: #f5f5f5;
+  color: #1a1a1a;
+}
+
+.monthDropdownOptionActive {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.monthDropdownCheck {
+  display: inline-block;
+  width: 14px;
+  font-size: 11px;
+  color: #1a1a1a;
+  flex-shrink: 0;
+}
+
+.monthDropdownEmpty {
+  font-size: 12px;
+  color: #aaa;
+  text-align: center;
+  padding: 10px 0;
 }
 
 /* Sort controls */

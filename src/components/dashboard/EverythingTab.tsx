@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -42,11 +42,35 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'category'>('date');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
+  const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
+  const [monthSearch, setMonthSearch] = useState('');
+  const monthDropdownRef = useRef<HTMLDivElement>(null);
 
   const allMonthKeys = useMemo(
-    () => [...new Set(transactions.map(t => t.date.slice(0, 7)))].sort(),
+    () => [...new Set(transactions.map(t => t.date.slice(0, 7)))].sort().reverse(),
     [transactions]
   );
+
+  const filteredMonthKeys = useMemo(() => {
+    if (!monthSearch.trim()) return allMonthKeys;
+    const q = monthSearch.toLowerCase();
+    return allMonthKeys.filter(key =>
+      keyToFullLabel(key).toLowerCase().includes(q) ||
+      keyToShortLabel(key).toLowerCase().includes(q)
+    );
+  }, [allMonthKeys, monthSearch]);
+
+  useEffect(() => {
+    if (!monthDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (monthDropdownRef.current && !monthDropdownRef.current.contains(e.target as Node)) {
+        setMonthDropdownOpen(false);
+        setMonthSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [monthDropdownOpen]);
 
   const filtered = useMemo(() => {
     let result = [...transactions];
@@ -171,21 +195,58 @@ export default function EverythingTab({ transactions, config, isLoading }: Props
             className={s.searchInput}
           />
 
-          {/* Month filter pills */}
+          {/* Month filter dropdown */}
           {allMonthKeys.length > 0 && (
-            <div className={s.pillRow}>
+            <div className={s.monthFilterRow}>
               <span className={s.pillLabel}>Month</span>
-              <button
-                onClick={() => setSelectedMonths(new Set())}
-                className={`${s.pill} ${selectedMonths.size === 0 ? s.pillActive : ''}`}
-              >All</button>
-              {allMonthKeys.map(key => (
+              <div className={s.monthDropdownWrap} ref={monthDropdownRef}>
                 <button
-                  key={key}
-                  onClick={() => toggleMonth(key)}
-                  className={`${s.pill} ${selectedMonths.has(key) ? s.pillActive : ''}`}
-                >{keyToShortLabel(key)}</button>
-              ))}
+                  className={`${s.monthDropdownBtn} ${selectedMonths.size > 0 ? s.monthDropdownBtnActive : ''}`}
+                  onClick={() => setMonthDropdownOpen(o => !o)}
+                >
+                  <span>
+                    {selectedMonths.size === 0
+                      ? 'All months'
+                      : selectedMonths.size === 1
+                        ? keyToFullLabel([...selectedMonths][0])
+                        : `${selectedMonths.size} months selected`}
+                  </span>
+                  <span className={`${s.monthDropdownChevron} ${monthDropdownOpen ? s.monthDropdownChevronOpen : ''}`}>▾</span>
+                </button>
+                {monthDropdownOpen && (
+                  <div className={s.monthDropdown}>
+                    <input
+                      type="text"
+                      placeholder="Search months…"
+                      value={monthSearch}
+                      onChange={e => setMonthSearch(e.target.value)}
+                      className={s.monthDropdownSearch}
+                      autoFocus
+                    />
+                    <div className={s.monthDropdownList}>
+                      <button
+                        className={`${s.monthDropdownOption} ${selectedMonths.size === 0 ? s.monthDropdownOptionActive : ''}`}
+                        onClick={() => setSelectedMonths(new Set())}
+                      >
+                        All months
+                      </button>
+                      {filteredMonthKeys.map(key => (
+                        <button
+                          key={key}
+                          className={`${s.monthDropdownOption} ${selectedMonths.has(key) ? s.monthDropdownOptionActive : ''}`}
+                          onClick={() => toggleMonth(key)}
+                        >
+                          <span className={s.monthDropdownCheck}>{selectedMonths.has(key) ? '✓' : ''}</span>
+                          {keyToFullLabel(key)}
+                        </button>
+                      ))}
+                      {filteredMonthKeys.length === 0 && (
+                        <div className={s.monthDropdownEmpty}>No months found</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

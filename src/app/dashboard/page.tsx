@@ -140,6 +140,12 @@ export default function DashboardPage() {
   }, [isInitializing, accessToken, selectedSheet, syncSheetName, loadConfig, loadTransactions]);
 
   /* ── Config mutations ──────────────────────────────────────── */
+  function getPastMonthKeys(): string[] {
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return [...new Set(transactions.map(t => t.date.slice(0, 7)))].filter(m => m < currentMonthKey);
+  }
+
   async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
     if (!accessToken || !selectedSheet) return;
     const tempId = `tmp_${Date.now()}`;
@@ -150,7 +156,7 @@ export default function DashboardPage() {
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '', extra: extra ?? '' }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '', extra: extra ?? '', pastMonths: type === 'fixed_expense' ? getPastMonthKeys() : undefined }),
     });
     loadConfigSilent();
   }
@@ -165,7 +171,7 @@ export default function DashboardPage() {
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'update', type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'update', type, rowIndex, name, value: value ?? '', extra: extra ?? '', pastMonths: type === 'fixed_expense' ? getPastMonthKeys() : undefined }),
     });
     loadConfigSilent();
   }
@@ -190,18 +196,23 @@ export default function DashboardPage() {
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setIncome', income: amount }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setIncome', income: amount, pastMonths: getPastMonthKeys() }),
     });
     loadConfigSilent();
   }
 
-  async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number) {
+  async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number, note?: string) {
     if (!accessToken || !selectedSheet) return;
-    updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount } });
+    updateConfig({
+      monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount },
+      monthlyIncomeOverrideNotes: note
+        ? { ...config.monthlyIncomeOverrideNotes, [monthKey]: note }
+        : (() => { const n = { ...config.monthlyIncomeOverrideNotes }; delete n[monthKey]; return n; })(),
+    });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setMonthlyIncomeOverride', monthKey, income: amount }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setMonthlyIncomeOverride', monthKey, income: amount, note }),
     });
     loadConfigSilent();
   }
@@ -219,14 +230,19 @@ export default function DashboardPage() {
     loadConfigSilent();
   }
 
-  async function handleSetFixedExpenseOverride(monthKey: string, expenseName: string, amount: number) {
+  async function handleSetFixedExpenseOverride(monthKey: string, expenseName: string, amount: number, note?: string) {
     if (!accessToken || !selectedSheet) return;
     const monthOverrides = { ...(config.fixedExpenseOverrides?.[monthKey] ?? {}), [expenseName]: amount };
-    updateConfig({ fixedExpenseOverrides: { ...config.fixedExpenseOverrides, [monthKey]: monthOverrides } });
+    const monthNotes = { ...(config.fixedExpenseOverrideNotes?.[monthKey] ?? {}) };
+    if (note) monthNotes[expenseName] = note; else delete monthNotes[expenseName];
+    updateConfig({
+      fixedExpenseOverrides: { ...config.fixedExpenseOverrides, [monthKey]: monthOverrides },
+      fixedExpenseOverrideNotes: { ...config.fixedExpenseOverrideNotes, [monthKey]: monthNotes },
+    });
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setFixedExpenseOverride', monthKey, expenseName, income: amount }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setFixedExpenseOverride', monthKey, expenseName, income: amount, note }),
     });
     loadConfigSilent();
   }
