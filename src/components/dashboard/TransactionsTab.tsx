@@ -97,6 +97,8 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   }, [monthFiltered, search, filterCategory, filterCard, sortBy]);
 
   const displayedTotal = useMemo(() => displayed.reduce((s, t) => s + t.amount, 0), [displayed]);
+  const displayedSpend = useMemo(() => displayed.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0), [displayed]);
+  const displayedRefunds = useMemo(() => displayed.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0), [displayed]);
 
   const hasFilters = search.trim() !== '' || filterCategory !== '' || filterCard !== '' || sortBy !== 'date-desc';
 
@@ -410,13 +412,28 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
 
           {hasFilters && (
             <div className={s.filterSummary}>
-              <span className={s.filterCount}>
-                {displayed.length} of {monthFiltered.length} · {fmt(displayedTotal)}
-              </span>
               <button type="button" onClick={clearFilters} className={s.clearBtn}>
                 Clear filters
               </button>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Summary */}
+      {!isLoading && monthFiltered.length > 0 && (
+        <div className={s.summary}>
+          <span>
+            {displayed.length}{hasFilters ? ` of ${monthFiltered.length}` : ''}{' '}
+            transaction{displayed.length !== 1 ? 's' : ''}
+          </span>
+          <span className={s.summarySep}>·</span>
+          <span>Total: <b style={{ color: '#1a1a1a' }}>{fmt(displayedSpend)}</b></span>
+          {displayedRefunds > 0 && (
+            <>
+              <span className={s.summarySep}>·</span>
+              <span>Refunds: <b className={s.summaryRefund}>{`−${fmt(displayedRefunds)}`}</b></span>
+            </>
           )}
         </div>
       )}

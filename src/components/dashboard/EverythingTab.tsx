@@ -31,6 +31,7 @@ function keyToFullLabel(key: string): string {
 }
 
 type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
+type SortBy = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
 interface Props {
   transactions: Transaction[];
@@ -43,8 +44,9 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   const [subTab, setSubTab] = useState<'transactions' | 'charts'>('transactions');
   const [search, setSearch] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<'date' | 'amount' | 'category'>('date');
-  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
+  const [sortBy, setSortBy] = useState<SortBy>('date-desc');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterCard, setFilterCard] = useState('');
   const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
   const [monthSearch, setMonthSearch] = useState('');
   const monthDropdownRef = useRef<HTMLDivElement>(null);
@@ -62,6 +64,15 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
       keyToShortLabel(key).toLowerCase().includes(q)
     );
   }, [allMonthKeys, monthSearch]);
+
+  const uniqueCategories = useMemo(
+    () => [...new Set(transactions.map(t => t.category).filter(Boolean))].sort(),
+    [transactions]
+  );
+  const uniqueCards = useMemo(
+    () => [...new Set(transactions.map(t => t.card).filter(Boolean))].sort(),
+    [transactions]
+  );
 
   useEffect(() => {
     if (!monthDropdownOpen) return;
@@ -88,15 +99,16 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
     if (selectedMonths.size > 0) {
       result = result.filter(t => selectedMonths.has(t.date.slice(0, 7)));
     }
+    if (filterCategory) result = result.filter(t => t.category === filterCategory);
+    if (filterCard) result = result.filter(t => t.card === filterCard);
     result.sort((a, b) => {
-      let cmp = 0;
-      if (sortBy === 'date') cmp = a.date.localeCompare(b.date);
-      else if (sortBy === 'amount') cmp = Math.abs(a.amount) - Math.abs(b.amount);
-      else cmp = a.category.localeCompare(b.category);
-      return sortDir === 'desc' ? -cmp : cmp;
+      if (sortBy === 'date-desc') return b.date.localeCompare(a.date);
+      if (sortBy === 'date-asc') return a.date.localeCompare(b.date);
+      if (sortBy === 'amount-desc') return b.amount - a.amount;
+      return a.amount - b.amount;
     });
     return result;
-  }, [transactions, search, selectedMonths, sortBy, sortDir]);
+  }, [transactions, search, selectedMonths, sortBy, filterCategory, filterCard]);
 
   const monthChartData = useMemo(
     () =>
@@ -149,9 +161,14 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
     [allMonthKeys, config]
   );
 
-  function toggleSort(field: typeof sortBy) {
-    if (sortBy === field) setSortDir(d => d === 'desc' ? 'asc' : 'desc');
-    else { setSortBy(field); setSortDir('desc'); }
+  const hasFilters = search.trim() !== '' || selectedMonths.size > 0 || filterCategory !== '' || filterCard !== '' || sortBy !== 'date-desc';
+
+  function clearFilters() {
+    setSearch('');
+    setFilterCategory('');
+    setFilterCard('');
+    setSortBy('date-desc');
+    setSelectedMonths(new Set());
   }
 
   function toggleMonth(key: string) {
@@ -161,6 +178,88 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
       else next.add(key);
       return next;
     });
+  }
+
+  function CustomSelect({
+    value,
+    onChange,
+    options,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+    options: { label: string; value: string; disabled?: boolean; divider?: boolean }[];
+  }) {
+    const [open, setOpen] = useState(false);
+    const [hovered, setHovered] = useState<string | null>(null);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      if (!open) return;
+      function onDown(e: MouseEvent) {
+        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      }
+      document.addEventListener('mousedown', onDown);
+      return () => document.removeEventListener('mousedown', onDown);
+    }, [open]);
+
+    const selected = options.find((o) => !o.disabled && !o.divider && o.value === value);
+
+    return (
+      <div ref={ref} className={s.selectWrap}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className={s.selectBtn}
+        >
+          <span className={`${s.selectBtnText} ${!selected ? s.selectBtnTextPlaceholder : ''}`}>
+            {selected ? selected.label : '— none —'}
+          </span>
+          <svg
+            viewBox="0 0 10 6" width="10" height="10" fill="none"
+            stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}
+          >
+            <path d="M1 1l4 4 4-4" />
+          </svg>
+        </button>
+
+        {open && (
+          <div className={s.selectDropdown}>
+            {options.map((opt, i) => {
+              if (opt.divider) {
+                return (
+                  <div
+                    key={i}
+                    className={`${s.selectDivider} ${i > 0 ? s.selectDividerBordered : ''}`}
+                  >
+                    {opt.label}
+                  </div>
+                );
+              }
+              const isSelected = opt.value === value;
+              const isHovered = hovered === `${i}`;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onMouseEnter={() => setHovered(`${i}`)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className={`${s.selectOption} ${isHovered ? s.selectOptionHovered : ''} ${isSelected ? s.selectOptionSelected : ''}`}
+                >
+                  {opt.label}
+                  {isSelected && (
+                    <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 5l3.5 3.5L11 1" />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   const totalSpend = filtered.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
@@ -191,81 +290,133 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
 
       {subTab === 'transactions' && (
         <div>
-          <input
-            type="text"
-            placeholder="Search by note, category, or card…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className={s.searchInput}
-          />
+          <div className={s.filters}>
+            <div className={s.searchWrap}>
+              <svg
+                viewBox="0 0 16 16" width="14" height="14" fill="none"
+                stroke="#aaa" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+                className={s.searchIcon}
+              >
+                <circle cx="6.5" cy="6.5" r="5" />
+                <line x1="10.5" y1="10.5" x2="14" y2="14" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search category, note, card…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className={`${s.input} ${s.searchInput}`}
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} className={s.searchClear}>×</button>
+              )}
+            </div>
 
-          {/* Month filter dropdown */}
-          {allMonthKeys.length > 0 && (
-            <div className={s.monthFilterRow}>
-              <span className={s.pillLabel}>Month</span>
-              <div className={s.monthDropdownWrap} ref={monthDropdownRef}>
-                <button
-                  className={`${s.monthDropdownBtn} ${selectedMonths.size > 0 ? s.monthDropdownBtnActive : ''}`}
-                  onClick={() => setMonthDropdownOpen(o => !o)}
-                >
-                  <span>
-                    {selectedMonths.size === 0
-                      ? 'All months'
-                      : selectedMonths.size === 1
-                        ? keyToFullLabel([...selectedMonths][0])
-                        : `${selectedMonths.size} months selected`}
-                  </span>
-                  <span className={`${s.monthDropdownChevron} ${monthDropdownOpen ? s.monthDropdownChevronOpen : ''}`}>▾</span>
-                </button>
-                {monthDropdownOpen && (
-                  <div className={s.monthDropdown}>
-                    <input
-                      type="text"
-                      placeholder="Search months…"
-                      value={monthSearch}
-                      onChange={e => setMonthSearch(e.target.value)}
-                      className={s.monthDropdownSearch}
-                      autoFocus
-                    />
-                    <div className={s.monthDropdownList}>
-                      <button
-                        className={`${s.monthDropdownOption} ${selectedMonths.size === 0 ? s.monthDropdownOptionActive : ''}`}
-                        onClick={() => setSelectedMonths(new Set())}
+            <div className={s.filterRow}>
+              {allMonthKeys.length > 0 && (
+                <div>
+                  <label className={s.filterLabel}>Month</label>
+                  <div className={s.monthDropdownWrap} ref={monthDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setMonthDropdownOpen(o => !o)}
+                      className={`${s.selectBtn} ${selectedMonths.size > 0 ? s.monthDropdownBtnActive : ''}`}
+                    >
+                      <span className={s.selectBtnText}>
+                        {selectedMonths.size === 0
+                          ? 'All months'
+                          : selectedMonths.size === 1
+                            ? keyToFullLabel([...selectedMonths][0])
+                            : `${selectedMonths.size} months selected`}
+                      </span>
+                      <svg
+                        viewBox="0 0 10 6" width="10" height="10" fill="none"
+                        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                        style={{ flexShrink: 0, transition: 'transform 0.15s', transform: monthDropdownOpen ? 'rotate(180deg)' : 'none' }}
                       >
-                        All months
-                      </button>
-                      {filteredMonthKeys.map(key => (
-                        <button
-                          key={key}
-                          className={`${s.monthDropdownOption} ${selectedMonths.has(key) ? s.monthDropdownOptionActive : ''}`}
-                          onClick={() => toggleMonth(key)}
-                        >
-                          <span className={s.monthDropdownCheck}>{selectedMonths.has(key) ? '✓' : ''}</span>
-                          {keyToFullLabel(key)}
-                        </button>
-                      ))}
-                      {filteredMonthKeys.length === 0 && (
-                        <div className={s.monthDropdownEmpty}>No months found</div>
-                      )}
-                    </div>
+                        <path d="M1 1l4 4 4-4" />
+                      </svg>
+                    </button>
+                    {monthDropdownOpen && (
+                      <div className={s.monthDropdown}>
+                        <input
+                          type="text"
+                          placeholder="Search months…"
+                          value={monthSearch}
+                          onChange={e => setMonthSearch(e.target.value)}
+                          className={s.monthDropdownSearch}
+                          autoFocus
+                        />
+                        <div className={s.monthDropdownList}>
+                          <button
+                            className={`${s.monthDropdownOption} ${selectedMonths.size === 0 ? s.monthDropdownOptionActive : ''}`}
+                            onClick={() => setSelectedMonths(new Set())}
+                          >
+                            All months
+                          </button>
+                          {filteredMonthKeys.map(key => (
+                            <button
+                              key={key}
+                              className={`${s.monthDropdownOption} ${selectedMonths.has(key) ? s.monthDropdownOptionActive : ''}`}
+                              onClick={() => toggleMonth(key)}
+                            >
+                              <span className={s.monthDropdownCheck}>{selectedMonths.has(key) ? '✓' : ''}</span>
+                              {keyToFullLabel(key)}
+                            </button>
+                          ))}
+                          {filteredMonthKeys.length === 0 && (
+                            <div className={s.monthDropdownEmpty}>No months found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
+              <div>
+                <label className={s.filterLabel}>Sort</label>
+                <CustomSelect
+                  value={sortBy}
+                  onChange={v => setSortBy(v as SortBy)}
+                  options={[
+                    { label: 'Date (newest)', value: 'date-desc' },
+                    { label: 'Date (oldest)', value: 'date-asc' },
+                    { label: 'Amount (high → low)', value: 'amount-desc' },
+                    { label: 'Amount (low → high)', value: 'amount-asc' },
+                  ]}
+                />
+              </div>
+              <div>
+                <label className={s.filterLabel}>Category</label>
+                <CustomSelect
+                  value={filterCategory}
+                  onChange={setFilterCategory}
+                  options={[
+                    { label: 'All', value: '' },
+                    ...uniqueCategories.map(c => ({ label: c, value: c })),
+                  ]}
+                />
+              </div>
+              <div>
+                <label className={s.filterLabel}>Card</label>
+                <CustomSelect
+                  value={filterCard}
+                  onChange={setFilterCard}
+                  options={[
+                    { label: 'All', value: '' },
+                    ...uniqueCards.map(c => ({ label: c, value: c })),
+                  ]}
+                />
               </div>
             </div>
-          )}
 
-          {/* Sort controls */}
-          <div className={s.sortRow}>
-            <span className={s.sortLabel}>Sort</span>
-            {(['date', 'amount', 'category'] as const).map(field => (
-              <button
-                key={field}
-                onClick={() => toggleSort(field)}
-                className={`${s.sortBtn} ${sortBy === field ? s.sortBtnActive : ''}`}
-              >
-                {field}{sortBy === field ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
-              </button>
-            ))}
+            {hasFilters && (
+              <div className={s.filterSummary}>
+                <button type="button" onClick={clearFilters} className={s.clearBtn}>
+                  Clear filters
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Summary */}
@@ -290,7 +441,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                 const isRefund = t.amount < 0;
                 const monthKey = t.date.slice(0, 7);
                 const prevMonthKey = i > 0 ? filtered[i - 1].date.slice(0, 7) : null;
-                const showHeader = sortBy === 'date' && monthKey !== prevMonthKey;
+                const showHeader = sortBy.startsWith('date') && monthKey !== prevMonthKey;
                 return (
                   <div key={t.id}>
                     {showHeader && (

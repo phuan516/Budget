@@ -29,54 +29,181 @@
 }
 
 /* ── All Transactions sub-tab ── */
-.searchInput {
-  width: 100%;
-  padding: 10px 14px;
-  font-size: 13px;
-  margin-bottom: 12px;
-  border: 1px solid #e8e8e8;
+.input {
+  border: 1px solid #d8d8d8;
   border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
   outline: none;
-  background: #fafafa;
+  width: 100%;
   box-sizing: border-box;
 }
 
-/* Month filter row */
-.monthFilterRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+.filters {
+  margin-bottom: 14px;
 }
 
-.pillLabel {
-  font-size: 11px;
+.searchWrap {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding-left: 30px;
+}
+
+.searchClear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px;
+}
+
+.filterRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .filterRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.filterLabel {
+  font-size: 10px;
+  color: #aaa;
+  display: block;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.filterSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.clearBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #888;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* ── CustomSelect dropdown ── */
+.selectWrap {
+  position: relative;
+}
+
+.selectBtn {
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  padding: 9px 10px 9px 11px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.selectBtnText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectBtnTextPlaceholder {
+  color: #aaa;
+}
+
+.selectDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.09);
+  z-index: 200;
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.selectDivider {
+  padding: 6px 12px 4px;
+  font-size: 10px;
   color: #bbb;
-  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.selectDividerBordered {
+  border-top: 1px solid #f0f0f0;
+  margin-top: 4px;
+}
+
+.selectOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: #1a1a1a;
+  font-weight: 400;
+  transition: background 0.1s;
+}
+
+.selectOptionHovered {
+  background: #f7f7f7;
+}
+
+.selectOptionSelected {
+  font-weight: 500;
 }
 
 /* Month dropdown */
 .monthDropdownWrap {
   position: relative;
-}
-
-.monthDropdownBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  cursor: pointer;
-  border: 1px solid #e0e0e0;
-  background: transparent;
-  color: #555;
-  white-space: nowrap;
-}
-
-.monthDropdownBtn:hover {
-  border-color: #bbb;
-  color: #1a1a1a;
 }
 
 .monthDropdownBtnActive {
@@ -91,25 +218,16 @@
   color: #fff;
 }
 
-.monthDropdownChevron {
-  font-size: 11px;
-  transition: transform 0.15s;
-  display: inline-block;
-}
-
-.monthDropdownChevronOpen {
-  transform: rotate(180deg);
-}
-
 .monthDropdown {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 100;
+  right: 0;
+  z-index: 200;
   background: #fff;
-  border: 1px solid #e8e8e8;
+  border: 1px solid #d8d8d8;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.09);
   min-width: 180px;
   padding: 6px;
 }
@@ -174,35 +292,6 @@
   padding: 10px 0;
 }
 
-/* Sort controls */
-.sortRow {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.sortLabel {
-  font-size: 11px;
-  color: #bbb;
-}
-
-.sortBtn {
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  cursor: pointer;
-  border: 1px solid #e0e0e0;
-  background: transparent;
-  color: #888;
-  text-transform: capitalize;
-}
-
-.sortBtnActive {
-  border-color: #1a1a1a;
-  background: #1a1a1a;
-  color: #fff;
-}
 
 /* Summary */
 .summary {

@@ -10,19 +10,6 @@
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "graphify update . 2>/dev/null || true",
-            "statusMessage": "Updating knowledge graph...",
-            "async": true
-          }
-        ]
-      }
     ]
   }
 }
