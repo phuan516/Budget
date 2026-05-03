@@ -41,8 +41,5 @@ yarn-error.log*
 next-env.d.ts
 
 # graphify
-graphify-out/graph.html
-graphify-out/cost.json
-graphify-out/.graphify_python
-graphify-out/.graphify_root
+graphify-out/
 
