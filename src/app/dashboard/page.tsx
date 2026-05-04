@@ -202,6 +202,13 @@ export default function DashboardPage() {
   async function handleSetIncome(amount: number) {
     if (!accessToken || !selectedSheet) return;
     updateConfig({ monthlyIncome: amount });
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existingMonthConfig = monthConfigs[currentMonthKey];
+    if (existingMonthConfig?.income !== undefined) {
+      const { income: _i, incomeNote: _n, ...rest } = existingMonthConfig;
+      setMonthConfigs({ ...monthConfigs, [currentMonthKey]: rest });
+    }
     await fetch('/api/config/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
@@ -220,7 +227,6 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setMonthlyIncomeOverride', monthKey, income: amount, note }),
     });
-    loadTransactionsSilent();
   }
 
   async function handleDeleteMonthlyIncomeOverride(monthKey: string) {
@@ -238,7 +244,6 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, action: 'deleteMonthlyIncomeOverride', monthKey }),
     });
-    loadTransactionsSilent();
   }
 
   async function handleSetFixedExpenseOverride(monthKey: string, expenseName: string, amount: number, note?: string) {
