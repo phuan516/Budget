@@ -34,6 +34,8 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   const monthLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
+  const CLAIM_TAG_RE = /\[←(\d{4}-\d{2})\]/;
+
   const monthTxns = useMemo(
     () =>
       transactions.filter((t) => {
@@ -43,11 +45,16 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
     [transactions, currentMonth, currentYear],
   );
 
-  const totalSpent = useMemo(() => monthTxns.reduce((sum, t) => sum + t.amount, 0), [monthTxns]);
+  const spendingTxns = useMemo(
+    () => monthTxns.filter((t) => !CLAIM_TAG_RE.test(t.note ?? '')),
+    [monthTxns],
+  );
+
+  const totalSpent = useMemo(() => spendingTxns.reduce((sum, t) => sum + t.amount, 0), [spendingTxns]);
 
   const dailyTotals = useMemo(() => {
     const map: Record<string, { amount: number; entryCount: number }> = {};
-    monthTxns.forEach((t) => {
+    spendingTxns.forEach((t) => {
       const day = parseInt(t.date.split('-')[2], 10);
       const key = String(day);
       if (!map[key]) map[key] = { amount: 0, entryCount: 0 };
@@ -55,7 +62,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
       map[key].entryCount += 1;
     });
     return map;
-  }, [monthTxns]);
+  }, [spendingTxns]);
 
   const spentToday = dailyTotals[String(today)]?.amount ?? 0;
 
@@ -96,7 +103,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
 
   const categoryData = useMemo(() => {
     const map: Record<string, number> = {};
-    monthTxns.forEach((t) => {
+    spendingTxns.forEach((t) => {
       const cat = t.category || 'Uncategorized';
       map[cat] = (map[cat] || 0) + t.amount;
     });
@@ -127,7 +134,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
     }
 
     return txnEntries.sort((a, b) => b.amount - a.amount);
-  }, [monthTxns, totalCommitted, totalFixed, config.fixedExpenses]);
+  }, [spendingTxns, totalCommitted, totalFixed, config.fixedExpenses]);
 
   const { biggestDay, cheapestDay, noSpendStreak } = useMemo(() => {
     const entries = Object.entries(dailyTotals).map(([day, data]) => ({ day: parseInt(day), ...data }));
@@ -385,7 +392,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
         <div>
           <div className={s.heatmapHeader}>
             <div className={s.heatmapTitle}>Daily spend</div>
-            <div className={s.heatmapCount}>{monthTxns.length} entries</div>
+            <div className={s.heatmapCount}>{spendingTxns.length} entries</div>
           </div>
 
           <div className={s.heatmapGrid}>

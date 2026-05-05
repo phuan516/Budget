@@ -566,6 +566,7 @@ export default function DashboardPage() {
           <TransactionsTab
             transactions={transactions}
             config={config}
+            monthConfigs={monthConfigs}
             isLoading={txnLoading}
             onAdd={handleAddTransaction}
             onDelete={handleDeleteTransaction}

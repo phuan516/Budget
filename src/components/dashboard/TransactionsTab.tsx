@@ -4,6 +4,8 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 import s from './TransactionsTab.module.css';
 
+type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
+
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 
 function fmt(n: number) {
@@ -15,9 +17,19 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+const CLAIM_TAG_RE = /\[←(\d{4}-\d{2})\]/;
+function claimTag(monthKey: string) { return ` [←${monthKey}]`; }
+function stripClaimTag(note: string) { return note ? note.replace(CLAIM_TAG_RE, '').trim() : ''; }
+function claimsMonth(note: string, monthKey: string) {
+  if (!note) return false;
+  const m = note.match(CLAIM_TAG_RE);
+  return m !== null && m[1] === monthKey;
+}
+
 interface Props {
   transactions: Transaction[];
   config: Config;
+  monthConfigs: Record<string, MonthConfig>;
   isLoading: boolean;
   onAdd: (t: Omit<Transaction, 'id'>) => Promise<string>;
   onDelete: (id: string) => Promise<void>;
@@ -25,7 +37,7 @@ interface Props {
 
 type SortBy = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
-export default function TransactionsTab({ transactions, config, isLoading, onAdd, onDelete }: Props) {
+export default function TransactionsTab({ transactions, config, monthConfigs, isLoading, onAdd, onDelete }: Props) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -48,6 +60,13 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   const [filterCategory, setFilterCategory] = useState('');
   const [filterCard, setFilterCard] = useState('');
 
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [claimGoal, setClaimGoal] = useState('');
+  const [claimAmount, setClaimAmount] = useState('');
+  const [claimNote, setClaimNote] = useState('');
+  const [claimSaving, setClaimSaving] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
   const monthFiltered = useMemo(
@@ -59,7 +78,50 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     [transactions, viewMonth, viewYear],
   );
 
-  const monthTotal = useMemo(() => monthFiltered.reduce((s, t) => s + t.amount, 0), [monthFiltered]);
+  const monthTotal = useMemo(
+    () => monthFiltered.filter((t) => !CLAIM_TAG_RE.test(t.note ?? '')).reduce((s, t) => s + t.amount, 0),
+    [monthFiltered],
+  );
+
+  const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+  const viewMonthConfig = monthConfigs?.[monthKey];
+  const income = viewMonthConfig?.income ?? config.monthlyIncome;
+  const totalFixed = useMemo(() => {
+    const monthFEs = viewMonthConfig?.fixedExpenses ?? [];
+    return config.fixedExpenses.reduce((sum, fe) => {
+      const override = monthFEs.find((mfe) => mfe.name === fe.name);
+      return sum + (override?.amount ?? fe.amount);
+    }, 0);
+  }, [config.fixedExpenses, viewMonthConfig]);
+  const totalCommitted = monthTotal + totalFixed;
+  const leftover = income - totalCommitted;
+
+  const claimedAmount = useMemo(
+    () => transactions.filter((t) => claimsMonth(t.note, monthKey)).reduce((sum, t) => sum + t.amount, 0),
+    [transactions, monthKey],
+  );
+  const adjustedLeftover = leftover - claimedAmount;
+
+  const claimGoalOptions = config.savingGoals.length > 0
+    ? config.savingGoals.map((g) => ({ label: g.name, value: g.name }))
+    : [{ label: 'Savings', value: 'Savings' }];
+
+  function resetClaimForm() {
+    setClaimOpen(false);
+    setClaimGoal('');
+    setClaimAmount('');
+    setClaimNote('');
+    setClaimError(null);
+  }
+
+  function openClaimForm() {
+    const goal = config.savingGoals.length > 0 ? config.savingGoals[0].name : 'Savings';
+    setClaimAmount(adjustedLeftover.toFixed(2));
+    setClaimGoal(goal);
+    setClaimNote(`${monthLabel} ${goal}`);
+    setClaimError(null);
+    setClaimOpen(true);
+  }
 
   const uniqueCategories = useMemo(
     () => [...new Set(monthFiltered.map((t) => t.category).filter(Boolean))].sort(),
@@ -97,7 +159,7 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   }, [monthFiltered, search, filterCategory, filterCard, sortBy]);
 
   const displayedTotal = useMemo(() => displayed.reduce((s, t) => s + t.amount, 0), [displayed]);
-  const displayedSpend = useMemo(() => displayed.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0), [displayed]);
+  const displayedSpend = useMemo(() => displayed.filter((t) => t.amount > 0 && !CLAIM_TAG_RE.test(t.note ?? '')).reduce((s, t) => s + t.amount, 0), [displayed]);
   const displayedRefunds = useMemo(() => displayed.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0), [displayed]);
 
   const hasFilters = search.trim() !== '' || filterCategory !== '' || filterCard !== '' || sortBy !== 'date-desc';
@@ -110,6 +172,7 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   }
 
   function prevMonth() {
+    resetClaimForm();
     if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
     else setViewMonth((m) => m - 1);
   }
@@ -117,6 +180,7 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
   const maxYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
 
   function nextMonth() {
+    resetClaimForm();
     if (viewYear > maxYear || (viewYear === maxYear && viewMonth >= maxMonth)) return;
     if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
     else setViewMonth((m) => m + 1);
@@ -147,6 +211,29 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
     setDeletingId(id);
     try { await onDelete(id); }
     finally { setDeletingId(null); }
+  }
+
+  async function handleClaim(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = parseFloat(claimAmount);
+    if (!claimAmount || isNaN(parsed) || parsed <= 0) { setClaimError('Enter a valid amount'); return; }
+    if (parsed > adjustedLeftover + 0.001) { setClaimError(`Amount cannot exceed ${fmt(adjustedLeftover)}`); return; }
+    if (!claimGoal) { setClaimError('Select a saving goal'); return; }
+    setClaimError(null);
+    setClaimSaving(true);
+    try {
+      const fullNote = claimNote.trim()
+        ? `${claimNote.trim()}${claimTag(monthKey)}`
+        : claimTag(monthKey).trim();
+      await onAdd({ date: todayISO(), amount: parsed, category: claimGoal, card: '', note: fullNote });
+      setClaimAmount('');
+      setClaimNote('');
+      setClaimOpen(false);
+    } catch {
+      setClaimError('Failed to save. Please try again.');
+    } finally {
+      setClaimSaving(false);
+    }
   }
 
   function CustomSelect({
@@ -230,6 +317,8 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
       </div>
     );
   }
+
+  const isPastMonth = viewYear < now.getFullYear() || (viewYear === now.getFullYear() && viewMonth < now.getMonth());
 
   return (
     <div className={s.root}>
@@ -348,6 +437,86 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
         <span className={s.monthCount}>{monthFiltered.length} items · {fmt(monthTotal)}</span>
       </div>
 
+      {/* Leftover banner — past months only */}
+      {!isLoading && income > 0 && monthFiltered.length > 0 && isPastMonth && (leftover < 0 || adjustedLeftover >= 0.005) && (
+        <div className={`${s.leftoverBanner} ${leftover < 0 ? s.leftoverBannerOver : s.leftoverBannerPositive}`}>
+
+          {/* State A: Over budget */}
+          {leftover < 0 && (
+            <span style={{ color: 'oklch(0.58 0.18 25)' }}>
+              Over budget by <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(Math.abs(leftover))}</strong>
+            </span>
+          )}
+
+          {/* States B & C: Leftover available */}
+          {leftover >= 0 && adjustedLeftover > 0 && (
+            <>
+              <div className={s.leftoverBannerRow}>
+                <span style={{ color: 'oklch(0.55 0.13 150)' }}>
+                  {claimedAmount > 0 ? 'Remaining: ' : 'Left to spend: '}
+                  <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(adjustedLeftover)}</strong>
+                  {claimedAmount === 0 && <span style={{ color: '#888' }}> — consider moving to savings</span>}
+                </span>
+                {!claimOpen && (
+                  <button type="button" className={s.claimBtn} onClick={openClaimForm}>
+                    Move to savings →
+                  </button>
+                )}
+              </div>
+
+              {claimOpen && (
+                <form className={s.claimForm} onSubmit={handleClaim}>
+                  <div className={s.claimFormRow}>
+                    <div>
+                      <label className={s.formLabel}>Saving goal</label>
+                      <CustomSelect
+                        value={claimGoal}
+                        onChange={setClaimGoal}
+                        options={claimGoalOptions}
+                      />
+                    </div>
+                    <div>
+                      <label className={s.formLabel}>Amount</label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={claimAmount}
+                        onChange={(e) => setClaimAmount(e.target.value)}
+                        className={`${s.input} ${s.inputMono}`}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={s.formLabel}>Note (optional)</label>
+                    <input
+                      type="text"
+                      placeholder={`e.g. ${monthLabel} savings`}
+                      value={claimNote}
+                      onChange={(e) => setClaimNote(e.target.value)}
+                      className={s.input}
+                    />
+                  </div>
+                  {claimError && <div className={s.formError}>{claimError}</div>}
+                  <div className={s.claimFormActions}>
+                    <button type="button" className={s.claimCancelBtn} onClick={() => setClaimOpen(false)}>
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={claimSaving}
+                      className={`${s.claimSaveBtn} ${claimSaving ? s.claimSaveBtnDisabled : ''}`}
+                    >
+                      {claimSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Search, sort, filter controls */}
       {!isLoading && monthFiltered.length > 0 && (
         <div className={s.filters}>
@@ -449,38 +618,41 @@ export default function TransactionsTab({ transactions, config, isLoading, onAdd
         </div>
       ) : (
         <div className={s.list}>
-          {displayed.map((t) => (
-            <div
-              key={t.id}
-              className={s.txnRow}
-              style={{ animation: t.id === newId ? 'txn-slide-in 0.35s ease' : undefined }}
-            >
-              <div className={s.txnBody}>
-                <div className={s.txnPrimary}>
-                  <span>{t.category || <span className={s.txnNoCategory}>No category</span>}</span>
-                  {t.amount < 0 && <span className={s.txnRefundBadge}>Refund</span>}
-                  {t.note && <span className={s.txnNote}>· {t.note}</span>}
-                </div>
-                <div className={s.txnMeta}>
-                  {t.date}{t.card ? ` · ${t.card}` : ''}
-                </div>
-              </div>
+          {displayed.map((t) => {
+            const displayNote = stripClaimTag(t.note);
+            return (
               <div
-                className={`${s.txnAmount} ${t.amount < 0 ? s.txnAmountRefund : ''}`}
-                style={{ fontFamily: MONO }}
+                key={t.id}
+                className={s.txnRow}
+                style={{ animation: t.id === newId ? 'txn-slide-in 0.35s ease' : undefined }}
               >
-                {t.amount < 0 ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
+                <div className={s.txnBody}>
+                  <div className={s.txnPrimary}>
+                    <span>{t.category || <span className={s.txnNoCategory}>No category</span>}</span>
+                    {t.amount < 0 && <span className={s.txnRefundBadge}>Refund</span>}
+                    {displayNote && <span className={s.txnNote}>· {displayNote}</span>}
+                  </div>
+                  <div className={s.txnMeta}>
+                    {t.date}{t.card ? ` · ${t.card}` : ''}
+                  </div>
+                </div>
+                <div
+                  className={`${s.txnAmount} ${t.amount < 0 ? s.txnAmountRefund : ''}`}
+                  style={{ fontFamily: MONO }}
+                >
+                  {t.amount < 0 ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
+                </div>
+                <button
+                  onClick={() => handleDelete(t.id)}
+                  disabled={deletingId === t.id}
+                  className={s.txnDeleteBtn}
+                  title="Delete"
+                >
+                  {deletingId === t.id ? '…' : '×'}
+                </button>
               </div>
-              <button
-                onClick={() => handleDelete(t.id)}
-                disabled={deletingId === t.id}
-                className={s.txnDeleteBtn}
-                title="Delete"
-              >
-                {deletingId === t.id ? '…' : '×'}
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
