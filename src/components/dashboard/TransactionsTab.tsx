@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
+
 import s from './TransactionsTab.module.css';
 
 type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };

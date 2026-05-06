@@ -275,11 +275,87 @@ export default function DashboardPage() {
     loadTransactionsSilent();
   }
 
+  /* ── Carry-over sync ───────────────────────────────────────── */
+  // Walks all month tabs from fromMonthKey forward, creating/updating/deleting
+  // "Carry Over" transactions so overspend chains correctly across months.
+  async function syncCarryOvers(fromMonthKey: string, txns: Transaction[], tabs: string[]) {
+    if (!accessToken || !selectedSheet) return;
+
+    const LONG_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    function keyToLongLabel(key: string) {
+      const [yr, mo] = key.split('-').map(Number);
+      return `${LONG_MONTHS[mo - 1]} ${yr}`;
+    }
+    function advanceKey(key: string) {
+      const [yr, mo] = key.split('-').map(Number);
+      return mo === 12 ? `${yr + 1}-01` : `${yr}-${String(mo + 1).padStart(2, '0')}`;
+    }
+
+    const sorted = [...tabs].sort();
+
+    // Compute the carry-over that flows INTO fromMonthKey from prior months
+    let running = 0;
+    for (const key of sorted) {
+      if (key >= fromMonthKey) break;
+      const income = monthConfigs[key]?.income ?? config.monthlyIncome;
+      if (income <= 0) { running = 0; continue; }
+      const fes = monthConfigs[key]?.fixedExpenses ?? [];
+      const fixed = config.fixedExpenses.reduce((s, fe) => s + (fes.find(f => f.name === fe.name)?.amount ?? fe.amount), 0);
+      const own = txns.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over').reduce((s, t) => s + t.amount, 0);
+      running = Math.max(0, own + fixed + running - income);
+    }
+
+    // Process fromMonthKey and every later tab, creating/updating/deleting carry-overs
+    for (const key of sorted) {
+      if (key < fromMonthKey) continue;
+
+      const income = monthConfigs[key]?.income ?? config.monthlyIncome;
+      const nk = advanceKey(key);
+
+      if (income <= 0) {
+        running = 0;
+        if (tabs.includes(nk)) {
+          for (const e of txns.filter(t => t.date.startsWith(nk) && t.category === 'Carry Over' && !t.id.startsWith('tmp_'))) {
+            await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: e.id }) });
+          }
+        }
+        continue;
+      }
+
+      const fes = monthConfigs[key]?.fixedExpenses ?? [];
+      const fixed = config.fixedExpenses.reduce((s, fe) => s + (fes.find(f => f.name === fe.name)?.amount ?? fe.amount), 0);
+      const own = txns.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over').reduce((s, t) => s + t.amount, 0);
+      const deficit = own + fixed + running - income;
+      const carryOut = Math.max(0, Math.round(deficit * 100) / 100);
+      running = carryOut;
+
+      if (!tabs.includes(nk)) continue;
+
+      const existing = txns.filter(t => t.date.startsWith(nk) && t.category === 'Carry Over' && !t.id.startsWith('tmp_'));
+      const note = `From ${keyToLongLabel(key)}`;
+      const [nkYr, nkMo] = nk.split('-');
+      const date = `${nkYr}-${nkMo}-01`;
+
+      if (carryOut > 0.005) {
+        if (existing.length === 1 && Math.abs(existing[0].amount - carryOut) < 0.01 && existing[0].note === note) continue;
+        for (const e of existing) {
+          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: e.id }) });
+        }
+        await fetch('/api/transactions/add', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, date, amount: carryOut, category: 'Carry Over', card: '', note }) });
+      } else {
+        for (const e of existing) {
+          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: e.id }) });
+        }
+      }
+    }
+  }
+
   /* ── Transaction mutations ─────────────────────────────────── */
   async function handleAddTransaction(t: Omit<Transaction, 'id'>): Promise<string> {
     if (!accessToken || !selectedSheet) return '';
     const tempId = `tmp_${Date.now()}`;
-    setTransactions([...transactions, { ...t, id: tempId }]);
+    const updatedTxns = [...transactions, { ...t, id: tempId }];
+    setTransactions(updatedTxns);
 
     await fetch('/api/transactions/add', {
       method: 'POST',
@@ -287,62 +363,10 @@ export default function DashboardPage() {
       body: JSON.stringify({ sheetId: selectedSheet.id, ...t }),
     });
 
-    // Check if this transaction pushes the current month over budget
-    const now = new Date();
-    const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const effectiveIncome = monthConfigs[thisMonthKey]?.income ?? config.monthlyIncomeOverrides?.[thisMonthKey] ?? config.monthlyIncome;
-    if (effectiveIncome > 0) {
-      const [tYear, tMonth] = t.date.split('-').map(Number);
-      const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
-
-      if (isThisMonth) {
-        const txnTotal = [...transactions, t]
-          .filter((txn) => {
-            const [y, m] = txn.date.split('-').map(Number);
-            return y === now.getFullYear() && m - 1 === now.getMonth();
-          })
-          .reduce((s, txn) => s + txn.amount, 0);
-        const monthFEs = monthConfigs[thisMonthKey]?.fixedExpenses;
-        const fixedTotal = monthFEs
-          ? monthFEs.reduce((s, fe) => s + fe.amount, 0)
-          : config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
-        const newTotal = txnTotal + fixedTotal;
-
-        if (newTotal > effectiveIncome) {
-          const overAmount = Math.round((newTotal - effectiveIncome) * 100) / 100;
-          const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-          const nextMonthIdx = (now.getMonth() + 1) % 12;
-          const nextDate = `${nextYear}-${String(nextMonthIdx + 1).padStart(2, '0')}-01`;
-          const fromLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-          // Delete existing carry-over in next month (if any) to replace with updated amount
-          const existing = transactions.find((txn) => {
-            const [y, m] = txn.date.split('-').map(Number);
-            return y === nextYear && m - 1 === nextMonthIdx && txn.category === 'Carry Over';
-          });
-          if (existing && !existing.id.startsWith('tmp_')) {
-            await fetch('/api/transactions/delete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-              body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: existing.id }),
-            });
-          }
-
-          await fetch('/api/transactions/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-            body: JSON.stringify({
-              sheetId: selectedSheet.id,
-              date: nextDate,
-              amount: overAmount,
-              category: 'Carry Over',
-              card: '',
-              note: `From ${fromLabel}`,
-            }),
-          });
-        }
-      }
-    }
+    const fromMonthKey = t.date.slice(0, 7);
+    // Include the new month tab if it was just created by addTransaction
+    const tabs = monthTabKeys.includes(fromMonthKey) ? monthTabKeys : [...monthTabKeys, fromMonthKey];
+    await syncCarryOvers(fromMonthKey, updatedTxns, tabs);
 
     loadTransactionsSilent();
     return tempId;
@@ -352,7 +376,8 @@ export default function DashboardPage() {
     if (!accessToken || !selectedSheet) return;
 
     const txn = transactions.find((t) => t.id === id);
-    setTransactions(transactions.filter((t) => t.id !== id));
+    const updatedTxns = transactions.filter((t) => t.id !== id);
+    setTransactions(updatedTxns);
 
     await fetch('/api/transactions/delete', {
       method: 'POST',
@@ -360,70 +385,15 @@ export default function DashboardPage() {
       body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: id }),
     });
 
-    // Sync carry-over when deleting a current-month transaction
-    const nowDel = new Date();
-    const delMonthKey = `${nowDel.getFullYear()}-${String(nowDel.getMonth() + 1).padStart(2, '0')}`;
-    const effectiveIncomeDel = monthConfigs[delMonthKey]?.income ?? config.monthlyIncomeOverrides?.[delMonthKey] ?? config.monthlyIncome;
-    if (txn && effectiveIncomeDel > 0) {
-      const now = nowDel;
-      const [tYear, tMonth] = txn.date.split('-').map(Number);
-      const isThisMonth = tYear === now.getFullYear() && tMonth - 1 === now.getMonth();
-
-      if (isThisMonth) {
-        const txnTotal = transactions
-          .filter((t) => t.id !== id)
-          .filter((t) => {
-            const [y, m] = t.date.split('-').map(Number);
-            return y === now.getFullYear() && m - 1 === now.getMonth();
-          })
-          .reduce((s, t) => s + t.amount, 0);
-        const delMonthFEs = monthConfigs[delMonthKey]?.fixedExpenses;
-        const fixedTotal = delMonthFEs
-          ? delMonthFEs.reduce((s, fe) => s + fe.amount, 0)
-          : config.fixedExpenses.reduce((s, fe) => s + fe.amount, 0);
-        const newTotal = txnTotal + fixedTotal;
-
-        const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-        const nextMonthIdx = (now.getMonth() + 1) % 12;
-
-        const existing = transactions.find((t) => {
-          const [y, m] = t.date.split('-').map(Number);
-          return y === nextYear && m - 1 === nextMonthIdx && t.category === 'Carry Over';
-        });
-
-        if (existing && !existing.id.startsWith('tmp_')) {
-          if (newTotal <= effectiveIncomeDel) {
-            // Back under budget — remove carry-over
-            await fetch('/api/transactions/delete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-              body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: existing.id }),
-            });
-          } else {
-            // Still over budget — update carry-over to new amount
-            const overAmount = Math.round((newTotal - effectiveIncomeDel) * 100) / 100;
-            const nextDate = `${nextYear}-${String(nextMonthIdx + 1).padStart(2, '0')}-01`;
-            const fromLabel = now.toLocaleString('default', { month: 'long', year: 'numeric' });
-            await fetch('/api/transactions/delete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-              body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: existing.id }),
-            });
-            await fetch('/api/transactions/add', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-              body: JSON.stringify({
-                sheetId: selectedSheet.id,
-                date: nextDate,
-                amount: overAmount,
-                category: 'Carry Over',
-                card: '',
-                note: `From ${fromLabel}`,
-              }),
-            });
-          }
-        }
+    if (txn) {
+      let fromMonthKey = txn.date.slice(0, 7);
+      // When deleting a carry-over transaction, sync from the source month (one before)
+      // so the carry-over into that month gets correctly re-created if still needed
+      if (txn.category === 'Carry Over') {
+        const [yr, mo] = fromMonthKey.split('-').map(Number);
+        fromMonthKey = mo === 1 ? `${yr - 1}-12` : `${yr}-${String(mo - 1).padStart(2, '0')}`;
       }
+      await syncCarryOvers(fromMonthKey, updatedTxns, monthTabKeys);
     }
 
     loadTransactionsSilent();

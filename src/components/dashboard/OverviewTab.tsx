@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
+
 import s from './OverviewTab.module.css';
 
 const ACCENT = 'oklch(0.65 0.13 150)';
@@ -51,6 +52,13 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   );
 
   const totalSpent = useMemo(() => spendingTxns.reduce((sum, t) => sum + t.amount, 0), [spendingTxns]);
+
+  // Carry-over amount from actual 'Carry Over' category transactions (created by syncCarryOvers)
+  const carryOverIn = useMemo(
+    () => spendingTxns.filter(t => t.category === 'Carry Over').reduce((sum, t) => sum + t.amount, 0),
+    [spendingTxns],
+  );
+  const variableSpent = totalSpent - carryOverIn;
 
   const dailyTotals = useMemo(() => {
     const map: Record<string, { amount: number; entryCount: number }> = {};
@@ -319,11 +327,14 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
         <div className={s.progressTrack}>
           {income > 0 && (
             <div className={s.progressFill} style={{ width: `${Math.min(100, pct)}%` }}>
+              {carryOverIn > 0 && (
+                <div className={s.progressSegment} style={{ flex: carryOverIn, background: DANGER }} />
+              )}
               {totalFixed > 0 && (
                 <div className={s.progressSegment} style={{ flex: totalFixed, background: warnColor }} />
               )}
-              {totalSpent > 0 && (
-                <div className={s.progressSegment} style={{ flex: totalSpent, background: barColor }} />
+              {variableSpent > 0 && (
+                <div className={s.progressSegment} style={{ flex: variableSpent, background: barColor }} />
               )}
             </div>
           )}
@@ -331,16 +342,22 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
 
         {income > 0 && (
           <div className={s.progressLegend}>
+            {carryOverIn > 0 && (
+              <span className={s.progressLegendItem}>
+                <span className={s.progressLegendDot} style={{ background: DANGER }} />
+                Carry-over {fmt(carryOverIn)}
+              </span>
+            )}
             {totalFixed > 0 && (
               <span className={s.progressLegendItem}>
                 <span className={s.progressLegendDot} style={{ background: warnColor }} />
                 Monthly {fmt(totalFixed)}
               </span>
             )}
-            {totalSpent > 0 && (
+            {variableSpent > 0 && (
               <span className={s.progressLegendItem}>
                 <span className={s.progressLegendDot} style={{ background: barColor }} />
-                Variable {fmt(totalSpent)}
+                Variable {fmt(variableSpent)}
               </span>
             )}
           </div>
@@ -350,6 +367,12 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
           <div className={s.overBudgetAlert}>
             <span style={{ color: DANGER }}>
               Over budget by <strong className={s.overBudgetAlertAmount}>{fmt(totalCommitted - income)}</strong> — overspend carried to next month
+            </span>
+          </div>
+        ) : carryOverIn > 0 ? (
+          <div className={s.overBudgetAlert}>
+            <span style={{ color: DANGER }}>
+              {fmt(carryOverIn)} carried over from prior months
             </span>
           </div>
         ) : (
