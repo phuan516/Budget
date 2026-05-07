@@ -84,6 +84,7 @@ export class SheetsService {
     this.sheets = google.sheets({ version: 'v4', auth });
   }
 
+  // Returns all non-trashed Google Sheets in the user's Drive, ordered by most recently modified.
   async listSheets(): Promise<SheetMetadata[]> {
     try {
       const drive = google.drive({ version: 'v3', auth: this.auth });
@@ -107,6 +108,7 @@ export class SheetsService {
     }
   }
 
+  // Creates a new spreadsheet with a Config tab pre-populated with all section headers and bold formatting.
   async createBudgetSheet(name: string): Promise<{ id: string; url: string; name: string }> {
     try {
       const response = await this.sheets.spreadsheets.create({
@@ -170,6 +172,7 @@ export class SheetsService {
     }
   }
 
+  // Checks that the given spreadsheet has a Config tab; used to verify a user-provided sheetId before the app adopts it.
   async validateSheet(sheetId: string): Promise<{ valid: boolean; missing?: string[] }> {
     try {
       const response = await this.sheets.spreadsheets.get({
@@ -189,6 +192,7 @@ export class SheetsService {
     }
   }
 
+  // Returns the display name and URL of a spreadsheet via the Drive API.
   async getSheetDetails(sheetId: string): Promise<{ name: string; url: string }> {
     try {
       const drive = google.drive({ version: 'v3', auth: this.auth });
@@ -205,11 +209,7 @@ export class SheetsService {
     }
   }
 
-  private async getConfigSheetNumericId(spreadsheetId: string): Promise<number> {
-    const spreadsheet = await this.sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties' });
-    return spreadsheet.data.sheets?.find(s => s.properties?.title === 'Config')?.properties?.sheetId ?? 0;
-  }
-
+  // Parses the entire Config tab into structured data: income, categories, cards, fixed expenses, saving goals, and override maps.
   async readConfig(sheetId: string): Promise<{
     categories: { id: string; name: string }[];
     cards: { id: string; name: string }[];
@@ -306,6 +306,7 @@ export class SheetsService {
     }
   }
 
+  // Inserts a new row into the correct Config section; pushes all rows below it down, invalidating cached row indices.
   async addConfigItem(sheetId: string, type: string, name: string, value = '', extra = ''): Promise<void> {
     try {
       const sectionLabel = TYPE_TO_SECTION[type];
@@ -377,6 +378,7 @@ export class SheetsService {
     }
   }
 
+  // Overwrites a config row in-place by its 1-based row index; no row shifting occurs.
   async updateConfigItem(sheetId: string, rowIndex: number, type: string, name: string, value = '', extra = ''): Promise<void> {
     try {
       let rowData: (string | number)[];
@@ -406,6 +408,7 @@ export class SheetsService {
     }
   }
 
+  // Deletes a config row by its 1-based row index, shifting all rows below it up.
   async deleteConfigItem(sheetId: string, rowIndex: number): Promise<void> {
     try {
       const spreadsheet = await this.sheets.spreadsheets.get({
@@ -437,6 +440,7 @@ export class SheetsService {
     }
   }
 
+  // Rewrites the FIXED EXPENSES section on every month tab at or after minMonthLabel to match the canonical list from Config.
   async syncFixedExpensesToAllMonthSheets(
     spreadsheetId: string,
     fixedExpenses: { name: string; amount: number }[],
@@ -461,6 +465,7 @@ export class SheetsService {
     }
   }
 
+  // Rewrites the FIXED EXPENSES section on a single month tab, inserting or deleting rows as needed to match the new count.
   private async syncFixedExpensesToMonthSheet(
     spreadsheetId: string,
     monthLabel: string,
@@ -528,7 +533,7 @@ export class SheetsService {
     }
   }
 
-  // Creates a monthly tab with an INCOME section, a Fixed Expenses table, and a Transactions table.
+  // Creates a new month tab with INCOME, FIXED EXPENSES, and TRANSACTIONS sections, then bolds all headers.
   private async createMonthSheet(
     spreadsheetId: string,
     monthLabel: string,
@@ -606,7 +611,7 @@ export class SheetsService {
     });
   }
 
-  // Ensures a month tab exists; creates it with the given fixedExpenses and income if missing.
+  // Creates the month tab if it doesn't already exist; no-op if it does.
   async ensureMonthTabExists(
     spreadsheetId: string,
     monthLabel: string,
@@ -625,7 +630,7 @@ export class SheetsService {
     }
   }
 
-  // Creates tabs for any months between the latest existing past month tab and the current month.
+  // Fills in any month tabs missing between the latest past tab and the current month (e.g. if the app was unused for several months).
   async ensurePastMonthTabs(
     spreadsheetId: string,
     income: number,
@@ -668,8 +673,7 @@ export class SheetsService {
     }
   }
 
-  // Writes the income value (and optional note) into the INCOME section of a month tab.
-  // If the tab does not have an INCOME section (old format), does nothing.
+  // Writes the income amount and optional note into a month tab's INCOME value row; silently no-ops on old-format tabs without an INCOME section.
   async setMonthTabIncome(
     spreadsheetId: string,
     monthLabel: string,
@@ -702,7 +706,7 @@ export class SheetsService {
     }
   }
 
-  // Writes a fixed expense amount (and optional note) directly into the month tab's FIXED EXPENSES section.
+  // Finds a fixed expense row by name in a month tab and overwrites its amount and optional note.
   async setMonthTabFixedExpenseAmount(
     spreadsheetId: string,
     monthLabel: string,
@@ -750,6 +754,7 @@ export class SheetsService {
     }
   }
 
+  // Reads all month tabs, returning every transaction, per-month income/fixed expense config as stored in each tab, and the ordered list of month keys.
   async readTransactions(spreadsheetId: string): Promise<{
     transactions: { id: string; date: string; amount: number; category: string; card: string; note: string }[];
     monthTabKeys: string[];
@@ -864,239 +869,7 @@ export class SheetsService {
     }
   }
 
-  async setManyMonthlyIncomeOverrides(sheetId: string, entries: { monthKey: string; amount: number }[]): Promise<void> {
-    if (entries.length === 0) return;
-    const response = await this.sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Config!A:C' });
-    const rows = (response.data.values || []) as string[][];
-    const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME OVERRIDES');
-
-    if (labelIdx === -1) {
-      await this.sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId, range: 'Config!A:C', valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: [[], ['INCOME OVERRIDES'], ['Month', 'Amount', 'Note'], ...entries.map(e => [e.monthKey, e.amount, ''])] },
-      });
-      return;
-    }
-
-    const dataStart = labelIdx + 2;
-    const dataEnd = sectionDataEnd(rows, dataStart);
-    const existingMonths = new Set<string>();
-    for (let i = dataStart; i < dataEnd; i++) {
-      const key = (rows[i]?.[0] ?? '').toString().trim();
-      if (key) existingMonths.add(key);
-    }
-    const toInsert = entries.filter(e => !existingMonths.has(e.monthKey));
-    if (toInsert.length === 0) return;
-
-    const configSheetId = await this.getConfigSheetNumericId(sheetId);
-    await this.sheets.spreadsheets.batchUpdate({
-      spreadsheetId: sheetId,
-      requestBody: { requests: [{ insertDimension: { range: { sheetId: configSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + toInsert.length }, inheritFromBefore: true } }] },
-    });
-    await this.sheets.spreadsheets.values.update({
-      spreadsheetId: sheetId, range: `Config!A${dataEnd + 1}:C${dataEnd + toInsert.length}`,
-      valueInputOption: 'RAW', requestBody: { values: toInsert.map(e => [e.monthKey, e.amount, '']) },
-    });
-  }
-
-  async setManyFixedExpenseOverrides(sheetId: string, entries: { monthKey: string; expenseName: string; amount: number }[]): Promise<void> {
-    if (entries.length === 0) return;
-    const response = await this.sheets.spreadsheets.values.get({ spreadsheetId: sheetId, range: 'Config!A:D' });
-    const rows = (response.data.values || []) as string[][];
-    const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSE OVERRIDES');
-
-    if (labelIdx === -1) {
-      await this.sheets.spreadsheets.values.append({
-        spreadsheetId: sheetId, range: 'Config!A:D', valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
-        requestBody: { values: [[], ['FIXED EXPENSE OVERRIDES'], ['Month', 'Expense', 'Amount', 'Note'], ...entries.map(e => [e.monthKey, e.expenseName, e.amount, ''])] },
-      });
-      return;
-    }
-
-    const dataStart = labelIdx + 2;
-    const dataEnd = sectionDataEnd(rows, dataStart);
-    const existingCombos = new Set<string>();
-    for (let i = dataStart; i < dataEnd; i++) {
-      const mk = (rows[i]?.[0] ?? '').toString().trim();
-      const en = (rows[i]?.[1] ?? '').toString().trim();
-      if (mk && en) existingCombos.add(`${mk}::${en}`);
-    }
-    const toInsert = entries.filter(e => !existingCombos.has(`${e.monthKey}::${e.expenseName}`));
-    if (toInsert.length === 0) return;
-
-    const configSheetId = await this.getConfigSheetNumericId(sheetId);
-    await this.sheets.spreadsheets.batchUpdate({
-      spreadsheetId: sheetId,
-      requestBody: { requests: [{ insertDimension: { range: { sheetId: configSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + toInsert.length }, inheritFromBefore: true } }] },
-    });
-    await this.sheets.spreadsheets.values.update({
-      spreadsheetId: sheetId, range: `Config!A${dataEnd + 1}:D${dataEnd + toInsert.length}`,
-      valueInputOption: 'RAW', requestBody: { values: toInsert.map(e => [e.monthKey, e.expenseName, e.amount, '']) },
-    });
-  }
-
-  async setMonthlyIncomeOverride(sheetId: string, monthKey: string, amount: number, note?: string): Promise<void> {
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: 'Config!A:C',
-      });
-      const rows = (response.data.values || []) as string[][];
-
-      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME OVERRIDES');
-
-      if (labelIdx === -1) {
-        await this.sheets.spreadsheets.values.append({
-          spreadsheetId: sheetId,
-          range: 'Config!A:C',
-          valueInputOption: 'RAW',
-          insertDataOption: 'INSERT_ROWS',
-          requestBody: { values: [[], ['INCOME OVERRIDES'], ['Month', 'Amount', 'Note'], [monthKey, amount, note ?? '']] },
-        });
-        return;
-      }
-
-      const dataStart = labelIdx + 2;
-      const dataEnd = sectionDataEnd(rows, dataStart);
-
-      for (let i = dataStart; i < dataEnd; i++) {
-        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey) {
-          await this.sheets.spreadsheets.values.update({
-            spreadsheetId: sheetId,
-            range: `Config!A${i + 1}:C${i + 1}`,
-            valueInputOption: 'RAW',
-            requestBody: { values: [[monthKey, amount, note ?? '']] },
-          });
-          return;
-        }
-      }
-
-      const configSheetId = await this.getConfigSheetNumericId(sheetId);
-      await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId: sheetId,
-        requestBody: {
-          requests: [{ insertDimension: { range: { sheetId: configSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + 1 }, inheritFromBefore: true } }],
-        },
-      });
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `Config!A${dataEnd + 1}:C${dataEnd + 1}`,
-        valueInputOption: 'RAW',
-        requestBody: { values: [[monthKey, amount, note ?? '']] },
-      });
-    } catch (error) {
-      console.error('Error setting income override:', error);
-      throw new Error('Failed to set income override');
-    }
-  }
-
-  async deleteMonthlyIncomeOverride(sheetId: string, monthKey: string): Promise<void> {
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: 'Config!A:B',
-      });
-      const rows = (response.data.values || []) as string[][];
-      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME OVERRIDES');
-      if (labelIdx === -1) return;
-
-      const dataStart = labelIdx + 2;
-      const dataEnd = sectionDataEnd(rows, dataStart);
-
-      for (let i = dataStart; i < dataEnd; i++) {
-        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey) {
-          await this.deleteConfigItem(sheetId, i + 1);
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting income override:', error);
-      throw new Error('Failed to delete income override');
-    }
-  }
-
-  async setFixedExpenseOverride(sheetId: string, monthKey: string, expenseName: string, amount: number, note?: string): Promise<void> {
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: 'Config!A:D',
-      });
-      const rows = (response.data.values || []) as string[][];
-
-      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSE OVERRIDES');
-
-      if (labelIdx === -1) {
-        await this.sheets.spreadsheets.values.append({
-          spreadsheetId: sheetId,
-          range: 'Config!A:D',
-          valueInputOption: 'RAW',
-          insertDataOption: 'INSERT_ROWS',
-          requestBody: { values: [[], ['FIXED EXPENSE OVERRIDES'], ['Month', 'Expense', 'Amount', 'Note'], [monthKey, expenseName, amount, note ?? '']] },
-        });
-        return;
-      }
-
-      const dataStart = labelIdx + 2;
-      const dataEnd = sectionDataEnd(rows, dataStart);
-
-      for (let i = dataStart; i < dataEnd; i++) {
-        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey &&
-            (rows[i]?.[1] ?? '').toString().trim() === expenseName) {
-          await this.sheets.spreadsheets.values.update({
-            spreadsheetId: sheetId,
-            range: `Config!A${i + 1}:D${i + 1}`,
-            valueInputOption: 'RAW',
-            requestBody: { values: [[monthKey, expenseName, amount, note ?? '']] },
-          });
-          return;
-        }
-      }
-
-      const configSheetId = await this.getConfigSheetNumericId(sheetId);
-      await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId: sheetId,
-        requestBody: {
-          requests: [{ insertDimension: { range: { sheetId: configSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + 1 }, inheritFromBefore: true } }],
-        },
-      });
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `Config!A${dataEnd + 1}:D${dataEnd + 1}`,
-        valueInputOption: 'RAW',
-        requestBody: { values: [[monthKey, expenseName, amount, note ?? '']] },
-      });
-    } catch (error) {
-      console.error('Error setting fixed expense override:', error);
-      throw new Error('Failed to set fixed expense override');
-    }
-  }
-
-  async deleteFixedExpenseOverride(sheetId: string, monthKey: string, expenseName: string): Promise<void> {
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetId,
-        range: 'Config!A:C',
-      });
-      const rows = (response.data.values || []) as string[][];
-      const labelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSE OVERRIDES');
-      if (labelIdx === -1) return;
-
-      const dataStart = labelIdx + 2;
-      const dataEnd = sectionDataEnd(rows, dataStart);
-
-      for (let i = dataStart; i < dataEnd; i++) {
-        if ((rows[i]?.[0] ?? '').toString().trim() === monthKey &&
-            (rows[i]?.[1] ?? '').toString().trim() === expenseName) {
-          await this.deleteConfigItem(sheetId, i + 1);
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting fixed expense override:', error);
-      throw new Error('Failed to delete fixed expense override');
-    }
-  }
-
+  // Appends a transaction row to the correct month tab, creating the tab first if it doesn't exist.
   async addTransaction(
     spreadsheetId: string,
     date: string,
@@ -1135,7 +908,7 @@ export class SheetsService {
     }
   }
 
-  // transactionId format: "Apr 2026|8"
+  // Deletes a transaction row by its 1-based row index within the given month tab.
   async deleteTransaction(spreadsheetId: string, tabName: string, rowIndex: number): Promise<void> {
     try {
       const spreadsheet = await this.sheets.spreadsheets.get({

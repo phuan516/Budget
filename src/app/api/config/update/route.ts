@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SheetsService, currentMonthLabel, monthKeyToLabel } from '@/lib/google/sheets';
 import { google } from 'googleapis';
 
+/*
+Multiplexed endpoint for all config updates to minimize number of API calls from frontend and ensure related 
+changes (like syncing fixed expenses to month tabs) happen atomically. The request body should include an "action" 
+field that determines the type of update, along with necessary parameters for that action. 
+
+
+*/
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
