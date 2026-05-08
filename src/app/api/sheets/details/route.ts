@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SheetsService } from '@/lib/google/sheets';
-import { google } from 'googleapis';
+import { buildSheetsService } from '@/lib/api/auth';
 
 export async function GET(req: NextRequest) {
-  const accessToken = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!accessToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const auth = buildSheetsService(req);
+  if ('error' in auth) return auth.error;
+  const { service: sheetsService } = auth;
 
   const sheetId = req.nextUrl.searchParams.get('sheetId');
   if (!sheetId) return NextResponse.json({ error: 'sheetId is required' }, { status: 400 });
 
   try {
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token: accessToken });
-    const sheetsService = new SheetsService(oauth2Client);
     const details = await sheetsService.getSheetDetails(sheetId);
     return NextResponse.json(details);
   } catch (error) {

@@ -159,10 +159,10 @@ export default function DashboardPage() {
     else if (type === 'card') updateConfig({ cards: [...config.cards, { id: tempId, name }] });
     else if (type === 'fixed_expense') updateConfig({ fixedExpenses: [...config.fixedExpenses, { id: tempId, name, amount: parseFloat(value ?? '0') || 0 }] });
     else if (type === 'saving_goal') updateConfig({ savingGoals: [...config.savingGoals, { id: tempId, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 }] });
-    await fetch('/api/config/update', {
+    await fetch('/api/config/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'add', type, name, value: value ?? '', extra: extra ?? '' }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, type, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfigSilent();
     if (type === 'fixed_expense') loadTransactionsSilent();
@@ -175,10 +175,10 @@ export default function DashboardPage() {
     else if (type === 'card') updateConfig({ cards: config.cards.map((i) => i.id === id ? { ...i, name } : i) });
     else if (type === 'fixed_expense') updateConfig({ fixedExpenses: config.fixedExpenses.map((i) => i.id === id ? { ...i, name, amount: parseFloat(value ?? '0') || 0 } : i) });
     else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.map((i) => i.id === id ? { ...i, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 } : i) });
-    await fetch('/api/config/update', {
-      method: 'POST',
+    await fetch('/api/config/items', {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'update', type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfigSilent();
     if (type === 'fixed_expense') loadTransactionsSilent();
@@ -190,10 +190,10 @@ export default function DashboardPage() {
     else if (type === 'card') updateConfig({ cards: config.cards.filter((i) => i.id !== id) });
     else if (type === 'fixed_expense') updateConfig({ fixedExpenses: config.fixedExpenses.filter((i) => i.id !== id) });
     else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.filter((i) => i.id !== id) });
-    await fetch('/api/config/update', {
-      method: 'POST',
+    await fetch('/api/config/items', {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'delete', type, rowIndex: parseInt(id) }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex: parseInt(id) }),
     });
     loadConfigSilent();
     if (type === 'fixed_expense') loadTransactionsSilent();
@@ -209,10 +209,10 @@ export default function DashboardPage() {
       const { income: _i, incomeNote: _n, ...rest } = existingMonthConfig;
       setMonthConfigs({ ...monthConfigs, [currentMonthKey]: rest });
     }
-    await fetch('/api/config/update', {
+    await fetch('/api/config/income', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setIncome', income: amount }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, income: amount }),
     });
     loadConfigSilent();
   }
@@ -222,10 +222,10 @@ export default function DashboardPage() {
     updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount } });
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, income: amount, incomeNote: note } });
-    await fetch('/api/config/update', {
+    await fetch('/api/config/income/override', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setMonthlyIncomeOverride', monthKey, income: amount, note }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, income: amount, note }),
     });
   }
 
@@ -239,10 +239,10 @@ export default function DashboardPage() {
       const { income: _i, incomeNote: _n, ...rest } = existing;
       setMonthConfigs({ ...monthConfigs, [monthKey]: rest });
     }
-    await fetch('/api/config/update', {
-      method: 'POST',
+    await fetch('/api/config/income/override', {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'deleteMonthlyIncomeOverride', monthKey }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, monthKey }),
     });
   }
 
@@ -253,10 +253,10 @@ export default function DashboardPage() {
       ? existing.fixedExpenses.map((fe) => fe.name === expenseName ? { ...fe, amount, note } : fe)
       : [...existing.fixedExpenses, { name: expenseName, amount, note }];
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
-    await fetch('/api/config/update', {
+    await fetch('/api/config/fixed-expense/override', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'setFixedExpenseOverride', monthKey, expenseName, income: amount, note }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName, income: amount, note }),
     });
     loadTransactionsSilent();
   }
@@ -267,10 +267,10 @@ export default function DashboardPage() {
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     const fes = existing.fixedExpenses.map((fe) => fe.name === expenseName ? { name: fe.name, amount: defaultAmount } : fe);
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
-    await fetch('/api/config/update', {
-      method: 'POST',
+    await fetch('/api/config/fixed-expense/override', {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, action: 'deleteFixedExpenseOverride', monthKey, expenseName }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName }),
     });
     loadTransactionsSilent();
   }

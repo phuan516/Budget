@@ -246,22 +246,39 @@ All API routes accept an `Authorization: Bearer <token>` header. The token is us
 - Query: `?sheetId=<id>`
 - Returns: `{ categories, cards, fixedExpenses, monthlyIncome, monthlyIncomeOverrides, monthlyIncomeOverrideNotes, fixedExpenseOverrides, fixedExpenseOverrideNotes, savingGoals }`
 
-**POST /api/config/update**
-- Mutates config or per-month overrides
-- Body fields: `{ sheetId, action, type?, name?, value?, extra?, rowIndex?, income?, monthKey?, expenseName?, note? }`
+**POST /api/config/items**
+- Adds a config item (category, card, fixed_expense, saving_goal)
+- Body: `{ sheetId, type, name, value?, extra? }`
 
-| `action` | Description |
-|---|---|
-| `add` | Add a config item (category, card, fixed_expense, saving_goal) |
-| `update` | Edit a config item by row index |
-| `delete` | Remove a config item by row index |
-| `setIncome` | Update default income in Config + sync current month tab |
-| `setMonthlyIncomeOverride` | Write income override to a specific month tab |
-| `deleteMonthlyIncomeOverride` | Reset month tab income to current Config default |
-| `setFixedExpenseOverride` | Write a fixed expense amount override to a specific month tab |
-| `deleteFixedExpenseOverride` | Reset a month tab fixed expense to current Config default |
+**PATCH /api/config/items**
+- Edits a config item by row index
+- Body: `{ sheetId, type, rowIndex, name, value?, extra? }`
 
-When adding/updating/deleting a `fixed_expense`, the change is synced to the current month tab and all future month tabs; past month tabs are left unchanged.
+**DELETE /api/config/items**
+- Removes a config item by row index
+- Body: `{ sheetId, type, rowIndex }`
+
+When the `type` is `fixed_expense`, all three endpoints sync the change to the current month tab and all future month tabs; past month tabs are left unchanged.
+
+**POST /api/config/income**
+- Updates the default monthly income in the Config tab and syncs the current month tab
+- Body: `{ sheetId, income: number }`
+
+**POST /api/config/income/override**
+- Writes an income override to a specific month tab
+- Body: `{ sheetId, monthKey, income: number, note? }`
+
+**DELETE /api/config/income/override**
+- Resets a month tab income to the current Config default
+- Body: `{ sheetId, monthKey }`
+
+**POST /api/config/fixed-expense/override**
+- Writes a fixed expense amount override to a specific month tab
+- Body: `{ sheetId, monthKey, expenseName, income: number, note? }`
+
+**DELETE /api/config/fixed-expense/override**
+- Resets a month tab fixed expense to the current Config default
+- Body: `{ sheetId, monthKey, expenseName }`
 
 ### Transactions
 
@@ -374,7 +391,10 @@ src/
 │       ├── transactions/add/route.ts
 │       ├── transactions/delete/route.ts
 │       ├── config/route.ts
-│       └── config/update/route.ts
+│       ├── config/items/route.ts
+│       ├── config/income/route.ts
+│       ├── config/income/override/route.ts
+│       └── config/fixed-expense/override/route.ts
 ├── components/
 │   ├── sheets/SheetSelector.tsx        # Sheet list + create form
 │   └── dashboard/
@@ -383,6 +403,7 @@ src/
 │       ├── SettingsTab.tsx             # All config management (defaults)
 │       └── EverythingTab.tsx           # All-time transaction list + income/category/fixed expense charts
 └── lib/
+    ├── api/auth.ts                     # buildSheetsService — shared auth helper for all API routes
     ├── google/sheets.ts                # SheetsService class + exported helpers (monthKeyToLabel, etc.)
     ├── hooks/useGoogleOAuth.ts         # Auth hook
     └── store/useStore.ts               # Zustand store
@@ -467,7 +488,7 @@ Dashboard → Transactions tab
 ```
 Dashboard → Settings tab
   → Add / delete category / card / fixed expense / saving goal
-    → POST /api/config/update
+    → POST / PATCH / DELETE /api/config/items
       → Optimistic update in Zustand
         → Refreshes from sheet on next load
         → Fixed expense changes synced to current + future month tabs only
@@ -478,7 +499,7 @@ Dashboard → Settings tab
 ```
 Dashboard → Overview tab
   → Edit income or fixed expense for current month
-    → POST /api/config/update (setMonthlyIncomeOverride / setFixedExpenseOverride)
+    → POST /api/config/income/override or POST /api/config/fixed-expense/override
       → Written directly to that month's tab in the sheet
       → Past months unaffected; change visible immediately
 ```

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SheetsService } from '@/lib/google/sheets';
-import { google } from 'googleapis';
+import { buildSheetsService } from '@/lib/api/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get('authorization');
-    const accessToken = authHeader?.replace('Bearer ', '');
-    if (!accessToken) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = buildSheetsService(req);
+    if ('error' in auth) return auth.error;
+    const { service } = auth;
 
     const { sheetId, transactionId } = await req.json();
     if (!sheetId || !transactionId) {
@@ -23,10 +22,6 @@ export async function POST(req: NextRequest) {
     if (!tabName || isNaN(rowIndex)) {
       return NextResponse.json({ error: 'Invalid transactionId format' }, { status: 400 });
     }
-
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token: accessToken });
-    const service = new SheetsService(oauth2Client);
 
     await service.deleteTransaction(sheetId, tabName, rowIndex);
     return NextResponse.json({ ok: true });
