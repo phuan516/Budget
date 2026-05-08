@@ -22,6 +22,8 @@ export interface Config {
 
 export interface Transaction {
   id: string;
+  tab: string;
+  row: number;
   date: string;
   amount: number;
   category: string;

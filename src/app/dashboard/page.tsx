@@ -316,7 +316,7 @@ export default function DashboardPage() {
         running = 0;
         if (tabs.includes(nk)) {
           for (const e of txns.filter(t => t.date.startsWith(nk) && t.category === 'Carry Over' && !t.id.startsWith('tmp_'))) {
-            await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: e.id }) });
+            await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
           }
         }
         continue;
@@ -339,22 +339,22 @@ export default function DashboardPage() {
       if (carryOut > 0.005) {
         if (existing.length === 1 && Math.abs(existing[0].amount - carryOut) < 0.01 && existing[0].note === note) continue;
         for (const e of existing) {
-          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: e.id }) });
+          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
         }
         await fetch('/api/transactions/add', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, date, amount: carryOut, category: 'Carry Over', card: '', note }) });
       } else {
         for (const e of existing) {
-          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: e.id }) });
+          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
         }
       }
     }
   }
 
   /* ── Transaction mutations ─────────────────────────────────── */
-  async function handleAddTransaction(t: Omit<Transaction, 'id'>): Promise<string> {
+  async function handleAddTransaction(t: Omit<Transaction, 'id' | 'tab' | 'row'>): Promise<string> {
     if (!accessToken || !selectedSheet) return '';
     const tempId = `tmp_${Date.now()}`;
-    const updatedTxns = [...transactions, { ...t, id: tempId }];
+    const updatedTxns = [...transactions, { ...t, id: tempId, tab: '', row: 0 }];
     setTransactions(updatedTxns);
 
     await fetch('/api/transactions/add', {
@@ -382,7 +382,7 @@ export default function DashboardPage() {
     await fetch('/api/transactions/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ sheetId: selectedSheet.id, transactionId: id }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn?.tab, row: txn?.row }),
     });
 
     if (txn) {

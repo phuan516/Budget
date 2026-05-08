@@ -756,7 +756,7 @@ export class SheetsService {
 
   // Reads all month tabs, returning every transaction, per-month income/fixed expense config as stored in each tab, and the ordered list of month keys.
   async readTransactions(spreadsheetId: string): Promise<{
-    transactions: { id: string; date: string; amount: number; category: string; card: string; note: string }[];
+    transactions: { id: string; tab: string; row: number; date: string; amount: number; category: string; card: string; note: string }[];
     monthTabKeys: string[];
     monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }>;
   }> {
@@ -775,7 +775,7 @@ export class SheetsService {
         return `${yr}-${String(MONTH_NAMES.indexOf(mon) + 1).padStart(2, '0')}`;
       });
 
-      const transactions: { id: string; date: string; amount: number; category: string; card: string; note: string }[] = [];
+      const transactions: { id: string; tab: string; row: number; date: string; amount: number; category: string; card: string; note: string }[] = [];
       const monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }> = {};
 
       for (let tabIdx = 0; tabIdx < monthTabs.length; tabIdx++) {
@@ -853,6 +853,8 @@ export class SheetsService {
           const sheetRowNum = txnLabelIdx + 2 + idx + 1;
           transactions.push({
             id: `${tabName}|${sheetRowNum}`,
+            tab: tabName,
+            row: sheetRowNum,
             date,
             amount,
             category: (row[2] ?? '').toString(),

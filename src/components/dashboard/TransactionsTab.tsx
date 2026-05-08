@@ -32,7 +32,7 @@ interface Props {
   config: Config;
   monthConfigs: Record<string, MonthConfig>;
   isLoading: boolean;
-  onAdd: (t: Omit<Transaction, 'id'>) => Promise<string>;
+  onAdd: (t: Omit<Transaction, 'id' | 'tab' | 'row'>) => Promise<string>;
   onDelete: (id: string) => Promise<void>;
 }
 
