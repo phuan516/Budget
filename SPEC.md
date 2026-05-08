@@ -74,6 +74,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] Fixed expenses card (per-month amounts, with override support)
 - [x] Savings progress (goal vs. current)
 - [x] Overspending carry-over for savings calculations (excess spending carried to next month)
+- [x] Past-month leftover banner in Transactions tab — shows remaining or overspent amount for past months; leftover can be allocated to a savings goal
 - [x] Everything tab — searchable/filterable view of all transactions across all months
 - [x] Everything tab — income vs. spending chart (per month)
 - [x] Everything tab — category breakdown chart (all time)
@@ -148,28 +149,38 @@ A mobile-first web application that uses Google Sheets as a backend database for
 All user configuration defaults in one tab, organized into labeled sections. This tab is the source of truth for **defaults only** — past month tabs are never retroactively changed when config is updated.
 
 ```
-Row 1:  INCOME          (section header — bold)
-Row 2:  Amount          (column header — bold)
-Row 3:  <income value>  (e.g. 5000)
+Row 1:  INCOME                  (section header — bold)
+Row 2:  Amount                  (column header — bold)
+Row 3:  <income value>          (e.g. 5000)
 Row 4:  (blank)
-Row 5:  SAVING GOALS    (section header — bold)
-Row 6:  Name  Target  Initial  (column headers — bold)
-Row 7+: <saving goal rows>
+Row 5:  INCOME OVERRIDES        (section header — bold)
+Row 6:  Month  Amount  Note     (column headers — bold)
+Row 7+: <monthKey, overrideAmount, optional note>  (e.g. "2026-03", 4500, "part-time month")
 Row N:  (blank)
-Row N+1: CATEGORIES     (section header — bold)
-Row N+2: Name           (column header — bold)
-Row N+3+: <category name rows>
+Row N+1: FIXED EXPENSE OVERRIDES  (section header — bold, added lazily)
+Row N+2: Month  Name  Amount  Note  (column headers — bold)
+Row N+3+: <monthKey, expenseName, overrideAmount, optional note>
 ...
-        CARDS           (section header — bold)
-        Name            (column header — bold)
+        SAVING GOALS            (section header — bold)
+        Name  Target  Initial   (column headers — bold)
+        <saving goal rows>
+...
+        CATEGORIES              (section header — bold)
+        Name                    (column header — bold)
+        <category name rows>
+...
+        CARDS                   (section header — bold)
+        Name                    (column header — bold)
         <card name rows>
 ...
-        FIXED EXPENSES  (section header — bold)
-        Name  Amount    (column headers — bold)
+        FIXED EXPENSES          (section header — bold)
+        Name  Amount            (column headers — bold)
         <fixed expense rows>
 ```
 
 Each section is separated by a blank row. The parser locates section headers by exact uppercase match.
+
+**Override storage:** `INCOME OVERRIDES` is present in the initial sheet template. `FIXED EXPENSE OVERRIDES` is added lazily. Both sections are read by `readConfig` and returned by `GET /api/config`. The primary write path for overrides is the month tab itself (`setMonthTabIncome`, `setMonthTabFixedExpenseAmount`) — the Config tab sections serve as a secondary index for old-format tabs that predate the self-contained month tab structure.
 
 ### Tab: "MMM YYYY" (one per month, e.g. "Apr 2026")
 
@@ -233,7 +244,7 @@ All API routes accept an `Authorization: Bearer <token>` header. The token is us
 **GET /api/config**
 - Reads the Config tab and parses all sections
 - Query: `?sheetId=<id>`
-- Returns: `{ categories, cards, fixedExpenses, monthlyIncome, savingGoals }`
+- Returns: `{ categories, cards, fixedExpenses, monthlyIncome, monthlyIncomeOverrides, monthlyIncomeOverrideNotes, fixedExpenseOverrides, fixedExpenseOverrideNotes, savingGoals }`
 
 **POST /api/config/update**
 - Mutates config or per-month overrides
@@ -296,12 +307,16 @@ interface SelectedSheet {
   url: string;
 }
 
-// Config (defaults only — stored in Config tab)
+// Config (defaults + override maps — stored in Config tab)
 interface Config {
   categories: { id: string; name: string }[];
   cards: { id: string; name: string }[];
   fixedExpenses: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
+  monthlyIncomeOverrides: { [monthKey: string]: number };
+  monthlyIncomeOverrideNotes: { [monthKey: string]: string };
+  fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } };
+  fixedExpenseOverrideNotes: { [monthKey: string]: { [expenseName: string]: string } };
   savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
 }
 
