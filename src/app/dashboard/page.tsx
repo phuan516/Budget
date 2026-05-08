@@ -292,6 +292,7 @@ export default function DashboardPage() {
     }
 
     const sorted = [...tabs].sort();
+    const CLAIM_RE = /\[←\d{4}-\d{2}\]/;
 
     // Compute the carry-over that flows INTO fromMonthKey from prior months
     let running = 0;
@@ -301,7 +302,7 @@ export default function DashboardPage() {
       if (income <= 0) { running = 0; continue; }
       const fes = monthConfigs[key]?.fixedExpenses ?? [];
       const fixed = config.fixedExpenses.reduce((s, fe) => s + (fes.find(f => f.name === fe.name)?.amount ?? fe.amount), 0);
-      const own = txns.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over').reduce((s, t) => s + t.amount, 0);
+      const own = txns.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over' && !CLAIM_RE.test(t.note ?? '')).reduce((s, t) => s + t.amount, 0);
       running = Math.max(0, own + fixed + running - income);
     }
 
@@ -324,7 +325,7 @@ export default function DashboardPage() {
 
       const fes = monthConfigs[key]?.fixedExpenses ?? [];
       const fixed = config.fixedExpenses.reduce((s, fe) => s + (fes.find(f => f.name === fe.name)?.amount ?? fe.amount), 0);
-      const own = txns.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over').reduce((s, t) => s + t.amount, 0);
+      const own = txns.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over' && !CLAIM_RE.test(t.note ?? '')).reduce((s, t) => s + t.amount, 0);
       const deficit = own + fixed + running - income;
       const carryOut = Math.max(0, Math.round(deficit * 100) / 100);
       running = carryOut;
