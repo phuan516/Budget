@@ -25,7 +25,7 @@ const TYPE_TO_SECTION: Record<string, string> = {
 
 // Returns 0-based index of the first row that is blank or starts a new section,
 // starting the scan from `fromIdx`. This marks the exclusive end of a section's data.
-function sectionDataEnd(rows: string[][], fromIdx: number): number {
+export function sectionDataEnd(rows: string[][], fromIdx: number): number {
   let i = fromIdx;
   while (i < rows.length) {
     const cell = (rows[i]?.[0] ?? '').toString().trim().toUpperCase();
@@ -35,18 +35,18 @@ function sectionDataEnd(rows: string[][], fromIdx: number): number {
   return i;
 }
 
-function quoteSheet(name: string): string {
+export function quoteSheet(name: string): string {
   return `'${name.replace(/'/g, "''")}'`;
 }
 
-function getMonthLabel(dateStr: string): string {
+export function getMonthLabel(dateStr: string): string {
   const parts = dateStr.split('-');
   const year = parseInt(parts[0]);
   const month = parseInt(parts[1]);
   return `${MONTH_NAMES[month - 1]} ${year}`;
 }
 
-function monthLabelToNum(label: string): number {
+export function monthLabelToNum(label: string): number {
   const [mon, yr] = label.split(' ');
   return parseInt(yr) * 12 + MONTH_NAMES.indexOf(mon);
 }
@@ -62,13 +62,13 @@ export function monthKeyToLabel(key: string): string {
 }
 
 // Convert a month label like "Apr 2026" to a YYYY-MM key like "2026-04"
-function monthLabelToKey(label: string): string {
+export function monthLabelToKey(label: string): string {
   const [mon, yr] = label.split(' ');
   return `${yr}-${String(MONTH_NAMES.indexOf(mon) + 1).padStart(2, '0')}`;
 }
 
 // Increment a YYYY-MM key by one month
-function nextMonthKey(key: string): string {
+export function nextMonthKey(key: string): string {
   const [yr, mo] = key.split('-').map(Number);
   if (mo === 12) return `${yr + 1}-01`;
   return `${yr}-${String(mo + 1).padStart(2, '0')}`;
