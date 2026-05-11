@@ -365,9 +365,15 @@ export default function DashboardPage() {
     });
 
     const fromMonthKey = t.date.slice(0, 7);
-    // Include the new month tab if it was just created by addTransaction
-    const tabs = monthTabKeys.includes(fromMonthKey) ? monthTabKeys : [...monthTabKeys, fromMonthKey];
-    await syncCarryOvers(fromMonthKey, updatedTxns, tabs);
+    const isNewTab = !monthTabKeys.includes(fromMonthKey);
+    const tabs = isNewTab ? [...monthTabKeys, fromMonthKey] : monthTabKeys;
+    // When a new tab is created, sync from the previous month so the incoming
+    // carry-over transaction gets written into the new tab.
+    const [fyr, fmo] = fromMonthKey.split('-').map(Number);
+    const syncFromKey = isNewTab
+      ? (fmo === 1 ? `${fyr - 1}-12` : `${fyr}-${String(fmo - 1).padStart(2, '0')}`)
+      : fromMonthKey;
+    await syncCarryOvers(syncFromKey, updatedTxns, tabs);
 
     loadTransactionsSilent();
     return tempId;

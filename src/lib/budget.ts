@@ -29,7 +29,7 @@ export function computeCarryOvers(
       return sum + (ov?.amount ?? fe.amount);
     }, 0);
     const totalSpent = transactions
-      .filter(t => t.date.startsWith(key) && !CLAIM_RE.test(t.note ?? ''))
+      .filter(t => t.date.startsWith(key) && t.category !== 'Carry Over' && !CLAIM_RE.test(t.note ?? ''))
       .reduce((sum, t) => sum + t.amount, 0);
 
     running = Math.max(0, totalFixed + totalSpent + running - income);
