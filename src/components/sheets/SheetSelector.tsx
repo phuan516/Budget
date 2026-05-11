@@ -41,9 +41,10 @@ function MiniSheetPreview({ height }: { height: number }) {
 const ACCENT = 'oklch(0.65 0.13 150)';
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 const FILTER_KEY = 'budget_sheet_filter';
+const LEDGER_PREFIX = 'Ledger — ';
 
-function autoSheetName() {
-  return `Ledger — ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`;
+function autoSheetSuffix() {
+  return new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 }
 
 type OwnerFilter = 'all' | 'mine' | 'shared';
@@ -97,6 +98,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
   }, [loadSheets]);
 
   const filteredSheets = availableSheets.filter((s) => {
+    if (!s.name.startsWith('Ledger —')) return false;
     if (!s.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (ownerFilter === 'mine') return s.ownedByMe === true;
     if (ownerFilter === 'shared') return s.ownedByMe === false;
@@ -108,7 +110,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
   };
 
   const openNameModal = () => {
-    setNewSheetName(autoSheetName());
+    setNewSheetName(autoSheetSuffix());
     setNameError(null);
     setShowNameModal(true);
   };
@@ -116,12 +118,13 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
   const handleCreateConfirm = () => {
     const trimmed = newSheetName.trim();
     if (!trimmed) { setNameError('Name cannot be empty.'); return; }
+    const fullName = LEDGER_PREFIX + trimmed;
     const duplicate = availableSheets.some(
-      (s) => s.name.toLowerCase() === trimmed.toLowerCase()
+      (s) => s.name.toLowerCase() === fullName.toLowerCase()
     );
     if (duplicate) { setNameError('A sheet with this name already exists.'); return; }
     setShowNameModal(false);
-    onCreateSheet(trimmed);
+    onCreateSheet(fullName);
   };
 
   // ── Skeleton tiles for loading state ──────────────────────
@@ -473,15 +476,16 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 4px', color: '#1a1a1a' }}>Name your budget sheet</h2>
             <p style={{ fontSize: 12, color: '#888', margin: '0 0 18px' }}>You can edit or keep the auto-generated name.</p>
 
-            <div style={{ position: 'relative', marginBottom: 6 }}>
+            <div style={{ position: 'relative', marginBottom: 6, display: 'flex', alignItems: 'center', border: nameError ? '1.5px solid #e53e3e' : '1.5px solid #d8d8d8', borderRadius: 8, overflow: 'hidden' }}>
+              <span style={{ padding: '10px 0 10px 12px', fontSize: 14, color: '#888', whiteSpace: 'nowrap', flexShrink: 0, userSelect: 'none' }}>Ledger —</span>
               <input
                 autoFocus
                 type="text"
                 value={newSheetName}
                 onChange={(e) => { setNewSheetName(e.target.value); setNameError(null); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreateConfirm(); if (e.key === 'Escape') setShowNameModal(false); }}
-                style={{ width: '100%', border: nameError ? '1.5px solid #e53e3e' : '1.5px solid #d8d8d8', borderRadius: 8, padding: '10px 40px 10px 12px', fontSize: 14, color: '#1a1a1a', outline: 'none', boxSizing: 'border-box' }}
-                placeholder="Sheet name…"
+                style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 40px 10px 6px', fontSize: 14, color: '#1a1a1a', background: 'transparent' }}
+                placeholder={`${autoSheetSuffix()}…`}
               />
               {newSheetName && (
                 <button
@@ -495,7 +499,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
             {nameError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{nameError}</p>}
 
             <button
-              onClick={() => { setNewSheetName(autoSheetName()); setNameError(null); }}
+              onClick={() => { setNewSheetName(autoSheetSuffix()); setNameError(null); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', padding: '0 0 18px', textDecoration: 'underline', textUnderlineOffset: 2 }}
             >
               Use auto-generated name
