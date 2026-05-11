@@ -14,8 +14,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Budget Tracker",
-  description: "Track your spending with Google Sheets",
+  title: "Ledger",
+  description: "Personal budget tracking powered by Google Sheets",
 };
 
 export default function RootLayout({

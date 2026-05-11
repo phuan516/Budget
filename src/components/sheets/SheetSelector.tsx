@@ -98,7 +98,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
   }, [loadSheets]);
 
   const filteredSheets = availableSheets.filter((s) => {
-    if (!s.name.startsWith('Ledger —')) return false;
+    if (!s.name.startsWith(LEDGER_PREFIX)) return false;
     if (!s.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (ownerFilter === 'mine') return s.ownedByMe === true;
     if (ownerFilter === 'shared') return s.ownedByMe === false;
@@ -127,7 +127,6 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
     onCreateSheet(fullName);
   };
 
-  // ── Skeleton tiles for loading state ──────────────────────
   const skeletonTiles = Array.from({ length: 5 }, (_, i) => (
     <div key={i} style={{ border: '1px solid #d8d8d8', borderRadius: 10, padding: 16, minHeight: 140, background: '#fafafa', animation: 'pulse 1.5s ease-in-out infinite' }} />
   ));
@@ -147,7 +146,6 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Refresh */}
             <button
               onClick={loadSheets}
               disabled={isLoading}
@@ -161,7 +159,6 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                 <path d="M2.4 5.5a5 5 0 1 1 .8 5.1L1 8"/>
               </svg>
             </button>
-            {/* Search */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d8d8d8', borderRadius: 10, padding: '9px 12px', minWidth: 200 }}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
                 <circle cx="6" cy="6" r="4.5"/>
@@ -175,7 +172,6 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                 style={{ fontSize: 13, color: '#1a1a1a', flex: 1, border: 'none', outline: 'none', background: 'transparent' }}
               />
             </div>
-            {/* Ownership filter */}
             <div style={{ display: 'flex', border: '1px solid #d8d8d8', borderRadius: 999, overflow: 'hidden' }}>
               {FILTER_OPTIONS.map((opt) => (
                 <button
@@ -303,14 +299,12 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
       {/* ── MOBILE LAYOUT (< 640px) ── */}
       <div className="sm:hidden flex-1 flex flex-col overflow-hidden">
 
-        {/* Top bar — locked */}
         <div style={{ flexShrink: 0, padding: '20px 16px 12px', borderBottom: '1px solid #ececec' }}>
           <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.4, margin: '0 0 2px', color: '#1a1a1a' }}>
             Where should we write?
           </h1>
           <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>Pick an existing sheet or start fresh.</p>
 
-          {/* Refresh + Search */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <button
               onClick={loadSheets}
@@ -340,7 +334,6 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
             </div>
           </div>
 
-          {/* Ownership filter */}
           <div style={{ display: 'flex', border: '1px solid #d8d8d8', borderRadius: 999, overflow: 'hidden' }}>
             {FILTER_OPTIONS.map((opt) => (
               <button
@@ -365,7 +358,6 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
           </div>
         </div>
 
-        {/* Scrollable sheet grid */}
         <div className="flex-1 min-h-0" style={{ overflowY: 'auto', padding: '14px 16px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
             {filteredSheets.map((sheet) => {
@@ -433,7 +425,6 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
           </div>
         </div>
 
-        {/* Bottom bar — locked */}
         <div style={{ flexShrink: 0, padding: '12px 16px 20px', borderTop: '1px solid #ececec', display: 'flex', gap: 8 }}>
           <button
             onClick={() => !isSelecting && setPendingId(null)}

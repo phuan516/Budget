@@ -275,7 +275,6 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
 
   return (
     <div className={s.root}>
-      {/* Sub-tab nav */}
       <div className={s.subNav}>
         {(['transactions', 'charts'] as const).map(t => (
           <button
@@ -419,7 +418,6 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
             )}
           </div>
 
-          {/* Summary */}
           <div className={s.summary}>
             <span>{filtered.length} transaction{filtered.length !== 1 ? 's' : ''}</span>
             <span className={s.summarySep}>·</span>
@@ -432,7 +430,6 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
             )}
           </div>
 
-          {/* Transaction list */}
           {filtered.length === 0 ? (
             <div className={s.empty}>No transactions found</div>
           ) : (

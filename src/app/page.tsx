@@ -27,13 +27,7 @@ export default function LandingPage() {
     }
   }, [isSilentLoading, accessToken, user, selectedSheet, router]);
 
-  const handleLogin = async () => {
-    try {
-      await login();
-    } catch {
-      // errors handled within the hook
-    }
-  };
+  const handleLogin = () => { login(); };
 
   if (isSilentLoading) {
     return (
@@ -82,7 +76,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-[100svh] bg-white text-[#1a1a1a] relative overflow-hidden flex flex-col">
 
-      {/* ── HEADER ── */}
       <header className="flex justify-between items-center shrink-0 px-14 py-8 max-sm:px-[22px] max-sm:py-3">
         <div className="flex items-center gap-[10px]">
           <div className="w-[22px] h-[22px] rounded-full bg-[#1a1a1a] shrink-0 max-sm:w-[18px] max-sm:h-[18px]" />
@@ -156,7 +149,6 @@ export default function LandingPage() {
         </p>
       </div>
 
-      {/* ── DESKTOP: footer note (absolute) ── */}
       <p className="hidden sm:block absolute left-14 bottom-8 text-[11px] text-[#888]">
         No server storage · End-to-end with your Drive
       </p>

@@ -1,4 +1,3 @@
-// Google Sheets API wrapper
 import { google, sheets_v4, Auth} from 'googleapis';
 
 export interface SheetMetadata {
@@ -150,7 +149,6 @@ export class SheetsService {
         requestBody: { values: configLayout },
       });
 
-      // Bold section labels and column headers
       const boldRowIdxs = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16]; // 0-based
       await this.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
@@ -312,7 +310,6 @@ export class SheetsService {
       const sectionLabel = TYPE_TO_SECTION[type];
       if (!sectionLabel) throw new Error(`Unknown config type: ${type}`);
 
-      // Read current layout to find insertion point
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: 'Config!A:C',
@@ -327,7 +324,6 @@ export class SheetsService {
       // Data starts two rows after the label (skip label + column header)
       const insertAt = sectionDataEnd(rows, labelIdx + 2); // 0-based
 
-      // Get the numeric sheet ID for insertDimension
       const spreadsheet = await this.sheets.spreadsheets.get({
         spreadsheetId: sheetId,
         fields: 'sheets.properties',
@@ -336,7 +332,6 @@ export class SheetsService {
         s => s.properties?.title === 'Config'
       )?.properties?.sheetId ?? 0;
 
-      // Insert a blank row at the insertion point
       await this.sheets.spreadsheets.batchUpdate({
         spreadsheetId: sheetId,
         requestBody: {
@@ -569,7 +564,6 @@ export class SheetsService {
       requestBody: { values: rows },
     });
 
-    // Bold the title, section labels, and column headers
     const sheetMetadata = await this.sheets.spreadsheets.get({
       spreadsheetId,
       fields: 'sheets.properties',
@@ -747,7 +741,6 @@ export class SheetsService {
         }
         i++;
       }
-      // Expense name not found in the tab — nothing to update
     } catch (error) {
       console.error(`Error setting fixed expense in month tab ${monthLabel}:`, error);
       throw new Error(`Failed to set fixed expense in month tab ${monthLabel}`);
@@ -883,7 +876,6 @@ export class SheetsService {
     try {
       const monthLabel = getMonthLabel(date);
 
-      // Check if the month tab already exists
       const spreadsheet = await this.sheets.spreadsheets.get({
         spreadsheetId,
         fields: 'sheets.properties',

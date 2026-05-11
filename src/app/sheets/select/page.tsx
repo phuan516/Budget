@@ -97,14 +97,9 @@ export default function SheetSelectionPage() {
     );
   }
 
-  const emailShort = user.email.includes('@')
-    ? user.email.split('@')[0] + '@…'
-    : user.email;
-
   return (
     <div className="min-h-[100svh] max-sm:h-[100svh] max-sm:overflow-hidden bg-white text-[#1a1a1a] flex flex-col">
 
-      {/* ── HEADER ── */}
       <header style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
         {/* Desktop */}
         <div className="hidden sm:flex justify-between items-center px-12 py-7">
@@ -161,7 +156,6 @@ export default function SheetSelectionPage() {
         </div>
       </header>
 
-      {/* ── ERROR BANNER ── */}
       {error && (
         <div style={{ margin: '12px 48px 0', padding: '10px 14px', background: '#fafafa', border: '1px solid #d8d8d8', borderRadius: 8, fontSize: 13, color: '#1a1a1a' }}
           className="max-sm:mx-4">
@@ -169,7 +163,6 @@ export default function SheetSelectionPage() {
         </div>
       )}
 
-      {/* ── SHEET SELECTOR ── */}
       <SheetSelector
         accessToken={accessToken!}
         onSelectSheet={handleSelectSheet}

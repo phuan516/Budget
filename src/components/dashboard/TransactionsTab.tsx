@@ -325,7 +325,6 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
     <div className={s.root}>
       <style>{`@keyframes txn-slide-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-      {/* Add transaction form */}
       <form onSubmit={handleAdd} className={s.form}>
         <div className={s.formHeader}>
           <span className={s.formTitle}>Add transaction</span>
@@ -424,7 +423,6 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
         </div>
       </form>
 
-      {/* Month nav */}
       <div className={s.monthNav}>
         <div className={s.monthNavInner}>
           <button onClick={prevMonth} className={s.monthNavBtn}>‹</button>
@@ -442,14 +440,12 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
       {!isLoading && income > 0 && monthFiltered.length > 0 && isPastMonth && (leftover < 0 || adjustedLeftover >= 0.005) && (
         <div className={`${s.leftoverBanner} ${leftover < 0 ? s.leftoverBannerOver : s.leftoverBannerPositive}`}>
 
-          {/* State A: Over budget */}
           {leftover < 0 && (
             <span style={{ color: 'oklch(0.58 0.18 25)' }}>
               Over budget by <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(Math.abs(leftover))}</strong>
             </span>
           )}
 
-          {/* States B & C: Leftover available */}
           {leftover >= 0 && adjustedLeftover > 0 && (
             <>
               <div className={s.leftoverBannerRow}>
@@ -518,7 +514,6 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
         </div>
       )}
 
-      {/* Search, sort, filter controls */}
       {!isLoading && monthFiltered.length > 0 && (
         <div className={s.filters}>
           <div className={s.searchWrap}>
@@ -590,7 +585,6 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
         </div>
       )}
 
-      {/* Summary */}
       {!isLoading && monthFiltered.length > 0 && (
         <div className={s.summary}>
           <span>
@@ -608,7 +602,6 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
         </div>
       )}
 
-      {/* Transaction list */}
       {isLoading ? (
         <div className={s.listSpinner}>
           <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />

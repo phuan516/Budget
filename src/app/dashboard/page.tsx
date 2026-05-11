@@ -79,69 +79,44 @@ export default function DashboardPage() {
     } catch { /* silent — stale name is non-critical */ }
   }, [accessToken, setSelectedSheet]);
 
-  const loadConfig = useCallback(async () => {
+  const loadConfig = useCallback(async (silent = false) => {
     if (!accessToken || !selectedSheet) return;
-    setConfigLoading(true);
+    if (!silent) setConfigLoading(true);
     try {
       const res = await fetch(`/api/config?sheetId=${selectedSheet.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.status === 401) { logout(); return; }
-      if (!res.ok) throw new Error('Failed to load config');
-      setConfig(await res.json());
+      if (!silent && !res.ok) throw new Error('Failed to load config');
+      if (res.ok) setConfig(await res.json());
     } catch (err) {
-      console.error(err);
+      if (!silent) console.error(err);
     } finally {
-      setConfigLoading(false);
+      if (!silent) setConfigLoading(false);
     }
   }, [accessToken, selectedSheet, setConfig, logout]);
 
-  const loadTransactions = useCallback(async () => {
+  const loadTransactions = useCallback(async (silent = false) => {
     if (!accessToken || !selectedSheet) return;
-    setTxnLoading(true);
+    if (!silent) setTxnLoading(true);
     try {
       const res = await fetch(`/api/transactions?sheetId=${selectedSheet.id}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (res.status === 401) { logout(); return; }
-      if (!res.ok) throw new Error('Failed to load transactions');
-      const { transactions, monthTabKeys, monthConfigs } = await res.json();
-      setTransactions(transactions);
-      setMonthTabKeys(monthTabKeys);
-      setMonthConfigs(monthConfigs);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTxnLoading(false);
-    }
-  }, [accessToken, selectedSheet, setTransactions, setMonthTabKeys, setMonthConfigs, logout]);
-
-  const loadTransactionsSilent = useCallback(async () => {
-    if (!accessToken || !selectedSheet) return;
-    try {
-      const res = await fetch(`/api/transactions?sheetId=${selectedSheet.id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (res.status === 401) { logout(); return; }
+      if (!silent && !res.ok) throw new Error('Failed to load transactions');
       if (res.ok) {
         const { transactions, monthTabKeys, monthConfigs } = await res.json();
         setTransactions(transactions);
         setMonthTabKeys(monthTabKeys);
         setMonthConfigs(monthConfigs);
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      if (!silent) console.error(err);
+    } finally {
+      if (!silent) setTxnLoading(false);
+    }
   }, [accessToken, selectedSheet, setTransactions, setMonthTabKeys, setMonthConfigs, logout]);
-
-  const loadConfigSilent = useCallback(async () => {
-    if (!accessToken || !selectedSheet) return;
-    try {
-      const res = await fetch(`/api/config?sheetId=${selectedSheet.id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (res.status === 401) { logout(); return; }
-      if (res.ok) setConfig(await res.json());
-    } catch { /* silent */ }
-  }, [accessToken, selectedSheet, setConfig, logout]);
 
   useEffect(() => {
     if (!isInitializing && accessToken && selectedSheet) {
@@ -151,7 +126,6 @@ export default function DashboardPage() {
     }
   }, [isInitializing, accessToken, selectedSheet, syncSheetName, loadConfig, loadTransactions]);
 
-  /* ── Config mutations ──────────────────────────────────────── */
   async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
     if (!accessToken || !selectedSheet) return;
     const tempId = `tmp_${Date.now()}`;
@@ -164,8 +138,8 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, name, value: value ?? '', extra: extra ?? '' }),
     });
-    loadConfigSilent();
-    if (type === 'fixed_expense') loadTransactionsSilent();
+    loadConfig(true);
+    if (type === 'fixed_expense') loadTransactions(true);
   }
 
   async function handleConfigEdit(type: string, id: string, name: string, value?: string, extra?: string) {
@@ -180,8 +154,8 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
     });
-    loadConfigSilent();
-    if (type === 'fixed_expense') loadTransactionsSilent();
+    loadConfig(true);
+    if (type === 'fixed_expense') loadTransactions(true);
   }
 
   async function handleConfigDelete(type: string, id: string) {
@@ -195,8 +169,8 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex: parseInt(id) }),
     });
-    loadConfigSilent();
-    if (type === 'fixed_expense') loadTransactionsSilent();
+    loadConfig(true);
+    if (type === 'fixed_expense') loadTransactions(true);
   }
 
   async function handleSetIncome(amount: number) {
@@ -214,7 +188,7 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, income: amount }),
     });
-    loadConfigSilent();
+    loadConfig(true);
   }
 
   async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number, note?: string) {
@@ -258,7 +232,7 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName, income: amount, note }),
     });
-    loadTransactionsSilent();
+    loadTransactions(true);
   }
 
   async function handleDeleteFixedExpenseOverride(monthKey: string, expenseName: string) {
@@ -272,10 +246,9 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName }),
     });
-    loadTransactionsSilent();
+    loadTransactions(true);
   }
 
-  /* ── Carry-over sync ───────────────────────────────────────── */
   // Walks all month tabs from fromMonthKey forward, creating/updating/deleting
   // "Carry Over" transactions so overspend chains correctly across months.
   async function syncCarryOvers(fromMonthKey: string, txns: Transaction[], tabs: string[]) {
@@ -351,7 +324,6 @@ export default function DashboardPage() {
     }
   }
 
-  /* ── Transaction mutations ─────────────────────────────────── */
   async function handleAddTransaction(t: Omit<Transaction, 'id' | 'tab' | 'row'>): Promise<string> {
     if (!accessToken || !selectedSheet) return '';
     const tempId = `tmp_${Date.now()}`;
@@ -375,7 +347,7 @@ export default function DashboardPage() {
       : fromMonthKey;
     await syncCarryOvers(syncFromKey, updatedTxns, tabs);
 
-    loadTransactionsSilent();
+    loadTransactions(true);
     return tempId;
   }
 
@@ -403,7 +375,7 @@ export default function DashboardPage() {
       await syncCarryOvers(fromMonthKey, updatedTxns, monthTabKeys);
     }
 
-    loadTransactionsSilent();
+    loadTransactions(true);
   }
 
   if (isInitializing || !accessToken || !user || !selectedSheet) {
@@ -414,12 +386,9 @@ export default function DashboardPage() {
     );
   }
 
-  const emailShort = user.email.includes('@') ? user.email.split('@')[0] + '@…' : user.email;
-
   return (
     <div className="h-[100svh] bg-white text-[#1a1a1a] flex flex-col overflow-hidden">
 
-      {/* ── Header ─────────────────────────────────────────────── */}
       <header style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
         {/* Desktop */}
         <div className="hidden sm:flex justify-between items-center px-12 py-5">
@@ -499,7 +468,6 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* ── Tab nav ────────────────────────────────────────────── */}
       <nav style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
         <div className="px-12 max-sm:px-5" style={{ display: 'flex', gap: 0 }}>
           {TABS.map((tab) => (
@@ -525,7 +493,6 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      {/* ── Tab content ────────────────────────────────────────── */}
       <main className="flex-1 px-12 max-sm:px-5" style={{ overflowY: 'auto' }}>
         {activeTab === 'overview' && (
           <OverviewTab

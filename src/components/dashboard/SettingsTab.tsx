@@ -49,7 +49,6 @@ function DeleteBtn({ onClick, loading }: { onClick: () => void; loading?: boolea
   );
 }
 
-/* ─── name-only list section (categories, cards) ─────────────── */
 function NameListSection({
   title, items, type, onAdd, onDelete, onEdit,
 }: {
@@ -148,7 +147,6 @@ function NameListSection({
   );
 }
 
-/* ─── fixed expenses ──── */
 function FixedExpenseSection({
   items, monthlyIncome, onAdd, onDelete, onEdit,
 }: {
@@ -309,7 +307,6 @@ function FixedExpenseSection({
   );
 }
 
-/* ─── saving goals ─────────────────────────────────────────────── */
 function SavingGoalSection({
   items, onAdd, onDelete, onEdit,
 }: {

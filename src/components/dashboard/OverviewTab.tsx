@@ -259,7 +259,6 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
 
   return (
     <div>
-      {/* ── Hero ── */}
       <div className={s.hero}>
         <div className={s.heroEyebrow}>Spent this month</div>
         <div className={s.heroAmountRow}>
@@ -408,10 +407,8 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
 
       <div className={s.divider} />
 
-      {/* ── Body ── */}
       <div className={`${s.body} grid-cols-1 xl:grid-cols-[1.3fr_1fr_1fr]`}>
 
-        {/* Heatmap */}
         <div>
           <div className={s.heatmapHeader}>
             <div className={s.heatmapTitle}>Daily spend</div>
@@ -504,7 +501,6 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
           </div>
         </div>
 
-        {/* By category */}
         <div>
           <div className={s.categoryTitle}>By category</div>
           {categoryData.length === 0 ? (
@@ -607,7 +603,6 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
           )}
         </div>
 
-        {/* Saving goals */}
         {savingGoalProgress.length > 0 && (
           <div>
             <div className={s.goalsTitle}>Saving goals</div>
