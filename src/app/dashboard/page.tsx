@@ -236,6 +236,18 @@ export default function DashboardPage() {
     loadTransactions(true);
   }
 
+  async function handleSetMonthFixedExpenses(monthKey: string, fixedExpenses: { name: string; amount: number; note?: string }[]) {
+    if (!accessToken || !selectedSheet) return;
+    const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
+    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses } });
+    await fetch('/api/config/fixed-expense/month-list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, fixedExpenses }),
+    });
+    loadTransactions(true);
+  }
+
   async function handleDeleteFixedExpenseOverride(monthKey: string, expenseName: string) {
     if (!accessToken || !selectedSheet) return;
     const defaultAmount = config.fixedExpenses.find((fe) => fe.name === expenseName)?.amount ?? 0;
@@ -530,6 +542,11 @@ export default function DashboardPage() {
             config={config}
             monthConfigs={monthConfigs}
             isLoading={configLoading || txnLoading}
+            onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
+            onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
+            onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
+            onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
+            onSetMonthFixedExpenses={handleSetMonthFixedExpenses}
           />
         )}
       </main>

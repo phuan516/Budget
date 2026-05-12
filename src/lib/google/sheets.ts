@@ -700,6 +700,71 @@ export class SheetsService {
     }
   }
 
+  // Rewrites the entire FIXED EXPENSES section of a single month tab with the provided list (adding/removing rows as needed).
+  async setMonthTabAllFixedExpenses(
+    spreadsheetId: string,
+    monthLabel: string,
+    fixedExpenses: { name: string; amount: number; note?: string }[],
+  ): Promise<void> {
+    const spreadsheet = await this.sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties',
+    });
+    const sheetMeta = (spreadsheet.data.sheets || []).find(s => s.properties?.title === monthLabel);
+    if (!sheetMeta) return;
+    const numericSheetId = sheetMeta.properties?.sheetId ?? 0;
+
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${quoteSheet(monthLabel)}!A:C`,
+    });
+    const rows = (response.data.values || []) as string[][];
+
+    const feLabelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'FIXED EXPENSES');
+    if (feLabelIdx === -1) return;
+
+    const dataStart = feLabelIdx + 2;
+    let dataEnd = dataStart;
+    while (dataEnd < rows.length) {
+      const cell = (rows[dataEnd]?.[0] ?? '').toString().trim().toUpperCase();
+      if (cell === '' || cell === 'TRANSACTIONS') break;
+      dataEnd++;
+    }
+
+    const currentCount = dataEnd - dataStart;
+    const newCount = fixedExpenses.length;
+    const diff = newCount - currentCount;
+
+    if (diff > 0) {
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ insertDimension: { range: { sheetId: numericSheetId, dimension: 'ROWS', startIndex: dataEnd, endIndex: dataEnd + diff }, inheritFromBefore: false } }] },
+      });
+    } else if (diff < 0) {
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ deleteDimension: { range: { sheetId: numericSheetId, dimension: 'ROWS', startIndex: dataStart + newCount, endIndex: dataEnd } } }] },
+      });
+    }
+
+    if (newCount > 0) {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${quoteSheet(monthLabel)}!A${dataStart + 1}:C${dataStart + newCount}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: fixedExpenses.map(fe => [fe.name, fe.amount, fe.note ?? '']) },
+      });
+    } else {
+      // Clear any leftover data if list is now empty
+      if (currentCount > 0) {
+        await this.sheets.spreadsheets.values.clear({
+          spreadsheetId,
+          range: `${quoteSheet(monthLabel)}!A${dataStart + 1}:C${dataEnd}`,
+        });
+      }
+    }
+  }
+
   // Finds a fixed expense row by name in a month tab and overwrites its amount and optional note.
   async setMonthTabFixedExpenseAmount(
     spreadsheetId: string,

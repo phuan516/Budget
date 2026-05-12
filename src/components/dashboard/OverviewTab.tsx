@@ -157,22 +157,23 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   }, [dailyTotals, today]);
 
   const savingGoalProgress = useMemo(() => {
-    const months = new Set(transactions.map((t) => t.date.slice(0, 7)));
-    const monthsCount = (() => {
-      if (months.size === 0) return 0;
-      const sorted = [...months].sort();
-      const [ey, em] = sorted[0].split('-').map(Number);
-      return (now.getFullYear() - ey) * 12 + (now.getMonth() + 1 - em) + 1;
-    })();
     return config.savingGoals.map((g) => {
-      const txnSaved = transactions.filter((t) => t.category === g.name).reduce((sum, t) => sum + t.amount, 0);
-      const matchingFixed = config.fixedExpenses.find((fe) => fe.name.toLowerCase() === g.name.toLowerCase());
-      const fixedSaved = matchingFixed ? matchingFixed.amount * monthsCount : 0;
+      const txnSaved = transactions
+        .filter((t) => t.category === g.name)
+        .reduce((sum, t) => sum + t.amount, 0);
+      const monthConfigList = Object.values(monthConfigs);
+      const fixedSaved = monthConfigList.reduce((sum, mc) => {
+        const fe = mc.fixedExpenses.find((fe) => fe.name.toLowerCase() === g.name.toLowerCase());
+        return sum + (fe?.amount ?? 0);
+      }, 0);
+      const hasFixed = monthConfigList.some((mc) =>
+        mc.fixedExpenses.some((fe) => fe.name.toLowerCase() === g.name.toLowerCase())
+      );
       const saved = (g.initialAmount ?? 0) + txnSaved + fixedSaved;
       const goalPct = g.amount > 0 ? Math.min(100, (saved / g.amount) * 100) : 0;
-      return { ...g, saved, pct: goalPct, hasFixed: !!matchingFixed };
+      return { ...g, saved, pct: goalPct, hasFixed };
     });
-  }, [transactions, config.savingGoals, config.fixedExpenses]);
+  }, [transactions, config.savingGoals, monthConfigs]);
 
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [editingIncome, setEditingIncome] = useState(false);

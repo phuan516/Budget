@@ -39,10 +39,15 @@ interface Props {
   config: Config;
   monthConfigs: Record<string, MonthConfig>;
   isLoading: boolean;
+  onSetMonthlyIncomeOverride: (monthKey: string, amount: number, note?: string) => Promise<void>;
+  onDeleteMonthlyIncomeOverride: (monthKey: string) => Promise<void>;
+  onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number, note?: string) => Promise<void>;
+  onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
+  onSetMonthFixedExpenses: (monthKey: string, fixedExpenses: { name: string; amount: number; note?: string }[]) => Promise<void>;
 }
 
-export default function EverythingTab({ transactions, config, monthConfigs, isLoading }: Props) {
-  const [subTab, setSubTab] = useState<'transactions' | 'charts'>('transactions');
+export default function EverythingTab({ transactions, config, monthConfigs, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride, onSetMonthFixedExpenses }: Props) {
+  const [subTab, setSubTab] = useState<'transactions' | 'charts' | 'edit-months'>('transactions');
   const [search, setSearch] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
@@ -51,6 +56,23 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
   const [monthSearch, setMonthSearch] = useState('');
   const monthDropdownRef = useRef<HTMLDivElement>(null);
+  const [editingIncomeMonth, setEditingIncomeMonth] = useState<string | null>(null);
+  const [incomeDraft, setIncomeDraft] = useState('');
+  const [incomeNoteDraft, setIncomeNoteDraft] = useState('');
+  const [savingIncome, setSavingIncome] = useState(false);
+  const [resettingIncome, setResettingIncome] = useState<string | null>(null);
+  const [editingFixedKey, setEditingFixedKey] = useState<string | null>(null);
+  const [fixedDraft, setFixedDraft] = useState('');
+  const [fixedNoteDraft, setFixedNoteDraft] = useState('');
+  const [savingFixed, setSavingFixed] = useState(false);
+  const [resettingFixed, setResettingFixed] = useState<string | null>(null);
+  const [removingFixed, setRemovingFixed] = useState<string | null>(null);
+  const [editMonthSearch, setEditMonthSearch] = useState('');
+  const [addingExpenseMonth, setAddingExpenseMonth] = useState<string | null>(null);
+  const [addNameDraft, setAddNameDraft] = useState('');
+  const [addAmountDraft, setAddAmountDraft] = useState('');
+  const [addNoteDraft, setAddNoteDraft] = useState('');
+  const [savingAdd, setSavingAdd] = useState(false);
 
   const allMonthKeys = useMemo(
     () => [...new Set(transactions.map(t => t.date.slice(0, 7)))].sort().reverse(),
@@ -86,6 +108,15 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [monthDropdownOpen]);
+
+  const editMonthKeys = useMemo(() => {
+    const all = Object.keys(monthConfigs ?? {}).sort().reverse();
+    const q = editMonthSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(key =>
+      keyToFullLabel(key).toLowerCase().includes(q) || keyToShortLabel(key).toLowerCase().includes(q)
+    );
+  }, [monthConfigs, editMonthSearch]);
 
   const filtered = useMemo(() => {
     let result = [...transactions];
@@ -184,6 +215,70 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   const totalSpend = filtered.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
   const totalRefunds = filtered.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+  async function saveIncome(monthKey: string) {
+    const val = parseFloat(incomeDraft);
+    if (!val || val < 0) { setEditingIncomeMonth(null); return; }
+    setSavingIncome(true);
+    try {
+      if (val === config.monthlyIncome && !incomeNoteDraft.trim()) {
+        await onDeleteMonthlyIncomeOverride(monthKey);
+      } else {
+        await onSetMonthlyIncomeOverride(monthKey, val, incomeNoteDraft.trim() || undefined);
+      }
+      setEditingIncomeMonth(null);
+    } finally { setSavingIncome(false); }
+  }
+
+  async function saveFixed(monthKey: string, feName: string) {
+    const val = parseFloat(fixedDraft);
+    if (isNaN(val) || val < 0) { setEditingFixedKey(null); return; }
+    setSavingFixed(true);
+    try {
+      const current = monthConfigs?.[monthKey]?.fixedExpenses ?? [];
+      const updated = current.map(fe => fe.name === feName ? { ...fe, amount: val, note: fixedNoteDraft.trim() || undefined } : fe);
+      await onSetMonthFixedExpenses(monthKey, updated);
+      setEditingFixedKey(null);
+    } finally { setSavingFixed(false); }
+  }
+
+  async function resetExpense(monthKey: string, feName: string) {
+    const defaultAmount = config.fixedExpenses.find(fe => fe.name === feName)?.amount ?? 0;
+    const fKey = `${monthKey}::${feName}`;
+    setResettingFixed(fKey);
+    try {
+      const current = monthConfigs?.[monthKey]?.fixedExpenses ?? [];
+      const updated = current.map(fe => fe.name === feName ? { name: fe.name, amount: defaultAmount } : fe);
+      await onSetMonthFixedExpenses(monthKey, updated);
+    } finally { setResettingFixed(null); }
+  }
+
+  async function addExpense(monthKey: string) {
+    const name = addNameDraft.trim();
+    const val = parseFloat(addAmountDraft);
+    if (!name || !val || val < 0) { setAddingExpenseMonth(null); return; }
+    setSavingAdd(true);
+    try {
+      const current = monthConfigs?.[monthKey]?.fixedExpenses ?? [];
+      if (current.some(fe => fe.name === name)) return;
+      const updated = [...current, { name, amount: val, note: addNoteDraft.trim() || undefined }];
+      await onSetMonthFixedExpenses(monthKey, updated);
+      setAddingExpenseMonth(null);
+      setAddNameDraft('');
+      setAddAmountDraft('');
+      setAddNoteDraft('');
+    } finally { setSavingAdd(false); }
+  }
+
+  async function removeExpense(monthKey: string, feName: string) {
+    const fKey = `${monthKey}::${feName}`;
+    setRemovingFixed(fKey);
+    try {
+      const current = monthConfigs?.[monthKey]?.fixedExpenses ?? [];
+      const updated = current.filter(fe => fe.name !== feName);
+      await onSetMonthFixedExpenses(monthKey, updated);
+    } finally { setRemovingFixed(null); }
+  }
+
   if (isLoading) {
     return (
       <div className={s.spinner}>
@@ -195,13 +290,13 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   return (
     <div className={s.root}>
       <div className={s.subNav}>
-        {(['transactions', 'charts'] as const).map(t => (
+        {(['transactions', 'charts', 'edit-months'] as const).map(t => (
           <button
             key={t}
             onClick={() => setSubTab(t)}
             className={`${s.subNavBtn} ${subTab === t ? s.subNavBtnActive : ''}`}
           >
-            {t === 'transactions' ? 'All Transactions' : 'Charts'}
+            {t === 'transactions' ? 'All Transactions' : t === 'charts' ? 'Charts' : 'Monthly Config'}
           </button>
         ))}
       </div>
@@ -386,6 +481,205 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {subTab === 'edit-months' && (
+        <div className={s.editMonths}>
+          <div className={s.searchWrap} style={{ marginBottom: 16 }}>
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#aaa" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={s.searchIcon}>
+              <circle cx="6.5" cy="6.5" r="5" /><line x1="10.5" y1="10.5" x2="14" y2="14" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search months…"
+              value={editMonthSearch}
+              onChange={e => setEditMonthSearch(e.target.value)}
+              className={`${s.input} ${s.searchInput}`}
+            />
+            {editMonthSearch && (
+              <button type="button" onClick={() => setEditMonthSearch('')} className={s.searchClear}>×</button>
+            )}
+          </div>
+          {editMonthKeys.length === 0 ? (
+            <div className={s.empty}>{Object.keys(monthConfigs ?? {}).length === 0 ? 'No months found' : 'No months match'}</div>
+          ) : editMonthKeys.map(monthKey => {
+            const mc = monthConfigs?.[monthKey];
+            const income = mc?.income ?? config.monthlyIncome;
+            const hasIncomeOverride = mc?.income !== undefined && mc.income !== config.monthlyIncome;
+            const incomeNote = mc?.incomeNote;
+
+            const globalNames = new Set(config.fixedExpenses.map(fe => fe.name));
+            const allExpenses = mc?.fixedExpenses ?? [];
+
+            return (
+              <div key={monthKey} className={s.editMonthCard}>
+                <div className={s.editMonthTitle}>{keyToFullLabel(monthKey)}</div>
+
+                {/* Income row */}
+                <div className={s.editRow}>
+                  <span className={s.editRowLabel}>Income</span>
+                  {editingIncomeMonth === monthKey ? (
+                    <div className={s.editInlineForm}>
+                      <span>$</span>
+                      <input
+                        autoFocus type="number" min="0" step="1"
+                        value={incomeDraft}
+                        onChange={e => setIncomeDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveIncome(monthKey); if (e.key === 'Escape') setEditingIncomeMonth(null); }}
+                        className={s.editInput}
+                      />
+                      <input
+                        type="text" placeholder="Note (optional)"
+                        value={incomeNoteDraft}
+                        onChange={e => setIncomeNoteDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveIncome(monthKey); if (e.key === 'Escape') setEditingIncomeMonth(null); }}
+                        className={s.editNoteInput}
+                      />
+                      <button onClick={() => saveIncome(monthKey)} disabled={savingIncome} className={s.editSaveBtn}>
+                        {savingIncome ? '…' : 'Save'}
+                      </button>
+                      {hasIncomeOverride && (
+                        <button
+                          onClick={async () => { setResettingIncome(monthKey); try { await onDeleteMonthlyIncomeOverride(monthKey); setEditingIncomeMonth(null); } finally { setResettingIncome(null); } }}
+                          disabled={resettingIncome === monthKey}
+                          className={s.editResetBtn}
+                        >
+                          {resettingIncome === monthKey ? '…' : 'Reset'}
+                        </button>
+                      )}
+                      <button onClick={() => setEditingIncomeMonth(null)} className={s.editCancelBtn}>Cancel</button>
+                    </div>
+                  ) : (
+                    <div className={s.editRowValue}>
+                      {hasIncomeOverride && <span className={s.editCustomBadge}>custom</span>}
+                      <span>${income.toLocaleString()}</span>
+                      {incomeNote && <span className={s.editNote}>{incomeNote}</span>}
+                      <button
+                        onClick={() => { setIncomeDraft(String(income)); setIncomeNoteDraft(incomeNote ?? ''); setEditingIncomeMonth(monthKey); }}
+                        className={s.editBtn} title="Edit income"
+                      >
+                        <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fixed expense rows */}
+                {allExpenses.map(fe => {
+                  const fKey = `${monthKey}::${fe.name}`;
+                  const isGlobal = globalNames.has(fe.name);
+                  const globalDefault = config.fixedExpenses.find(g => g.name === fe.name)?.amount;
+                  const hasOverride = isGlobal && globalDefault !== undefined && fe.amount !== globalDefault;
+
+                  return (
+                    <div key={fe.name} className={s.editRow}>
+                      <span className={s.editRowLabel}>{fe.name}</span>
+                      {editingFixedKey === fKey ? (
+                        <div className={s.editInlineForm}>
+                          <span>$</span>
+                          <input
+                            autoFocus type="number" min="0" step="1"
+                            value={fixedDraft}
+                            onChange={e => setFixedDraft(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveFixed(monthKey, fe.name); if (e.key === 'Escape') setEditingFixedKey(null); }}
+                            className={s.editInput}
+                          />
+                          <input
+                            type="text" placeholder="Note (optional)"
+                            value={fixedNoteDraft}
+                            onChange={e => setFixedNoteDraft(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveFixed(monthKey, fe.name); if (e.key === 'Escape') setEditingFixedKey(null); }}
+                            className={s.editNoteInput}
+                          />
+                          <button onClick={() => saveFixed(monthKey, fe.name)} disabled={savingFixed} className={s.editSaveBtn}>
+                            {savingFixed ? '…' : 'Save'}
+                          </button>
+                          {hasOverride && (
+                            <button
+                              onClick={() => { setEditingFixedKey(null); resetExpense(monthKey, fe.name); }}
+                              disabled={resettingFixed === fKey}
+                              className={s.editResetBtn}
+                            >
+                              {resettingFixed === fKey ? '…' : 'Reset'}
+                            </button>
+                          )}
+                          <button onClick={() => setEditingFixedKey(null)} className={s.editCancelBtn}>Cancel</button>
+                        </div>
+                      ) : (
+                        <div className={s.editRowValue}>
+                          {hasOverride && <span className={s.editCustomBadge}>custom</span>}
+                          <span>${fe.amount.toLocaleString()}</span>
+                          {fe.note && <span className={s.editNote}>{fe.note}</span>}
+                          <button
+                            onClick={() => { setFixedDraft(String(fe.amount)); setFixedNoteDraft(fe.note ?? ''); setEditingFixedKey(fKey); }}
+                            className={s.editBtn} title={`Edit ${fe.name}`}
+                          >
+                            <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => removeExpense(monthKey, fe.name)}
+                            disabled={removingFixed === fKey}
+                            className={s.editRemoveBtn}
+                            title={`Remove ${fe.name}`}
+                          >
+                            {removingFixed === fKey ? '…' : (
+                              <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="2" y1="2" x2="12" y2="12" /><line x1="12" y1="2" x2="2" y2="12" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Add expense form / button */}
+                {addingExpenseMonth === monthKey ? (
+                  <div className={s.editAddForm}>
+                    <input
+                      autoFocus type="text" placeholder="Expense name"
+                      value={addNameDraft}
+                      onChange={e => setAddNameDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addExpense(monthKey); if (e.key === 'Escape') setAddingExpenseMonth(null); }}
+                      className={s.editAddNameInput}
+                    />
+                    <span>$</span>
+                    <input
+                      type="number" min="0" step="1" placeholder="Amount"
+                      value={addAmountDraft}
+                      onChange={e => setAddAmountDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addExpense(monthKey); if (e.key === 'Escape') setAddingExpenseMonth(null); }}
+                      className={s.editInput}
+                    />
+                    <input
+                      type="text" placeholder="Note (optional)"
+                      value={addNoteDraft}
+                      onChange={e => setAddNoteDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addExpense(monthKey); if (e.key === 'Escape') setAddingExpenseMonth(null); }}
+                      className={s.editNoteInput}
+                    />
+                    <button onClick={() => addExpense(monthKey)} disabled={savingAdd} className={s.editSaveBtn}>
+                      {savingAdd ? '…' : 'Add'}
+                    </button>
+                    <button onClick={() => setAddingExpenseMonth(null)} className={s.editCancelBtn}>Cancel</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setAddNameDraft(''); setAddAmountDraft(''); setAddNoteDraft(''); setAddingExpenseMonth(monthKey); }}
+                    className={s.editAddBtn}
+                  >
+                    + Add expense
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
