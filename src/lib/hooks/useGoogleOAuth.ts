@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useStore } from '@/lib/store/useStore';
 
 interface GoogleUser {
@@ -35,6 +35,11 @@ export function useGoogleOAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSilentLoading, setIsSilentLoading] = useState(true);
   const [isConfigError, setIsConfigError] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => { abortControllerRef.current?.abort(); };
+  }, []);
   const clearSelectedSheet = useStore((state) => state.clearSelectedSheet);
   const setAvailableSheets = useStore((state) => state.setAvailableSheets);
 
@@ -126,8 +131,10 @@ export function useGoogleOAuth() {
               const token = tokenResponse.access_token;
               setAccessToken(token);
 
+              abortControllerRef.current = new AbortController();
               const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
                 headers: { Authorization: `Bearer ${token}` },
+                signal: abortControllerRef.current.signal,
               });
 
               if (!res.ok) throw new Error('Failed to fetch user info');

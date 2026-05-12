@@ -1,7 +1,5 @@
 # Test Suite Documentation
 
-60 tests across 5 files. All tests use [Vitest](https://vitest.dev/).
-
 Run tests:
 ```bash
 npm test              # run once

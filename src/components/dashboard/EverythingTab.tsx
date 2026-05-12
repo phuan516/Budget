@@ -6,6 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LineChart, Line, ResponsiveContainer,
 } from 'recharts';
+import CustomSelect from '@/components/ui/CustomSelect';
 import s from './EverythingTab.module.css';
 
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
@@ -178,88 +179,6 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
       else next.add(key);
       return next;
     });
-  }
-
-  function CustomSelect({
-    value,
-    onChange,
-    options,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-    options: { label: string; value: string; disabled?: boolean; divider?: boolean }[];
-  }) {
-    const [open, setOpen] = useState(false);
-    const [hovered, setHovered] = useState<string | null>(null);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      if (!open) return;
-      function onDown(e: MouseEvent) {
-        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-      }
-      document.addEventListener('mousedown', onDown);
-      return () => document.removeEventListener('mousedown', onDown);
-    }, [open]);
-
-    const selected = options.find((o) => !o.disabled && !o.divider && o.value === value);
-
-    return (
-      <div ref={ref} className={s.selectWrap}>
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className={s.selectBtn}
-        >
-          <span className={`${s.selectBtnText} ${!selected ? s.selectBtnTextPlaceholder : ''}`}>
-            {selected ? selected.label : '— none —'}
-          </span>
-          <svg
-            viewBox="0 0 10 6" width="10" height="10" fill="none"
-            stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-            style={{ flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}
-          >
-            <path d="M1 1l4 4 4-4" />
-          </svg>
-        </button>
-
-        {open && (
-          <div className={s.selectDropdown}>
-            {options.map((opt, i) => {
-              if (opt.divider) {
-                return (
-                  <div
-                    key={i}
-                    className={`${s.selectDivider} ${i > 0 ? s.selectDividerBordered : ''}`}
-                  >
-                    {opt.label}
-                  </div>
-                );
-              }
-              const isSelected = opt.value === value;
-              const isHovered = hovered === `${i}`;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onMouseEnter={() => setHovered(`${i}`)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() => { onChange(opt.value); setOpen(false); }}
-                  className={`${s.selectOption} ${isHovered ? s.selectOptionHovered : ''} ${isSelected ? s.selectOptionSelected : ''}`}
-                >
-                  {opt.label}
-                  {isSelected && (
-                    <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 5l3.5 3.5L11 1" />
-                    </svg>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
   }
 
   const totalSpend = filtered.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);

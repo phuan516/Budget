@@ -1,0 +1,84 @@
+.selectWrap {
+  position: relative;
+}
+
+.selectBtn {
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  padding: 9px 10px 9px 11px;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.selectBtnText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectBtnTextPlaceholder {
+  color: #aaa;
+}
+
+.selectDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.09);
+  z-index: 200;
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.selectDivider {
+  padding: 6px 12px 4px;
+  font-size: 10px;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.selectDividerBordered {
+  border-top: 1px solid #f0f0f0;
+  margin-top: 4px;
+}
+
+.selectOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: #1a1a1a;
+  font-weight: 400;
+  transition: background 0.1s;
+}
+
+.selectOptionHovered {
+  background: #f7f7f7;
+}
+
+.selectOptionSelected {
+  font-weight: 500;
+}

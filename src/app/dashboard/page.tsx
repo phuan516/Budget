@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
 import { useStore, DashboardTab, Transaction } from '@/lib/store/useStore';
 import OverviewTab from '@/components/dashboard/OverviewTab';
@@ -401,12 +402,9 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#888' }}>
             <span>{user.email}</span>
             <span>·</span>
-            <button
-              onClick={() => router.push('/sheets/select')}
-              style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, padding: 0 }}
-            >
+            <Link href="/sheets/select" style={{ color: '#888', fontSize: 12, textDecoration: 'none' }}>
               Change sheet
-            </button>
+            </Link>
             <span>·</span>
             <button
               onClick={logout}
