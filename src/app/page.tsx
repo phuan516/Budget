@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
 import { useStore } from '@/lib/store/useStore';
@@ -78,7 +79,7 @@ export default function LandingPage() {
 
       <header className="flex justify-between items-center shrink-0 px-14 py-8 max-sm:px-[22px] max-sm:py-3">
         <div className="flex items-center gap-[10px]">
-          <div className="w-[22px] h-[22px] rounded-full bg-[#1a1a1a] shrink-0 max-sm:w-[18px] max-sm:h-[18px]" />
+          <Image src="/ledger-A-512.png" alt="Ledger" width={22} height={22} className="rounded-full shrink-0 max-sm:w-[18px] max-sm:h-[18px]" />
           <span className="text-[15px] font-semibold tracking-[-0.2px] max-sm:text-[13px]">Ledger</span>
         </div>
         <button

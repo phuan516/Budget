@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-white text-[#1a1a1a]">
       <header className="flex justify-between items-center px-14 py-8 max-sm:px-[22px] max-sm:py-5 border-b border-[#f0f0f0]">
         <Link href="/" className="flex items-center gap-[10px] no-underline">
-          <div className="w-[22px] h-[22px] rounded-full bg-[#1a1a1a] shrink-0" />
+          <Image src="/ledger-A-512.png" alt="Ledger" width={22} height={22} className="rounded-full shrink-0" />
           <span className="text-[15px] font-semibold tracking-[-0.2px]">Ledger</span>
         </Link>
       </header>
@@ -151,10 +152,10 @@ export default function PrivacyPage() {
             If you have any questions or concerns about this privacy policy or how Ledger handles your
             data, please contact:{' '}
             <a
-              href="mailto:peterhuang516@gmail.com"
+              href="mailto:phuan516@mtroyal.ca"
               className="text-[#1a1a1a] underline underline-offset-2"
             >
-              peterhuang516@gmail.com
+              phuan516@mtroyal.ca
             </a>
           </p>
         </Section>

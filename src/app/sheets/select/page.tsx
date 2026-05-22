@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
 import { useStore } from '@/lib/store/useStore';
@@ -103,7 +104,12 @@ export default function SheetSelectionPage() {
       <header style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
         {/* Desktop */}
         <div className="hidden sm:flex justify-between items-center px-12 py-7">
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Ledger · Choose sheet</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Image src="/ledger-A-512.png" alt="Ledger" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Ledger</span>
+            <span style={{ color: '#d8d8d8', fontSize: 13 }}>/</span>
+            <span style={{ fontSize: 13, color: '#444' }}>Select sheet</span>
+          </div>
           <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 4 }}>
             <span>{user.email}</span>
             <span>·</span>
@@ -117,7 +123,10 @@ export default function SheetSelectionPage() {
         </div>
         {/* Mobile */}
         <div className="sm:hidden flex justify-between items-center px-5 py-3">
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Choose sheet</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Image src="/ledger-A-512.png" alt="Ledger" width={16} height={16} style={{ borderRadius: '50%' }} />
+            <span style={{ fontSize: 13, color: '#444' }}>Select sheet</span>
+          </div>
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setMenuOpen((o) => !o)}

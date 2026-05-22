@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
@@ -406,7 +407,7 @@ export default function DashboardPage() {
         {/* Desktop */}
         <div className="hidden sm:flex justify-between items-center px-12 py-5">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#1a1a1a', flexShrink: 0 }} />
+            <Image src="/ledger-A-512.png" alt="Ledger" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0 }} />
             <span style={{ fontSize: 13, fontWeight: 600 }}>Ledger</span>
             <span style={{ color: '#d8d8d8', fontSize: 13 }}>/</span>
             <span style={{ fontSize: 13, color: '#444' }}>{selectedSheet.name}</span>
@@ -429,7 +430,7 @@ export default function DashboardPage() {
         {/* Mobile */}
         <div className="sm:hidden flex justify-between items-center px-5 py-3">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#1a1a1a' }} />
+            <Image src="/ledger-A-512.png" alt="Ledger" width={16} height={16} style={{ borderRadius: '50%' }} />
             <span style={{ fontSize: 13, color: '#444', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selectedSheet.name}
             </span>
