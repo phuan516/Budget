@@ -118,7 +118,7 @@ export default function LandingPage() {
             We only request access to sheets you pick.
           </p>
           <p className="text-[10px] text-[#888] text-center mt-[6px]">
-            No server storage · End-to-end with your Drive
+            No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2">Privacy</a>
           </p>
         </div>
       </div>
@@ -151,7 +151,7 @@ export default function LandingPage() {
       </div>
 
       <p className="hidden sm:block absolute left-14 bottom-8 text-[11px] text-[#888]">
-        No server storage · End-to-end with your Drive
+        No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2 hover:text-[#555]">Privacy</a>
       </p>
     </div>
   );
