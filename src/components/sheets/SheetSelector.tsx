@@ -7,6 +7,7 @@ import { SheetMetadata } from '@/lib/google/sheets';
 interface SheetSelectorProps {
   onSelectSheet: (sheetId: string) => void;
   onCreateSheet: (name: string) => void;
+  onCancel?: () => void;
   accessToken: string;
   isCreating?: boolean;
   isSelecting?: boolean;
@@ -54,7 +55,7 @@ const FILTER_OPTIONS: { value: OwnerFilter; label: string }[] = [
   { value: 'shared', label: 'Shared' },
 ];
 
-export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToken, isCreating, isSelecting }: SheetSelectorProps) {
+export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, accessToken, isCreating, isSelecting }: SheetSelectorProps) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -220,7 +221,9 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                       <SheetsIcon size={15} />
-                      <span style={{ fontSize: 10, color: '#888', fontFamily: MONO }}>— rows</span>
+                      <span style={{ fontSize: 10, color: '#888', fontFamily: MONO }}>
+                        {sheet.ownedByMe ? 'Me' : (sheet.ownerName ?? '—')}
+                      </span>
                       {selected && (
                         isSelecting ? (
                           <div className="ml-auto w-3 h-3 border-[1.5px] border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
@@ -268,7 +271,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 32, paddingBottom: 48 }}>
           <button
-            onClick={() => !isSelecting && setPendingId(null)}
+            onClick={() => { if (!isSelecting) { setPendingId(null); onCancel?.(); } }}
             style={{ border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: isSelecting ? 'not-allowed' : 'pointer' }}
           >
             Cancel
@@ -381,7 +384,9 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                     <SheetsIcon size={13} />
-                    <span style={{ fontSize: 9, color: '#888', fontFamily: MONO }}>— rows</span>
+                    <span style={{ fontSize: 9, color: '#888', fontFamily: MONO }}>
+                      {sheet.ownedByMe ? 'Me' : (sheet.ownerName ?? '—')}
+                    </span>
                   </div>
                   <MiniSheetPreview height={42} />
                   <div style={{ fontSize: 12, fontWeight: 500, color: '#1a1a1a', lineHeight: 1.2 }}>{sheet.name}</div>
@@ -427,7 +432,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, accessToke
 
         <div style={{ flexShrink: 0, padding: '12px 16px 20px', borderTop: '1px solid #ececec', display: 'flex', gap: 8 }}>
           <button
-            onClick={() => !isSelecting && setPendingId(null)}
+            onClick={() => { if (!isSelecting) { setPendingId(null); onCancel?.(); } }}
             style={{ flex: 1, padding: 12, border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: isSelecting ? 'not-allowed' : 'pointer' }}
           >
             Cancel

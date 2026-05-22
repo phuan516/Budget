@@ -6,6 +6,7 @@ export interface SheetMetadata {
   modifiedTime?: string;
   thumbnailLink?: string;
   ownedByMe?: boolean;
+  ownerName?: string;
 }
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -89,7 +90,7 @@ export class SheetsService {
       const drive = google.drive({ version: 'v3', auth: this.auth });
       const response = await drive.files.list({
         q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed = false",
-        fields: 'files(id, name, modifiedTime, thumbnailLink, ownedByMe)',
+        fields: 'files(id, name, modifiedTime, thumbnailLink, ownedByMe, owners)',
         orderBy: 'modifiedTime desc',
       });
 
@@ -99,6 +100,7 @@ export class SheetsService {
         modifiedTime: file.modifiedTime ?? undefined,
         thumbnailLink: file.thumbnailLink ?? undefined,
         ownedByMe: file.ownedByMe ?? undefined,
+        ownerName: file.owners?.[0]?.displayName ?? undefined,
       })) || [];
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

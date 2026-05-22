@@ -167,6 +167,7 @@ export default function SheetSelectionPage() {
         accessToken={accessToken!}
         onSelectSheet={handleSelectSheet}
         onCreateSheet={handleCreateNew}
+        onCancel={() => router.back()}
         isCreating={isCreating}
         isSelecting={isSelecting}
       />
