@@ -365,6 +365,45 @@ export default function DashboardPage() {
     return tempId;
   }
 
+  async function handleEditTransaction(id: string, updates: Omit<Transaction, 'id' | 'tab' | 'row'>) {
+    if (!accessToken || !selectedSheet) return;
+
+    const txn = transactions.find((t) => t.id === id);
+    if (!txn) return;
+
+    const oldMonthKey = txn.date.slice(0, 7);
+    const newMonthKey = updates.date.slice(0, 7);
+
+    const updatedTxns = transactions.map((t) => t.id === id ? { ...t, ...updates } : t);
+    setTransactions(updatedTxns);
+
+    if (oldMonthKey === newMonthKey) {
+      await fetch('/api/transactions/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn.tab, row: txn.row, ...updates }),
+      });
+    } else {
+      await fetch('/api/transactions/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn.tab, row: txn.row }),
+      });
+      await fetch('/api/transactions/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ sheetId: selectedSheet.id, ...updates }),
+      });
+    }
+
+    const fromMonthKey = oldMonthKey < newMonthKey ? oldMonthKey : newMonthKey;
+    const isNewTab = !monthTabKeys.includes(newMonthKey);
+    const tabs = isNewTab ? [...monthTabKeys, newMonthKey] : monthTabKeys;
+    await syncCarryOvers(fromMonthKey, updatedTxns, tabs);
+
+    loadTransactions(true);
+  }
+
   async function handleDeleteTransaction(id: string) {
     if (!accessToken || !selectedSheet) return;
 
@@ -525,6 +564,7 @@ export default function DashboardPage() {
             isLoading={txnLoading}
             onAdd={handleAddTransaction}
             onDelete={handleDeleteTransaction}
+            onEdit={handleEditTransaction}
           />
         )}
         {activeTab === 'settings' && (
@@ -548,6 +588,8 @@ export default function DashboardPage() {
             onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
             onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
             onSetMonthFixedExpenses={handleSetMonthFixedExpenses}
+            onEdit={handleEditTransaction}
+            onDelete={handleDeleteTransaction}
           />
         )}
       </main>

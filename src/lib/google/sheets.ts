@@ -969,6 +969,30 @@ export class SheetsService {
     }
   }
 
+  // Updates a transaction row in-place by its 1-based row index within the given month tab.
+  async updateTransaction(
+    spreadsheetId: string,
+    tabName: string,
+    rowIndex: number,
+    date: string,
+    amount: number,
+    category: string,
+    card: string,
+    note: string,
+  ): Promise<void> {
+    try {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${quoteSheet(tabName)}!A${rowIndex}:E${rowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[date, amount, category, card, note]] },
+      });
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      throw new Error('Failed to update transaction');
+    }
+  }
+
   // Deletes a transaction row by its 1-based row index within the given month tab.
   async deleteTransaction(spreadsheetId: string, tabName: string, rowIndex: number): Promise<void> {
     try {

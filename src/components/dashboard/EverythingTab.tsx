@@ -44,9 +44,11 @@ interface Props {
   onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number, note?: string) => Promise<void>;
   onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
   onSetMonthFixedExpenses: (monthKey: string, fixedExpenses: { name: string; amount: number; note?: string }[]) => Promise<void>;
+  onEdit: (id: string, updates: Omit<Transaction, 'id' | 'tab' | 'row'>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
-export default function EverythingTab({ transactions, config, monthConfigs, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride, onSetMonthFixedExpenses }: Props) {
+export default function EverythingTab({ transactions, config, monthConfigs, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride, onSetMonthFixedExpenses, onEdit, onDelete }: Props) {
   const [subTab, setSubTab] = useState<'transactions' | 'charts' | 'edit-months'>('transactions');
   const [search, setSearch] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
@@ -73,6 +75,13 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   const [addAmountDraft, setAddAmountDraft] = useState('');
   const [addNoteDraft, setAddNoteDraft] = useState('');
   const [savingAdd, setSavingAdd] = useState(false);
+
+  const [editingTxnId, setEditingTxnId] = useState<string | null>(null);
+  const [editTxnForm, setEditTxnForm] = useState({ date: '', amount: '', category: '', card: '', note: '' });
+  const [editTxnIsRefund, setEditTxnIsRefund] = useState(false);
+  const [editTxnSaving, setEditTxnSaving] = useState(false);
+  const [editTxnError, setEditTxnError] = useState<string | null>(null);
+  const [deletingTxnId, setDeletingTxnId] = useState<string | null>(null);
 
   const allMonthKeys = useMemo(
     () => [...new Set(transactions.map(t => t.date.slice(0, 7)))].sort().reverse(),
@@ -279,6 +288,33 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
     } finally { setRemovingFixed(null); }
   }
 
+  function openEditTxn(t: Transaction) {
+    setEditingTxnId(t.id);
+    setEditTxnIsRefund(t.amount < 0);
+    setEditTxnForm({ date: t.date, amount: String(Math.abs(t.amount)), category: t.category, card: t.card, note: t.note });
+    setEditTxnError(null);
+  }
+
+  async function handleEditTxnSave() {
+    if (!editTxnForm.amount || parseFloat(editTxnForm.amount) <= 0) { setEditTxnError('Enter a valid amount'); return; }
+    if (!editTxnForm.date) { setEditTxnError('Enter a date'); return; }
+    setEditTxnError(null);
+    setEditTxnSaving(true);
+    try {
+      const amount = editTxnIsRefund ? -parseFloat(editTxnForm.amount) : parseFloat(editTxnForm.amount);
+      await onEdit(editingTxnId!, { date: editTxnForm.date, amount, category: editTxnForm.category, card: editTxnForm.card, note: editTxnForm.note });
+      setEditingTxnId(null);
+    } finally {
+      setEditTxnSaving(false);
+    }
+  }
+
+  async function handleDeleteTxn(id: string) {
+    setDeletingTxnId(id);
+    try { await onDelete(id); }
+    finally { setDeletingTxnId(null); }
+  }
+
   if (isLoading) {
     return (
       <div className={s.spinner}>
@@ -458,24 +494,82 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                     {showHeader && (
                       <div className={s.monthHeader}>{keyToFullLabel(monthKey)}</div>
                     )}
-                    <div className={s.txnRow}>
-                      <div className={s.txnBody}>
-                        <div className={s.txnPrimary}>
-                          <span>{t.category || <span className={s.txnNoCategory}>No category</span>}</span>
-                          {isRefund && <span className={s.txnRefundBadge}>Refund</span>}
-                          {t.note && <span className={s.txnNote}>· {t.note}</span>}
+                    {editingTxnId === t.id ? (
+                      <div className={s.txnEditForm}>
+                        <div className={s.txnEditGrid}>
+                          <div>
+                            <label className={s.filterLabel}>Date</label>
+                            <input type="date" value={editTxnForm.date} onChange={e => setEditTxnForm(f => ({ ...f, date: e.target.value }))} className={s.input} style={{ width: '100%', boxSizing: 'border-box' }} />
+                          </div>
+                          <div>
+                            <label className={s.filterLabel}>Amount</label>
+                            <input type="number" min="0" step="0.01" value={editTxnForm.amount} onChange={e => setEditTxnForm(f => ({ ...f, amount: e.target.value }))} className={s.input} style={{ width: '100%', boxSizing: 'border-box', fontFamily: MONO }} />
+                          </div>
+                          <div>
+                            <label className={s.filterLabel}>Category</label>
+                            <select value={editTxnForm.category} onChange={e => setEditTxnForm(f => ({ ...f, category: e.target.value }))} className={s.input} style={{ width: '100%', boxSizing: 'border-box' }}>
+                              <option value="">— none —</option>
+                              {config.categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                              {config.savingGoals.length > 0 && config.savingGoals.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className={s.filterLabel}>Card / Payment</label>
+                            <select value={editTxnForm.card} onChange={e => setEditTxnForm(f => ({ ...f, card: e.target.value }))} className={s.input} style={{ width: '100%', boxSizing: 'border-box' }}>
+                              <option value="">— none —</option>
+                              {config.cards.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            </select>
+                          </div>
                         </div>
-                        <div className={s.txnMeta}>
-                          {t.date}{t.card ? ` · ${t.card}` : ''}
+                        <div style={{ marginBottom: 10 }}>
+                          <label className={s.filterLabel}>Note</label>
+                          <input type="text" value={editTxnForm.note} onChange={e => setEditTxnForm(f => ({ ...f, note: e.target.value }))} className={s.input} placeholder="e.g. Grocery run" style={{ width: '100%', boxSizing: 'border-box' }} />
+                        </div>
+                        {editTxnError && <div style={{ fontSize: 12, color: '#c0392b', marginBottom: 8 }}>{editTxnError}</div>}
+                        <div className={s.txnEditActions}>
+                          <div style={{ display: 'flex', border: '1px solid #d8d8d8', borderRadius: 999, overflow: 'hidden', fontSize: 12 }}>
+                            {(['Expense', 'Refund'] as const).map(label => {
+                              const active = label === 'Refund' ? editTxnIsRefund : !editTxnIsRefund;
+                              return (
+                                <button key={label} type="button" onClick={() => setEditTxnIsRefund(label === 'Refund')}
+                                  style={{ padding: '5px 12px', border: 'none', background: active ? (label === 'Refund' ? '#0F9D58' : '#1a1a1a') : 'transparent', color: active ? '#fff' : '#888', cursor: 'pointer', fontWeight: active ? 600 : 400 }}>
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button type="button" onClick={() => setEditingTxnId(null)} className={s.txnEditCancelBtn}>Cancel</button>
+                          <button type="button" onClick={handleEditTxnSave} disabled={editTxnSaving} className={s.txnEditSaveBtn}>{editTxnSaving ? 'Saving…' : 'Save'}</button>
                         </div>
                       </div>
-                      <div
-                        className={`${s.txnAmount} ${isRefund ? s.txnAmountRefund : ''}`}
-                        style={{ fontFamily: MONO }}
-                      >
-                        {isRefund ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
+                    ) : (
+                      <div className={s.txnRow}>
+                        <div className={s.txnBody}>
+                          <div className={s.txnPrimary}>
+                            <span>{t.category || <span className={s.txnNoCategory}>No category</span>}</span>
+                            {isRefund && <span className={s.txnRefundBadge}>Refund</span>}
+                            {t.note && <span className={s.txnNote}>· {t.note}</span>}
+                          </div>
+                          <div className={s.txnMeta}>
+                            {t.date}{t.card ? ` · ${t.card}` : ''}
+                          </div>
+                        </div>
+                        <div
+                          className={`${s.txnAmount} ${isRefund ? s.txnAmountRefund : ''}`}
+                          style={{ fontFamily: MONO }}
+                        >
+                          {isRefund ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
+                        </div>
+                        <button onClick={() => openEditTxn(t)} className={s.txnEditBtn} title="Edit">
+                          <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
+                          </svg>
+                        </button>
+                        <button onClick={() => handleDeleteTxn(t.id)} disabled={deletingTxnId === t.id} className={s.txnDeleteBtn} title="Delete">
+                          {deletingTxnId === t.id ? '…' : '×'}
+                        </button>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}

@@ -35,11 +35,12 @@ interface Props {
   isLoading: boolean;
   onAdd: (t: Omit<Transaction, 'id' | 'tab' | 'row'>) => Promise<string>;
   onDelete: (id: string) => Promise<void>;
+  onEdit: (id: string, updates: Omit<Transaction, 'id' | 'tab' | 'row'>) => Promise<void>;
 }
 
 type SortBy = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
 
-export default function TransactionsTab({ transactions, config, monthConfigs, isLoading, onAdd, onDelete }: Props) {
+export default function TransactionsTab({ transactions, config, monthConfigs, isLoading, onAdd, onDelete, onEdit }: Props) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -61,6 +62,12 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterCard, setFilterCard] = useState('');
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ date: '', amount: '', category: '', card: '', note: '' });
+  const [editIsRefund, setEditIsRefund] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const [claimOpen, setClaimOpen] = useState(false);
   const [claimGoal, setClaimGoal] = useState('');
@@ -189,6 +196,27 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
   }
 
   const isAtMax = viewYear === maxYear && viewMonth === maxMonth;
+
+  function openEdit(t: Transaction) {
+    setEditingId(t.id);
+    setEditIsRefund(t.amount < 0);
+    setEditForm({ date: t.date, amount: String(Math.abs(t.amount)), category: t.category, card: t.card, note: stripClaimTag(t.note) });
+    setEditError(null);
+  }
+
+  async function handleEditSave() {
+    if (!editForm.amount || parseFloat(editForm.amount) <= 0) { setEditError('Enter a valid amount'); return; }
+    if (!editForm.date) { setEditError('Enter a date'); return; }
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      const amount = editIsRefund ? -parseFloat(editForm.amount) : parseFloat(editForm.amount);
+      await onEdit(editingId!, { date: editForm.date, amount, category: editForm.category, card: editForm.card, note: editForm.note });
+      setEditingId(null);
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -533,6 +561,46 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
         <div className={s.list}>
           {displayed.map((t) => {
             const displayNote = stripClaimTag(t.note);
+            if (editingId === t.id) {
+              return (
+                <div key={t.id} className={s.txnEditForm}>
+                  <div className={s.txnEditGrid}>
+                    <div className={s.formField}>
+                      <label className={s.formLabel}>Date</label>
+                      <input type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} className={s.input} />
+                    </div>
+                    <div className={s.formField}>
+                      <label className={s.formLabel}>Amount</label>
+                      <input type="number" min="0" step="0.01" value={editForm.amount} onChange={e => setEditForm(f => ({ ...f, amount: e.target.value }))} className={`${s.input} ${s.inputMono}`} />
+                    </div>
+                    <div className={s.formField}>
+                      <label className={s.formLabel}>Category</label>
+                      <CustomSelect value={editForm.category} onChange={v => setEditForm(f => ({ ...f, category: v }))} options={[{ label: '— none —', value: '' }, ...config.categories.map(c => ({ label: c.name, value: c.name })), ...(config.savingGoals.length > 0 ? [{ label: 'Saving goals', value: '', divider: true }, ...config.savingGoals.map(g => ({ label: g.name, value: g.name }))] : [])]} />
+                    </div>
+                    <div className={s.formField}>
+                      <label className={s.formLabel}>Card / Payment</label>
+                      <CustomSelect value={editForm.card} onChange={v => setEditForm(f => ({ ...f, card: v }))} options={[{ label: '— none —', value: '' }, ...config.cards.map(c => ({ label: c.name, value: c.name }))]} />
+                    </div>
+                  </div>
+                  <div className={s.formField} style={{ marginBottom: 10 }}>
+                    <label className={s.formLabel}>Note</label>
+                    <input type="text" value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} className={s.input} placeholder="e.g. Grocery run" />
+                  </div>
+                  {editError && <div className={s.formError}>{editError}</div>}
+                  <div className={s.txnEditActions}>
+                    <div className={s.typeToggle}>
+                      {(['Expense', 'Refund'] as const).map(label => {
+                        const active = label === 'Refund' ? editIsRefund : !editIsRefund;
+                        const activeClass = active ? (label === 'Refund' ? s.typeToggleBtnRefundActive : s.typeToggleBtnActive) : '';
+                        return <button key={label} type="button" onClick={() => setEditIsRefund(label === 'Refund')} className={`${s.typeToggleBtn} ${activeClass}`}>{label}</button>;
+                      })}
+                    </div>
+                    <button type="button" onClick={() => setEditingId(null)} className={s.txnEditCancelBtn}>Cancel</button>
+                    <button type="button" onClick={handleEditSave} disabled={editSaving} className={`${s.txnEditSaveBtn} ${editSaving ? s.btnPrimaryDisabled : ''}`}>{editSaving ? 'Saving…' : 'Save'}</button>
+                  </div>
+                </div>
+              );
+            }
             return (
               <div
                 key={t.id}
@@ -555,6 +623,11 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
                 >
                   {t.amount < 0 ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
                 </div>
+                <button onClick={() => openEdit(t)} className={s.txnEditBtn} title="Edit">
+                  <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
+                  </svg>
+                </button>
                 <button
                   onClick={() => handleDelete(t.id)}
                   disabled={deletingId === t.id}
