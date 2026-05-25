@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const adminEmail = process.env.ADMIN_EMAIL;
-
 export async function POST(req: NextRequest) {
   const { name, email, note } = await req.json();
 
@@ -13,10 +10,14 @@ export async function POST(req: NextRequest) {
   if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
   }
-  if (!adminEmail) {
+
+  const apiKey = process.env.RESEND_API_KEY;
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!apiKey || !adminEmail) {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }
 
+  const resend = new Resend(apiKey);
   const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
 
   const { error } = await resend.emails.send({
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
       `Name:  ${name.trim()}`,
       `Email: ${email.trim()}`,
       note?.trim() ? `Note:  ${note.trim()}` : '',
+      '',
+      'To grant access, add this email as a test user in GCP:',
+      'https://console.cloud.google.com/apis/credentials/consent',
     ].filter(Boolean).join('\n'),
   });
 
