@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/lib/store/useStore';
@@ -172,10 +173,16 @@ export default function LandingPage() {
             {isSigningIn ? spinner : <GoogleG size={16} />}
             Continue with Google
           </button>
+          <p className="text-[11px] text-[#888] text-center mt-[10px]">
+            or{' '}
+            <Link href="/demo" className="underline underline-offset-2 hover:text-[#555]">
+              try the demo
+            </Link>
+          </p>
           {showRequestForm ? (
             <RequestAccessForm onClose={() => setShowRequestForm(false)} />
           ) : (
-            <p className="text-[11px] text-[#888] text-center mt-[10px]">
+            <p className="text-[11px] text-[#888] text-center mt-[6px]">
               Need access?{' '}
               <button onClick={() => setShowRequestForm(true)} className="underline underline-offset-2 hover:text-[#555]">
                 Request it here
@@ -214,7 +221,10 @@ export default function LandingPage() {
           Continue with Google
         </button>
         <p className="text-[12px] text-[#888] mt-[14px]">
-          We only request access to the sheets you pick.
+          We only request access to the sheets you pick.{' '}
+          <Link href="/demo" className="underline underline-offset-2 hover:text-[#555]">
+            Try the demo.
+          </Link>
         </p>
         {showRequestForm ? (
           <RequestAccessForm onClose={() => setShowRequestForm(false)} />
