@@ -1,11 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { SheetsService } from '@/lib/google/sheets';
 import { google } from 'googleapis';
 
-export function buildSheetsService(req: NextRequest): { service: SheetsService } | { error: NextResponse } {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
-  if (!token) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+export async function buildSheetsService(): Promise<{ service: SheetsService } | { error: NextResponse }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.accessToken) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: token });
+  oauth2Client.setCredentials({ access_token: session.accessToken });
   return { service: new SheetsService(oauth2Client) };
 }

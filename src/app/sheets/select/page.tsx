@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
+import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/lib/store/useStore';
 import SheetSelector from '@/components/sheets/SheetSelector';
 
@@ -12,10 +12,10 @@ export default function SheetSelectionPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { accessToken, user, logout, isConfigError } = useGoogleOAuth();
+  const { user, loading, signOut } = useAuth();
+  const clearSelectedSheet = useStore((s) => s.clearSelectedSheet);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -25,20 +25,17 @@ export default function SheetSelectionPage() {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [menuOpen]);
+
   const setSelectedSheet = useStore((state) => state.setSelectedSheet);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsInitializing(false), 100);
-    return () => clearTimeout(timer);
-  }, []);
+  function handleSignOut() {
+    clearSelectedSheet();
+    signOut();
+  }
 
   useEffect(() => {
-    if (isConfigError) router.push('/');
-  }, [isConfigError, router]);
-
-  useEffect(() => {
-    if (!isInitializing && !accessToken) router.push('/');
-  }, [isInitializing, accessToken, router]);
+    if (!loading && !user) router.push('/');
+  }, [loading, user, router]);
 
   const handleSelectSheet = async (sheetId: string) => {
     setError(null);
@@ -46,12 +43,12 @@ export default function SheetSelectionPage() {
     try {
       const response = await fetch('/api/sheets/select', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId }),
       });
       const data = await response.json();
       if (!response.ok) {
-        if (response.status === 401) { setError('Session expired. Please sign in again.'); logout(); return; }
+        if (response.status === 401) { setError('Session expired. Please sign in again.'); signOut(); return; }
         throw new Error(data.error || 'Failed to select sheet');
       }
       if (data.valid && data.sheet) {
@@ -73,12 +70,12 @@ export default function SheetSelectionPage() {
     try {
       const response = await fetch('/api/sheets/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
       const data = await response.json();
       if (!response.ok) {
-        if (response.status === 401) { setError('Session expired. Please sign in again.'); logout(); return; }
+        if (response.status === 401) { setError('Session expired. Please sign in again.'); signOut(); return; }
         throw new Error(data.error || 'Failed to create sheet');
       }
       setSelectedSheet({ id: data.id, name: data.name, url: data.url });
@@ -90,7 +87,7 @@ export default function SheetSelectionPage() {
     }
   };
 
-  if (isInitializing || !accessToken || !user) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
@@ -114,7 +111,7 @@ export default function SheetSelectionPage() {
             <span>{user.email}</span>
             <span>·</span>
             <button
-              onClick={logout}
+              onClick={handleSignOut}
               style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, padding: 0 }}
             >
               Sign out
@@ -154,7 +151,7 @@ export default function SheetSelectionPage() {
                   {user.email}
                 </div>
                 <button
-                  onClick={() => { setMenuOpen(false); logout(); }}
+                  onClick={() => { setMenuOpen(false); handleSignOut(); }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a' }}
                 >
                   Sign out
@@ -173,7 +170,6 @@ export default function SheetSelectionPage() {
       )}
 
       <SheetSelector
-        accessToken={accessToken!}
         onSelectSheet={handleSelectSheet}
         onCreateSheet={handleCreateNew}
         onCancel={() => router.back()}

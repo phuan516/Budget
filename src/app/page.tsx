@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
+import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/lib/store/useStore';
 
 function GoogleG({ size = 16 }: { size?: number }) {
@@ -104,54 +104,26 @@ function RequestAccessForm({ onClose }: { onClose: () => void }) {
 
 export default function LandingPage() {
   const router = useRouter();
-  const { isLoading, login, isConfigError, accessToken, user, isSilentLoading } = useGoogleOAuth();
+  const { loading, signIn, user } = useAuth();
   const selectedSheet = useStore((s) => s.selectedSheet);
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
-    if (!isSilentLoading && accessToken && user) {
+    if (!loading && user) {
       router.push(selectedSheet ? '/dashboard' : '/sheets/select');
     }
-  }, [isSilentLoading, accessToken, user, selectedSheet, router]);
+  }, [loading, user, selectedSheet, router]);
 
-  const handleLogin = () => { login(); };
+  const handleLogin = () => {
+    setIsSigningIn(true);
+    signIn('/dashboard');
+  };
 
-  if (isSilentLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (isConfigError) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-2xl p-8 shadow-lg border border-zinc-200 dark:border-zinc-800">
-          <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-4 text-center">
-            Google OAuth Not Configured
-          </h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-6">
-            The app administrator needs to set up Google OAuth credentials before you can sign in.
-          </p>
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-6 border border-amber-200 dark:border-amber-800">
-            <h3 className="font-semibold text-amber-800 dark:text-amber-400 mb-3">Setup Steps:</h3>
-            <ol className="list-decimal list-inside text-sm text-amber-700 dark:text-amber-500 space-y-2">
-              <li><strong>Create a project:</strong> Go to Google Cloud Console</li>
-              <li><strong>Enable APIs:</strong> Enable Google Sheets API and Google Drive API</li>
-              <li><strong>Create OAuth credentials:</strong> Create OAuth 2.0 Client ID</li>
-              <li><strong>Configure .env.local:</strong> Add <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id</code></li>
-            </ol>
-          </div>
-          <div className="text-xs text-zinc-400 dark:text-zinc-500 text-center">
-            Once configured, restart your dev server and try again.
-          </div>
-        </div>
       </div>
     );
   }
@@ -170,7 +142,7 @@ export default function LandingPage() {
         </div>
         <button
           onClick={handleLogin}
-          disabled={isLoading}
+          disabled={isSigningIn}
           className="border border-[#d8d8d8] bg-transparent text-[#1a1a1a] px-4 py-[9px] rounded-full text-[13px] font-medium cursor-pointer transition-colors hover:bg-[#f5f5f5] hover:border-[#1a1a1a] disabled:opacity-50 max-sm:text-[11px] max-sm:px-3 max-sm:py-[6px]"
         >
           Sign in
@@ -194,10 +166,10 @@ export default function LandingPage() {
         <div>
           <button
             onClick={handleLogin}
-            disabled={isLoading}
+            disabled={isSigningIn}
             className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
           >
-            {isLoading ? spinner : <GoogleG size={16} />}
+            {isSigningIn ? spinner : <GoogleG size={16} />}
             Continue with Google
           </button>
           {showRequestForm ? (
@@ -235,10 +207,10 @@ export default function LandingPage() {
         </p>
         <button
           onClick={handleLogin}
-          disabled={isLoading}
+          disabled={isSigningIn}
           className="inline-flex items-center gap-2 bg-[#1a1a1a] text-white px-[22px] py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
         >
-          {isLoading ? spinner : <GoogleG size={16} />}
+          {isSigningIn ? spinner : <GoogleG size={16} />}
           Continue with Google
         </button>
         <p className="text-[12px] text-[#888] mt-[14px]">

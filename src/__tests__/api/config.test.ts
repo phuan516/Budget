@@ -31,11 +31,11 @@ function makeAuthReq(url: string) {
 describe('GET /api/config', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockBuildSheetsService.mockReturnValue({ service: mockService as never })
+    mockBuildSheetsService.mockResolvedValue({ service: mockService as never })
   })
 
   it('returns 401 when auth fails', async () => {
-    mockBuildSheetsService.mockReturnValue({
+    mockBuildSheetsService.mockResolvedValue({
       error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     })
 

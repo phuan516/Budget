@@ -4,7 +4,7 @@ import { monthKeyToLabel } from '@/lib/google/sheets';
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = buildSheetsService(req);
+    const auth = await buildSheetsService();
     if ('error' in auth) return auth.error;
     const { service } = auth;
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = buildSheetsService(req);
+    const auth = await buildSheetsService();
     if ('error' in auth) return auth.error;
     const { service } = auth;
 

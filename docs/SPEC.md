@@ -19,9 +19,9 @@ A mobile-first web application that uses Google Sheets as a backend database for
 
 ### Backend
 - **API:** Next.js API Routes
-- **Authentication:** Google Identity Services (client-side implicit token flow)
+- **Authentication:** NextAuth.js v4 with Google provider (server-side OAuth 2.0 authorization code flow + PKCE)
 - **Data Storage:** Google Sheets API v4 + Google Drive API v3
-- **Session Management:** Access token stored in localStorage with expiry tracking; no server-side sessions
+- **Session Management:** Access token stored in NextAuth's encrypted JWT (httpOnly cookie); no localStorage
 
 ### Infrastructure
 - **Hosting:** Vercel
@@ -33,12 +33,12 @@ A mobile-first web application that uses Google Sheets as a backend database for
 ## Features
 
 ### Authentication & Setup
-- [x] Sign in with Google (GSI implicit token flow)
+- [x] Sign in with Google (NextAuth.js server-side OAuth 2.0 + PKCE)
 - [x] OAuth 2.0 consent with Sheets + Drive permissions
 - [x] Sheet selection from user's Google Drive
 - [x] Create new budget sheet from template (Config tab + month tabs)
 - [x] Persist selected sheet across page reloads (Zustand persist → localStorage)
-- [x] Token expiry tracking — expired tokens are cleared on page load
+- [x] Session management via NextAuth JWT (httpOnly cookie, no manual expiry tracking)
 - [x] Auto sign-in and auto sheet selection on return visits
 - [ ] Switch between multiple sheets (UI not yet built)
 
@@ -123,7 +123,8 @@ A mobile-first web application that uses Google Sheets as a backend database for
                    ▼
          ┌─────────────────────┐
          │  Google APIs        │
-         │  - OAuth 2.0 (GSI)  │
+         │  - OAuth 2.0        │
+         │    (NextAuth/PKCE)  │
          │  - Sheets API v4    │
          │  - Drive API v3     │
          └──────────┬──────────┘
@@ -212,11 +213,16 @@ Row N+3+: <transaction rows>
 
 ## Authentication
 
-Auth is handled entirely client-side via the Google Identity Services JavaScript SDK. There are no server-side OAuth callback routes or refresh tokens. The access token is requested via the implicit flow, stored in localStorage alongside the user profile and an expiry timestamp. On page load, expired tokens are detected and cleared.
+Auth is handled server-side via **NextAuth.js v4** with the Google provider. The flow uses the OAuth 2.0 authorization code flow with PKCE — there is no client-side token handling or localStorage involvement.
 
-Auth state is managed by the `useGoogleOAuth` hook (single source of truth for `accessToken` and `user`). Zustand manages app-level state (selected sheet, config, transactions). Logging out clears both.
+- **Callback route:** `GET/POST /api/auth/[...nextauth]` — NextAuth's catch-all handler
+- **Config:** `src/lib/auth.ts` — GoogleProvider with `access_type: offline`, `prompt: select_account`, and scopes for spreadsheets + drive.readonly
+- **Session:** The access token is stored in NextAuth's encrypted JWT (httpOnly cookie). The JWT callback saves `account.access_token` into the token; the session callback exposes it as `session.accessToken`.
+- **Client auth state:** `src/context/AuthContext.tsx` — wraps `SessionProvider` and exposes a `useAuth()` hook with `{ user, loading, signIn, signOut }`. `signIn` calls `nextSignIn('google', { callbackUrl })` and `signOut` redirects to `/`.
+- **Server auth:** `src/lib/api/auth.ts` — `buildSheetsService()` calls `getServerSession(authOptions)` to retrieve the token, then instantiates an `OAuth2Client` for Google API calls. No `Authorization` header is read from requests.
+- **TypeScript:** `src/types/next-auth.d.ts` extends the `Session` and `JWT` types to include `accessToken?: string`.
 
-All API routes accept an `Authorization: Bearer <token>` header. The token is used server-side to instantiate an OAuth2 client for Google API calls.
+Zustand manages app-level state (selected sheet, config, transactions). Logging out via `useAuth().signOut()` clears the NextAuth session and redirects to `/`.
 
 ---
 
@@ -301,13 +307,10 @@ When the `type` is `fixed_expense`, all three endpoints sync the change to the c
 ## Data Models (TypeScript)
 
 ```typescript
-// Auth (managed by useGoogleOAuth — not in Zustand)
-interface GoogleUser {
-  id: string;
-  email: string;
-  name: string;
-  picture: string;
-}
+// Auth (managed by NextAuth + AuthContext — not in Zustand)
+// Session shape (extended in src/types/next-auth.d.ts):
+// session.user: { name, email, image } | null
+// session.accessToken: string | undefined
 
 // Sheet references
 interface SheetMetadata {
@@ -384,6 +387,7 @@ src/
 │   ├── sheets/select/page.tsx          # Sheet selector
 │   ├── globals.css                     # Tailwind v4 theme + global styles
 │   └── api/
+│       ├── auth/[...nextauth]/route.ts # NextAuth catch-all handler
 │       ├── sheets/list/route.ts
 │       ├── sheets/create/route.ts
 │       ├── sheets/select/route.ts
@@ -402,10 +406,14 @@ src/
 │       ├── TransactionsTab.tsx         # Transaction list + add form
 │       ├── SettingsTab.tsx             # All config management (defaults)
 │       └── EverythingTab.tsx           # All-time transaction list + income/category/fixed expense charts
+├── context/
+│   └── AuthContext.tsx                 # AuthProvider + useAuth() — wraps NextAuth SessionProvider
+├── types/
+│   └── next-auth.d.ts                  # Extends Session + JWT to include accessToken
 └── lib/
-    ├── api/auth.ts                     # buildSheetsService — shared auth helper for all API routes
+    ├── auth.ts                         # NextAuth authOptions (GoogleProvider config)
+    ├── api/auth.ts                     # buildSheetsService — reads session via getServerSession
     ├── google/sheets.ts                # SheetsService class + exported helpers (monthKeyToLabel, etc.)
-    ├── hooks/useGoogleOAuth.ts         # Auth hook
     └── store/useStore.ts               # Zustand store
 ```
 
@@ -510,7 +518,7 @@ Dashboard → Overview tab
 
 ### Phase 1: Foundation
 - [x] Next.js + TypeScript + Tailwind v4 setup
-- [x] Google OAuth (client-side GSI)
+- [x] Google OAuth (NextAuth.js server-side, migrated from client-side GSI)
 - [x] Sheet selector UI (list + create)
 - [x] Sheet creation with Config template
 - [x] Sheet validation on select
@@ -557,11 +565,22 @@ Dashboard → Overview tab
 ```bash
 # .env.local
 
-# Required — Google OAuth client ID (Web application type)
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+# Google OAuth credentials (Web application type in Google Cloud Console)
+GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_client_secret
+
+# NextAuth
+NEXTAUTH_URL=http://localhost:3000          # set to your production URL in Vercel
+NEXTAUTH_SECRET=your_random_secret          # generate with: openssl rand -base64 32
+
+# Access control
+ADMIN_EMAIL=your@email.com                  # email allowed to sign in
 ```
 
-No server-side secret is needed. Auth uses the GSI implicit token flow.
+**Google Cloud Console setup:**
+- OAuth client type must be **Web application**
+- Add `http://localhost:3000/api/auth/callback/google` to **Authorized redirect URIs**
+- Add your production URL's callback to redirect URIs before deploying
 
 ---
 
@@ -573,18 +592,19 @@ vercel --prod
 ```
 
 **Checklist:**
-- [ ] `NEXT_PUBLIC_GOOGLE_CLIENT_ID` set in Vercel environment variables
-- [ ] Production URL added to **Authorized JavaScript origins** in Google Cloud Console
-- [ ] OAuth consent screen published (or app verified)
+- [ ] `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET` set in Vercel environment variables
+- [ ] Production callback URL (`https://yourdomain.com/api/auth/callback/google`) added to **Authorized redirect URIs** in Google Cloud Console
+- [ ] OAuth consent screen published (or app verified for sensitive scopes)
 
 ---
 
 ## Security Notes
 
-- Access tokens are short-lived (1 hour) and stored in localStorage with an expiry check
-- No server-side session storage — each API request re-authenticates with the bearer token
+- Access tokens are stored in NextAuth's encrypted JWT (httpOnly cookie, not localStorage) — not accessible to client-side JS
+- Server-side session lookup via `getServerSession` on each API request; no bearer token passed from client
+- `NEXTAUTH_SECRET` must be a strong random value — used to sign/encrypt the JWT cookie
 - User data stays in their own Google Sheet; the app never stores transactions server-side
-- Minimal OAuth scopes requested: spreadsheets read/write + drive.readonly + userinfo
+- Minimal OAuth scopes requested: spreadsheets read/write + drive.readonly + userinfo + openid
 - All user input is passed through the Google Sheets API which handles its own injection protection; no direct SQL or shell execution
 
 ---

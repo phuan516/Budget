@@ -22,12 +22,12 @@ function makeReq(body: object) {
 describe('POST /api/transactions/add', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockBuildSheetsService.mockReturnValue({ service: mockService as never })
+    mockBuildSheetsService.mockResolvedValue({ service: mockService as never })
     mockService.addTransaction.mockResolvedValue(undefined)
   })
 
   it('returns 401 when auth fails', async () => {
-    mockBuildSheetsService.mockReturnValue({
+    mockBuildSheetsService.mockResolvedValue({
       error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     })
 

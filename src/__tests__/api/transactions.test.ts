@@ -33,14 +33,14 @@ function makeAuthReq(url: string) {
 describe('GET /api/transactions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockBuildSheetsService.mockReturnValue({ service: mockService as never })
+    mockBuildSheetsService.mockResolvedValue({ service: mockService as never })
     mockService.readConfig.mockResolvedValue(FULL_CONFIG)
     mockService.ensurePastMonthTabs.mockResolvedValue(undefined)
     mockService.readTransactions.mockResolvedValue({ transactions: [], monthTabKeys: [], monthConfigs: {} })
   })
 
   it('returns 401 when auth fails', async () => {
-    mockBuildSheetsService.mockReturnValue({
+    mockBuildSheetsService.mockResolvedValue({
       error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     })
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { buildSheetsService } from '@/lib/api/auth';
 
 export async function GET(req: NextRequest) {
-  const auth = buildSheetsService(req);
+  const auth = await buildSheetsService();
   if ('error' in auth) return auth.error;
   const { service: sheetsService } = auth;
 

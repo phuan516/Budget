@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useGoogleOAuth } from '@/lib/hooks/useGoogleOAuth';
+import { useAuth } from '@/context/AuthContext';
 import { useStore, DashboardTab, Transaction } from '@/lib/store/useStore';
 import OverviewTab from '@/components/dashboard/OverviewTab';
 import TransactionsTab from '@/components/dashboard/TransactionsTab';
@@ -20,12 +20,13 @@ const TABS: { id: DashboardTab; label: string }[] = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { accessToken, user, logout } = useGoogleOAuth();
+  const { user, loading, signOut } = useAuth();
   const selectedSheet = useStore((s) => s.selectedSheet);
   const config = useStore((s) => s.config);
   const setSelectedSheet = useStore((s) => s.setSelectedSheet);
   const setConfig = useStore((s) => s.setConfig);
   const updateConfig = useStore((s) => s.updateConfig);
+  const clearSelectedSheet = useStore((s) => s.clearSelectedSheet);
   const transactions = useStore((s) => s.transactions);
   const setTransactions = useStore((s) => s.setTransactions);
   const monthTabKeys = useStore((s) => s.monthTabKeys);
@@ -51,44 +52,39 @@ export default function DashboardPage() {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [menuOpen]);
-  const [isInitializing, setIsInitializing] = useState(true);
+
+  function handleSignOut() {
+    clearSelectedSheet();
+    signOut();
+  }
 
   useEffect(() => {
-    const t = setTimeout(() => setIsInitializing(false), 100);
-    return () => clearTimeout(t);
-  }, []);
+    if (!loading && !user) router.push('/');
+  }, [loading, user, router]);
 
   useEffect(() => {
-    if (!isInitializing && !accessToken) router.push('/');
-  }, [isInitializing, accessToken, router]);
-
-  useEffect(() => {
-    if (!isInitializing && accessToken && !selectedSheet) router.push('/sheets/select');
-  }, [isInitializing, accessToken, selectedSheet, router]);
+    if (!loading && user && !selectedSheet) router.push('/sheets/select');
+  }, [loading, user, selectedSheet, router]);
 
   const syncSheetName = useCallback(async () => {
     const sheet = selectedSheetRef.current;
-    if (!accessToken || !sheet) return;
+    if (!sheet) return;
     try {
-      const res = await fetch(`/api/sheets/details?sheetId=${sheet.id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const res = await fetch(`/api/sheets/details?sheetId=${sheet.id}`);
       if (!res.ok) return;
       const { name } = await res.json();
       if (name && name !== sheet.name) {
         setSelectedSheet({ ...sheet, name });
       }
     } catch { /* silent — stale name is non-critical */ }
-  }, [accessToken, setSelectedSheet]);
+  }, [setSelectedSheet]);
 
   const loadConfig = useCallback(async (silent = false) => {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     if (!silent) setConfigLoading(true);
     try {
-      const res = await fetch(`/api/config?sheetId=${selectedSheet.id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (res.status === 401) { logout(); return; }
+      const res = await fetch(`/api/config?sheetId=${selectedSheet.id}`);
+      if (res.status === 401) { signOut(); return; }
       if (!silent && !res.ok) throw new Error('Failed to load config');
       if (res.ok) setConfig(await res.json());
     } catch (err) {
@@ -96,16 +92,14 @@ export default function DashboardPage() {
     } finally {
       if (!silent) setConfigLoading(false);
     }
-  }, [accessToken, selectedSheet, setConfig, logout]);
+  }, [selectedSheet, setConfig, signOut]);
 
   const loadTransactions = useCallback(async (silent = false) => {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     if (!silent) setTxnLoading(true);
     try {
-      const res = await fetch(`/api/transactions?sheetId=${selectedSheet.id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (res.status === 401) { logout(); return; }
+      const res = await fetch(`/api/transactions?sheetId=${selectedSheet.id}`);
+      if (res.status === 401) { signOut(); return; }
       if (!silent && !res.ok) throw new Error('Failed to load transactions');
       if (res.ok) {
         const { transactions, monthTabKeys, monthConfigs } = await res.json();
@@ -118,18 +112,18 @@ export default function DashboardPage() {
     } finally {
       if (!silent) setTxnLoading(false);
     }
-  }, [accessToken, selectedSheet, setTransactions, setMonthTabKeys, setMonthConfigs, logout]);
+  }, [selectedSheet, setTransactions, setMonthTabKeys, setMonthConfigs, signOut]);
 
   useEffect(() => {
-    if (!isInitializing && accessToken && selectedSheet) {
+    if (!loading && user && selectedSheet) {
       syncSheetName();
       loadConfig();
       loadTransactions();
     }
-  }, [isInitializing, accessToken, selectedSheet, syncSheetName, loadConfig, loadTransactions]);
+  }, [loading, user, selectedSheet, syncSheetName, loadConfig, loadTransactions]);
 
   async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     const tempId = `tmp_${Date.now()}`;
     if (type === 'category') updateConfig({ categories: [...config.categories, { id: tempId, name }] });
     else if (type === 'card') updateConfig({ cards: [...config.cards, { id: tempId, name }] });
@@ -137,7 +131,7 @@ export default function DashboardPage() {
     else if (type === 'saving_goal') updateConfig({ savingGoals: [...config.savingGoals, { id: tempId, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 }] });
     await fetch('/api/config/items', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfig(true);
@@ -145,7 +139,7 @@ export default function DashboardPage() {
   }
 
   async function handleConfigEdit(type: string, id: string, name: string, value?: string, extra?: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     const rowIndex = parseInt(id);
     if (type === 'category') updateConfig({ categories: config.categories.map((i) => i.id === id ? { ...i, name } : i) });
     else if (type === 'card') updateConfig({ cards: config.cards.map((i) => i.id === id ? { ...i, name } : i) });
@@ -153,7 +147,7 @@ export default function DashboardPage() {
     else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.map((i) => i.id === id ? { ...i, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 } : i) });
     await fetch('/api/config/items', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
     });
     loadConfig(true);
@@ -161,14 +155,14 @@ export default function DashboardPage() {
   }
 
   async function handleConfigDelete(type: string, id: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     if (type === 'category') updateConfig({ categories: config.categories.filter((i) => i.id !== id) });
     else if (type === 'card') updateConfig({ cards: config.cards.filter((i) => i.id !== id) });
     else if (type === 'fixed_expense') updateConfig({ fixedExpenses: config.fixedExpenses.filter((i) => i.id !== id) });
     else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.filter((i) => i.id !== id) });
     await fetch('/api/config/items', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex: parseInt(id) }),
     });
     loadConfig(true);
@@ -176,7 +170,7 @@ export default function DashboardPage() {
   }
 
   async function handleSetIncome(amount: number) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     updateConfig({ monthlyIncome: amount });
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -187,26 +181,26 @@ export default function DashboardPage() {
     }
     await fetch('/api/config/income', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, income: amount }),
     });
     loadConfig(true);
   }
 
   async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number, note?: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount } });
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, income: amount, incomeNote: note } });
     await fetch('/api/config/income/override', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, income: amount, note }),
     });
   }
 
   async function handleDeleteMonthlyIncomeOverride(monthKey: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     const next = { ...config.monthlyIncomeOverrides };
     delete next[monthKey];
     updateConfig({ monthlyIncomeOverrides: next });
@@ -217,13 +211,13 @@ export default function DashboardPage() {
     }
     await fetch('/api/config/income/override', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey }),
     });
   }
 
   async function handleSetFixedExpenseOverride(monthKey: string, expenseName: string, amount: number, note?: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     const fes = existing.fixedExpenses.some((fe) => fe.name === expenseName)
       ? existing.fixedExpenses.map((fe) => fe.name === expenseName ? { ...fe, amount, note } : fe)
@@ -231,33 +225,33 @@ export default function DashboardPage() {
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
     await fetch('/api/config/fixed-expense/override', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName, income: amount, note }),
     });
     loadTransactions(true);
   }
 
   async function handleSetMonthFixedExpenses(monthKey: string, fixedExpenses: { name: string; amount: number; note?: string }[]) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses } });
     await fetch('/api/config/fixed-expense/month-list', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, fixedExpenses }),
     });
     loadTransactions(true);
   }
 
   async function handleDeleteFixedExpenseOverride(monthKey: string, expenseName: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
     const defaultAmount = config.fixedExpenses.find((fe) => fe.name === expenseName)?.amount ?? 0;
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     const fes = existing.fixedExpenses.map((fe) => fe.name === expenseName ? { name: fe.name, amount: defaultAmount } : fe);
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
     await fetch('/api/config/fixed-expense/override', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName }),
     });
     loadTransactions(true);
@@ -266,7 +260,7 @@ export default function DashboardPage() {
   // Walks all month tabs from fromMonthKey forward, creating/updating/deleting
   // "Carry Over" transactions so overspend chains correctly across months.
   async function syncCarryOvers(fromMonthKey: string, txns: Transaction[], tabs: string[]) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
 
     const LONG_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     function keyToLongLabel(key: string) {
@@ -304,7 +298,7 @@ export default function DashboardPage() {
         running = 0;
         if (tabs.includes(nk)) {
           for (const e of txns.filter(t => t.date.startsWith(nk) && t.category === 'Carry Over' && !t.id.startsWith('tmp_'))) {
-            await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
+            await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
           }
         }
         continue;
@@ -327,26 +321,26 @@ export default function DashboardPage() {
       if (carryOut > 0.005) {
         if (existing.length === 1 && Math.abs(existing[0].amount - carryOut) < 0.01 && existing[0].note === note) continue;
         for (const e of existing) {
-          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
+          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
         }
-        await fetch('/api/transactions/add', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, date, amount: carryOut, category: 'Carry Over', card: '', note }) });
+        await fetch('/api/transactions/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, date, amount: carryOut, category: 'Carry Over', card: '', note }) });
       } else {
         for (const e of existing) {
-          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
+          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
         }
       }
     }
   }
 
   async function handleAddTransaction(t: Omit<Transaction, 'id' | 'tab' | 'row'>): Promise<string> {
-    if (!accessToken || !selectedSheet) return '';
+    if (!selectedSheet) return '';
     const tempId = `tmp_${Date.now()}`;
     const updatedTxns = [...transactions, { ...t, id: tempId, tab: '', row: 0 }];
     setTransactions(updatedTxns);
 
     await fetch('/api/transactions/add', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, ...t }),
     });
 
@@ -366,7 +360,7 @@ export default function DashboardPage() {
   }
 
   async function handleEditTransaction(id: string, updates: Omit<Transaction, 'id' | 'tab' | 'row'>) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
 
     const txn = transactions.find((t) => t.id === id);
     if (!txn) return;
@@ -380,18 +374,18 @@ export default function DashboardPage() {
     if (oldMonthKey === newMonthKey) {
       await fetch('/api/transactions/update', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn.tab, row: txn.row, ...updates }),
       });
     } else {
       await fetch('/api/transactions/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn.tab, row: txn.row }),
       });
       await fetch('/api/transactions/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: selectedSheet.id, ...updates }),
       });
     }
@@ -405,7 +399,7 @@ export default function DashboardPage() {
   }
 
   async function handleDeleteTransaction(id: string) {
-    if (!accessToken || !selectedSheet) return;
+    if (!selectedSheet) return;
 
     const txn = transactions.find((t) => t.id === id);
     const updatedTxns = transactions.filter((t) => t.id !== id);
@@ -413,7 +407,7 @@ export default function DashboardPage() {
 
     await fetch('/api/transactions/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn?.tab, row: txn?.row }),
     });
 
@@ -431,7 +425,7 @@ export default function DashboardPage() {
     loadTransactions(true);
   }
 
-  if (isInitializing || !accessToken || !user || !selectedSheet) {
+  if (loading || !user || !selectedSheet) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
@@ -459,7 +453,7 @@ export default function DashboardPage() {
             </Link>
             <span>·</span>
             <button
-              onClick={logout}
+              onClick={handleSignOut}
               style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, padding: 0 }}
             >
               Sign out
@@ -502,7 +496,7 @@ export default function DashboardPage() {
                 </div>
                 {[
                   { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
-                  { label: 'Sign out', action: () => { setMenuOpen(false); logout(); } },
+                  { label: 'Sign out', action: () => { setMenuOpen(false); handleSignOut(); } },
                 ].map(({ label, action }) => (
                   <button
                     key={label}

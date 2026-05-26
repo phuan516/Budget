@@ -8,7 +8,6 @@ interface SheetSelectorProps {
   onSelectSheet: (sheetId: string) => void;
   onCreateSheet: (name: string) => void;
   onCancel?: () => void;
-  accessToken: string;
   isCreating?: boolean;
   isSelecting?: boolean;
 }
@@ -55,7 +54,7 @@ const FILTER_OPTIONS: { value: OwnerFilter; label: string }[] = [
   { value: 'shared', label: 'Shared' },
 ];
 
-export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, accessToken, isCreating, isSelecting }: SheetSelectorProps) {
+export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, isCreating, isSelecting }: SheetSelectorProps) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -75,12 +74,9 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
   };
 
   const loadSheets = useCallback(async () => {
-    if (!accessToken) return;
     setIsLoading(true);
     try {
-      const response = await fetch('/api/sheets/list', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const response = await fetch('/api/sheets/list');
       if (!response.ok) {
         console.error('Failed to load sheets:', await response.json());
         return;
@@ -92,7 +88,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, setAvailableSheets]);
+  }, [setAvailableSheets]);
 
   useEffect(() => {
     loadSheets();
