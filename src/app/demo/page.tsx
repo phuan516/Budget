@@ -19,6 +19,76 @@ const TABS: { id: DashboardTab; label: string }[] = [
   { id: 'everything', label: 'Everything' },
 ];
 
+const LONG_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function advanceKey(key: string) {
+  const [yr, mo] = key.split('-').map(Number);
+  return mo === 12 ? `${yr + 1}-01` : `${yr}-${String(mo + 1).padStart(2, '0')}`;
+}
+
+// Pure version of syncCarryOvers — updates transactions array in place without API calls.
+function syncCarryOvers(
+  fromMonthKey: string,
+  txns: Transaction[],
+  tabs: string[],
+  cfg: Config,
+  mc: Record<string, MonthConfig>,
+  idRef: React.MutableRefObject<number>,
+): Transaction[] {
+  const sorted = [...tabs].sort();
+  const CLAIM_RE = /\[←\d{4}-\d{2}\]/;
+  let result = [...txns];
+  let running = 0;
+
+  for (const key of sorted) {
+    if (key >= fromMonthKey) break;
+    const income = mc[key]?.income ?? cfg.monthlyIncome;
+    if (income <= 0) { running = 0; continue; }
+    const fes = mc[key]?.fixedExpenses ?? [];
+    const fixed = cfg.fixedExpenses.reduce((s, fe) => s + (fes.find(f => f.name === fe.name)?.amount ?? fe.amount), 0);
+    const own = result.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over' && !CLAIM_RE.test(t.note ?? '')).reduce((s, t) => s + t.amount, 0);
+    running = Math.max(0, own + fixed + running - income);
+  }
+
+  for (const key of sorted) {
+    if (key < fromMonthKey) continue;
+
+    const income = mc[key]?.income ?? cfg.monthlyIncome;
+    const nk = advanceKey(key);
+
+    if (income <= 0) {
+      running = 0;
+      if (tabs.includes(nk)) result = result.filter(t => !(t.date.startsWith(nk) && t.category === 'Carry Over'));
+      continue;
+    }
+
+    const fes = mc[key]?.fixedExpenses ?? [];
+    const fixed = cfg.fixedExpenses.reduce((s, fe) => s + (fes.find(f => f.name === fe.name)?.amount ?? fe.amount), 0);
+    const own = result.filter(t => t.date.startsWith(key) && t.category !== 'Carry Over' && !CLAIM_RE.test(t.note ?? '')).reduce((s, t) => s + t.amount, 0);
+    const deficit = own + fixed + running - income;
+    const carryOut = Math.max(0, Math.round(deficit * 100) / 100);
+    running = carryOut;
+
+    if (!tabs.includes(nk)) continue;
+
+    const existing = result.filter(t => t.date.startsWith(nk) && t.category === 'Carry Over');
+    const [mo] = key.split('-').map(Number);
+    const note = `From ${LONG_MONTHS[mo - 1]} ${key.split('-')[0]}`;
+    const [nkYr, nkMo] = nk.split('-');
+    const date = `${nkYr}-${nkMo}-01`;
+
+    if (carryOut > 0.005) {
+      if (existing.length === 1 && Math.abs(existing[0].amount - carryOut) < 0.01 && existing[0].note === note) continue;
+      result = result.filter(t => !existing.includes(t));
+      result.push({ id: `carry_${idRef.current++}`, tab: '', row: 0, date, amount: carryOut, category: 'Carry Over', card: '', note });
+    } else {
+      result = result.filter(t => !existing.includes(t));
+    }
+  }
+
+  return result;
+}
+
 const INITIAL_CONFIG: Config = {
   categories: [
     { id: '2', name: 'Groceries' },
@@ -96,17 +166,45 @@ export default function DemoPage() {
   async function handleAddTransaction(t: Omit<Transaction, 'id' | 'tab' | 'row'>): Promise<string> {
     const id = `demo_${nextId.current++}`;
     const monthKey = t.date.slice(0, 7);
-    setMonthTabKeys((keys) => keys.includes(monthKey) ? keys : [...keys, monthKey].sort());
-    setTransactions((txns) => [...txns, { ...t, id, tab: '', row: 0 }]);
+    const isNewTab = !monthTabKeys.includes(monthKey);
+    const tabs = isNewTab ? [...monthTabKeys, monthKey].sort() : monthTabKeys;
+    if (isNewTab) setMonthTabKeys(tabs);
+
+    const [fyr, fmo] = monthKey.split('-').map(Number);
+    const syncFromKey = isNewTab
+      ? (fmo === 1 ? `${fyr - 1}-12` : `${fyr}-${String(fmo - 1).padStart(2, '0')}`)
+      : monthKey;
+
+    const updatedTxns = [...transactions, { ...t, id, tab: '', row: 0 }];
+    setTransactions(syncCarryOvers(syncFromKey, updatedTxns, tabs, config, monthConfigs, nextId));
     return id;
   }
 
   async function handleEditTransaction(id: string, updates: Omit<Transaction, 'id' | 'tab' | 'row'>) {
-    setTransactions((txns) => txns.map((t) => t.id === id ? { ...t, ...updates } : t));
+    const txn = transactions.find((t) => t.id === id);
+    if (!txn) return;
+    const oldMonthKey = txn.date.slice(0, 7);
+    const newMonthKey = updates.date.slice(0, 7);
+    const isNewTab = !monthTabKeys.includes(newMonthKey);
+    const tabs = isNewTab ? [...monthTabKeys, newMonthKey].sort() : monthTabKeys;
+    if (isNewTab) setMonthTabKeys(tabs);
+
+    const updatedTxns = transactions.map((t) => t.id === id ? { ...t, ...updates } : t);
+    const fromMonthKey = oldMonthKey < newMonthKey ? oldMonthKey : newMonthKey;
+    setTransactions(syncCarryOvers(fromMonthKey, updatedTxns, tabs, config, monthConfigs, nextId));
   }
 
   async function handleDeleteTransaction(id: string) {
-    setTransactions((txns) => txns.filter((t) => t.id !== id));
+    const txn = transactions.find((t) => t.id === id);
+    const updatedTxns = transactions.filter((t) => t.id !== id);
+    if (!txn) { setTransactions(updatedTxns); return; }
+
+    let fromMonthKey = txn.date.slice(0, 7);
+    if (txn.category === 'Carry Over') {
+      const [yr, mo] = fromMonthKey.split('-').map(Number);
+      fromMonthKey = mo === 1 ? `${yr - 1}-12` : `${yr}-${String(mo - 1).padStart(2, '0')}`;
+    }
+    setTransactions(syncCarryOvers(fromMonthKey, updatedTxns, monthTabKeys, config, monthConfigs, nextId));
   }
 
   async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
@@ -174,9 +272,10 @@ export default function DemoPage() {
   }
 
   async function handleDeleteFixedExpenseOverride(monthKey: string, expenseName: string) {
+    const defaultAmount = config.fixedExpenses.find((fe) => fe.name === expenseName)?.amount ?? 0;
     setMonthConfigs((mc) => {
       const existing = mc[monthKey] ?? { fixedExpenses: [] };
-      const fes = existing.fixedExpenses.map((fe) => fe.name === expenseName ? { name: fe.name, amount: fe.amount } : fe);
+      const fes = existing.fixedExpenses.map((fe) => fe.name === expenseName ? { name: fe.name, amount: defaultAmount } : fe);
       return { ...mc, [monthKey]: { ...existing, fixedExpenses: fes } };
     });
   }
