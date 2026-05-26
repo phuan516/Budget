@@ -128,10 +128,18 @@
 
 /* ── Month nav ── */
 .monthNav {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.monthNav .monthCount {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .monthNavInner {
@@ -166,6 +174,21 @@
   font-size: 12px;
   color: #888;
   font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
+}
+
+.shareBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.shareBtn:hover {
+  color: #1a1a1a;
 }
 
 /* ── Leftover banner ── */

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 import CustomSelect from '@/components/ui/CustomSelect';
+import ShareModal from './ShareModal';
 
 import s from './TransactionsTab.module.css';
 
@@ -75,6 +76,8 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
   const [claimNote, setClaimNote] = useState('');
   const [claimSaving, setClaimSaving] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+
+  const [shareOpen, setShareOpen] = useState(false);
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
@@ -380,7 +383,21 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
             className={`${s.monthNavBtn} ${isAtMax ? s.monthNavBtnDisabled : ''}`}
           >›</button>
         </div>
-        <span className={s.monthCount}>{monthFiltered.length} items · {fmt(monthTotal)}</span>
+        <span className={s.monthCount}>
+          <span className="hidden sm:inline">{monthFiltered.length} items · </span>
+          {fmt(monthTotal)}
+        </span>
+        <button
+          onClick={() => setShareOpen(true)}
+          className={s.shareBtn}
+          title="Share"
+        >
+          <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 2.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM5 8a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM11 9.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4z" />
+            <line x1="7" y1="9.2" x2="9.5" y2="11" />
+            <line x1="9.5" y1="5" x2="7" y2="6.8" />
+          </svg>
+        </button>
       </div>
 
       {/* Leftover banner — past months only */}
@@ -641,6 +658,17 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
           })}
         </div>
       )}
+
+      <ShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        monthTransactions={monthFiltered}
+        allTransactions={transactions}
+        viewYear={viewYear}
+        viewMonth={viewMonth}
+        config={config}
+        monthConfigs={monthConfigs}
+      />
     </div>
   );
 }
