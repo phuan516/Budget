@@ -18,96 +18,11 @@ function GoogleG({ size = 16 }: { size?: number }) {
   );
 }
 
-type RequestState = 'idle' | 'open' | 'submitting' | 'success' | 'error';
-
-function RequestAccessForm({ onClose }: { onClose: () => void }) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [note, setNote] = useState('');
-  const [state, setState] = useState<RequestState>('open');
-  const [submittedEmail, setSubmittedEmail] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setState('submitting');
-    try {
-      const res = await fetch('/api/request-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, note }),
-      });
-      if (!res.ok) throw new Error();
-      setSubmittedEmail(email);
-      setState('success');
-    } catch {
-      setState('error');
-    }
-  };
-
-  if (state === 'success') {
-    return (
-      <div className="mt-4 text-[13px] text-[#444] leading-relaxed">
-        Request sent — you&apos;ll hear back at <span className="font-medium text-[#1a1a1a]">{submittedEmail}</span>.
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3 max-w-[320px]">
-      <input
-        type="text"
-        placeholder="Your name"
-        required
-        value={name}
-        onChange={e => setName(e.target.value)}
-        className="border border-[#d8d8d8] rounded-xl px-3 py-2 text-[13px] text-[#1a1a1a] placeholder-[#aaa] outline-none focus:border-[#1a1a1a]"
-      />
-      <div>
-        <input
-          type="email"
-          placeholder="Your Gmail address"
-          required
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          className="w-full border border-[#d8d8d8] rounded-xl px-3 py-2 text-[13px] text-[#1a1a1a] placeholder-[#aaa] outline-none focus:border-[#1a1a1a]"
-        />
-        <p className="text-[11px] text-[#aaa] mt-1 ml-1">Must be a Google account — access is granted via Google.</p>
-      </div>
-      <textarea
-        placeholder="Why do you need access? (optional)"
-        value={note}
-        onChange={e => setNote(e.target.value)}
-        rows={2}
-        className="border border-[#d8d8d8] rounded-xl px-3 py-2 text-[13px] text-[#1a1a1a] placeholder-[#aaa] outline-none focus:border-[#1a1a1a] resize-none"
-      />
-      {state === 'error' && (
-        <p className="text-[12px] text-red-500">Something went wrong — please try again.</p>
-      )}
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={state === 'submitting'}
-          className="bg-[#1a1a1a] text-white px-4 py-2 rounded-full text-[13px] font-medium disabled:opacity-60"
-        >
-          {state === 'submitting' ? 'Sending…' : 'Send request'}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-[13px] text-[#888] hover:text-[#1a1a1a]"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
 
 export default function LandingPage() {
   const router = useRouter();
   const { loading, signIn, user } = useAuth();
   const selectedSheet = useStore((s) => s.selectedSheet);
-  const [showRequestForm, setShowRequestForm] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
@@ -179,21 +94,11 @@ export default function LandingPage() {
               try the demo
             </Link>
           </p>
-          {showRequestForm ? (
-            <RequestAccessForm onClose={() => setShowRequestForm(false)} />
-          ) : (
-            <p className="text-[11px] text-[#888] text-center mt-[6px]">
-              Need access?{' '}
-              <button onClick={() => setShowRequestForm(true)} className="underline underline-offset-2 hover:text-[#555]">
-                Request it here
-              </button>
-            </p>
-          )}
           <p className="text-[10px] text-[#888] text-center mt-[6px]">
             We only request access to sheets you pick.
           </p>
           <p className="text-[10px] text-[#888] text-center mt-[6px]">
-            No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2">Privacy</a>
+            No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2">Privacy</a> · <a href="/terms" className="underline underline-offset-2">Terms</a>
           </p>
         </div>
       </div>
@@ -226,20 +131,10 @@ export default function LandingPage() {
             Try the demo.
           </Link>
         </p>
-        {showRequestForm ? (
-          <RequestAccessForm onClose={() => setShowRequestForm(false)} />
-        ) : (
-          <p className="text-[12px] text-[#888] mt-[8px]">
-            Need access?{' '}
-            <button onClick={() => setShowRequestForm(true)} className="underline underline-offset-2 hover:text-[#555]">
-              Request it here
-            </button>
-          </p>
-        )}
       </div>
 
       <p className="hidden sm:block absolute left-14 bottom-8 text-[11px] text-[#888]">
-        No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2 hover:text-[#555]">Privacy</a>
+        No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2 hover:text-[#555]">Privacy</a> · <a href="/terms" className="underline underline-offset-2 hover:text-[#555]">Terms</a>
       </p>
     </div>
   );
