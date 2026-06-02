@@ -26,7 +26,8 @@ A mobile-first personal budget tracker that uses Google Sheets as a backend. Sig
 - **Self-contained past months:** completed months are locked — their income and fixed expenses are frozen in the sheet; only adding/removing transactions can change them
 - **Auto-generated months:** missing months between the last recorded month and today are created automatically with current defaults
 - **Per-month overrides:** income and fixed expenses can be customized per month; changes write directly to that month's tab
-- **Everything tab:** searchable/filterable view of all transactions across all months, plus income vs. spending, category, and fixed expense charts
+- **Everything tab:** searchable/filterable view of all transactions across all months, plus income vs. spending, category, and fixed expense charts — carry-over transactions are excluded from list totals and all charts
+- **Share cards:** shareable image cards (Monthly Recap, Year Review, Year-to-Date, Breakdown, Streak) — all spending figures exclude carry-over transactions
 - Overspend carry-over: excess spending in a month is carried to the next month as a transaction
 - Mobile-first responsive design
 

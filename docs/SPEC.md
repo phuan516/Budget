@@ -75,10 +75,11 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] Savings progress (goal vs. current)
 - [x] Overspending carry-over for savings calculations (excess spending carried to next month)
 - [x] Past-month leftover banner in Transactions tab — shows remaining or overspent amount for past months; leftover can be allocated to a savings goal
-- [x] Everything tab — searchable/filterable view of all transactions across all months
-- [x] Everything tab — income vs. spending chart (per month)
-- [x] Everything tab — category breakdown chart (all time)
+- [x] Everything tab — searchable/filterable view of all transactions across all months (carry-over transactions excluded from list and totals)
+- [x] Everything tab — income vs. spending chart (per month, carry-overs excluded)
+- [x] Everything tab — category breakdown chart (all time, carry-overs excluded)
 - [x] Everything tab — fixed expense chart (per month)
+- [x] Share cards — shareable image cards (Monthly Recap, Year Review, Year-to-Date, Breakdown, Streak); all calculations exclude carry-over transactions
 - [ ] Budget vs. actual comparisons
 
 ### Mobile Experience
