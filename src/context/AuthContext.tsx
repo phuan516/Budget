@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { SessionProvider, useSession, signIn as nextSignIn, signOut as nextSignOut } from 'next-auth/react';
 
 interface AuthContextType {
@@ -17,6 +17,12 @@ function AuthContextInner({ children }: { children: ReactNode }) {
   const user = session?.user
     ? { name: session.user.name ?? session.user.email ?? 'User', email: session.user.email ?? '' }
     : null;
+
+  useEffect(() => {
+    if (session?.error === 'RefreshAccessTokenError') {
+      nextSignOut({ callbackUrl: '/' });
+    }
+  }, [session]);
 
   return (
     <AuthContext.Provider value={{
