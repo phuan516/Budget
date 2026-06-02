@@ -128,7 +128,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   }, [monthConfigs, editMonthSearch]);
 
   const filtered = useMemo(() => {
-    let result = [...transactions];
+    let result = transactions.filter(t => t.category !== 'Carry Over');
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(t =>

@@ -26,7 +26,7 @@ export default function MonthlyRecapCard({ transactions, viewYear, viewMonth, in
   const label = `${monthName} · RECAP`;
 
   const monthSpend = transactions
-    .filter((t) => t.amount > 0 && !CLAIM_TAG_RE.test(t.note ?? ''))
+    .filter((t) => t.amount > 0 && t.category !== 'Carry Over' && !CLAIM_TAG_RE.test(t.note ?? ''))
     .reduce((s, t) => s + t.amount, 0);
 
   const underBy = income > 0 ? income - monthSpend : 0;

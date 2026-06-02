@@ -19,7 +19,7 @@ export interface YearStats {
 const CLAIM_TAG_RE = /\[←(\d{4}-\d{2})\]/;
 
 function isExpense(t: Transaction) {
-  return t.amount > 0 && !CLAIM_TAG_RE.test(t.note ?? '');
+  return t.amount > 0 && t.category !== 'Carry Over' && !CLAIM_TAG_RE.test(t.note ?? '');
 }
 
 export function getCategoryTotals(transactions: Transaction[]): CategoryTotal[] {
