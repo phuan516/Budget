@@ -20,7 +20,9 @@ function AuthContextInner({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (session?.error === 'RefreshAccessTokenError') {
-      nextSignOut({ callbackUrl: '/' });
+      nextSignOut({ redirect: false }).then(() => {
+        window.location.href = '/';
+      });
     }
   }, [session]);
 
