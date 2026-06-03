@@ -255,6 +255,23 @@ export default function DashboardPage() {
     loadTransactions(true);
   }
 
+  async function handleAddIncomeEntryForMonth(monthKey: string, amount: number, note?: string) {
+    if (!selectedSheet) return;
+    const [yr, mo] = monthKey.split('-').map(Number);
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const tabName = `${MONTHS[mo - 1]} ${yr}`;
+    const date = `${monthKey}-01`;
+    const newEntry = { id: `tmp_${Date.now()}`, date, amount, note };
+    const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
+    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, incomeEntries: [...(existing.incomeEntries ?? []), newEntry] } });
+    await fetch('/api/config/income/entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId: selectedSheet.id, amount, note, tabName, date }),
+    });
+    loadTransactions(true);
+  }
+
   async function handleEditIncomeEntry(id: string, amount: number, note?: string) {
     if (!selectedSheet) return;
     const monthKey = Object.keys(monthConfigs).find(k => monthConfigs[k]?.incomeEntries?.some(e => e.id === id));
@@ -635,6 +652,9 @@ export default function DashboardPage() {
             onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
             onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
             onSetMonthFixedExpenses={handleSetMonthFixedExpenses}
+            onAddIncomeEntry={handleAddIncomeEntryForMonth}
+            onEditIncomeEntry={handleEditIncomeEntry}
+            onDeleteIncomeEntry={handleDeleteIncomeEntry}
             onEdit={handleEditTransaction}
             onDelete={handleDeleteTransaction}
           />

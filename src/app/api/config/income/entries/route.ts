@@ -8,14 +8,14 @@ export async function POST(req: NextRequest) {
     if ('error' in auth) return auth.error;
     const { service } = auth;
 
-    const { sheetId, amount, note } = await req.json();
+    const { sheetId, amount, note, tabName, date } = await req.json();
     if (!sheetId) return NextResponse.json({ error: 'sheetId is required' }, { status: 400 });
 
-    const today = new Date().toISOString().slice(0, 10);
+    const entryDate = date ?? new Date().toISOString().slice(0, 10);
     const config = await service.readConfig(sheetId);
-    const thisMonth = currentMonthLabel();
+    const thisMonth = tabName ?? currentMonthLabel();
     await service.ensureMonthTabExists(sheetId, thisMonth, config.fixedExpenses, config.monthlyIncome);
-    await service.addMonthTabIncomeEntry(sheetId, thisMonth, today, amount, note ?? undefined);
+    await service.addMonthTabIncomeEntry(sheetId, thisMonth, entryDate, amount, note ?? undefined);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

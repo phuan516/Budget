@@ -522,6 +522,21 @@
   color: #1a1a1a;
 }
 
+.addEntryBtn {
+  font-size: 12px;
+  color: #aaa;
+  background: none;
+  border: 1px dashed #d8d8d8;
+  border-radius: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.addEntryBtn:hover {
+  color: #1a1a1a;
+  border-color: #aaa;
+}
+
 .editNote {
   font-size: 11px;
   color: #aaa;

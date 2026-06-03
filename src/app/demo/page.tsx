@@ -420,6 +420,9 @@ export default function DemoPage() {
             onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
             onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
             onSetMonthFixedExpenses={handleSetMonthFixedExpenses}
+            onAddIncomeEntry={async () => {}}
+            onEditIncomeEntry={async () => {}}
+            onDeleteIncomeEntry={async () => {}}
             onEdit={handleEditTransaction}
             onDelete={handleDeleteTransaction}
           />
