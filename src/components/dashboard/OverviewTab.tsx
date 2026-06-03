@@ -14,7 +14,7 @@ function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
+type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[]; incomeEntries?: { id: string; date: string; amount: number; note?: string }[] };
 
 interface Props {
   transactions: Transaction[];
@@ -25,9 +25,12 @@ interface Props {
   onDeleteMonthlyIncomeOverride: (monthKey: string) => Promise<void>;
   onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number, note?: string) => Promise<void>;
   onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
+  onAddIncomeEntry: (amount: number, note?: string) => Promise<void>;
+  onEditIncomeEntry: (id: string, amount: number, note?: string) => Promise<void>;
+  onDeleteIncomeEntry: (id: string) => Promise<void>;
 }
 
-export default function OverviewTab({ transactions, config, monthConfigs, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride }: Props) {
+export default function OverviewTab({ transactions, config, monthConfigs, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride, onAddIncomeEntry, onEditIncomeEntry, onDeleteIncomeEntry }: Props) {
   const now = new Date();
   const today = now.getDate();
   const currentMonth = now.getMonth();
@@ -96,8 +99,6 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
     return sum + (monthFE?.amount ?? fe.amount);
   }, 0);
   const totalCommitted = totalSpent + totalFixed;
-  const pct = income > 0 ? (totalCommitted / income) * 100 : 0;
-  const isOver = pct >= 100;
 
   const maxDailySpend = useMemo(
     () => Math.max(0, ...Object.values(dailyTotals).map((d) => d.amount)),
@@ -175,11 +176,32 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
     });
   }, [transactions, config.savingGoals, monthConfigs]);
 
+  const thisMonthAdditions = useMemo(
+    () => monthConfigs?.[thisMonthKey]?.incomeEntries ?? [],
+    [monthConfigs, thisMonthKey],
+  );
+  const hasAdditions = thisMonthAdditions.length > 0;
+  const entriesTotal = useMemo(
+    () => thisMonthAdditions.reduce((s, e) => s + e.amount, 0),
+    [thisMonthAdditions],
+  );
+  const effectiveIncome = income + entriesTotal;
+  const pct = effectiveIncome > 0 ? (totalCommitted / effectiveIncome) * 100 : 0;
+  const isOver = pct >= 100;
+
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
-  const [editingIncome, setEditingIncome] = useState(false);
-  const [incomeDraft, setIncomeDraft] = useState('');
-  const [incomeNoteDraft, setIncomeNoteDraft] = useState('');
-  const [savingIncomeDraft, setSavingIncomeDraft] = useState(false);
+  const hasOverride = income !== config.monthlyIncome;
+
+  const [ledgerOpen, setLedgerOpen] = useState(() => typeof window !== 'undefined' && localStorage.getItem('income-ledger-open') === 'true');
+  const [editingRecurring, setEditingRecurring] = useState(false);
+  const [recurringDraft, setRecurringDraft] = useState('');
+  const [recurringNoteDraft, setRecurringNoteDraft] = useState('');
+  const [addingIncome, setAddingIncome] = useState(false);
+  const [addAmountDraft, setAddAmountDraft] = useState('');
+  const [addNoteDraft, setAddNoteDraft] = useState('');
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editEntryAmount, setEditEntryAmount] = useState('');
+  const [editEntryNote, setEditEntryNote] = useState('');
   const [editingFixedItem, setEditingFixedItem] = useState<string | null>(null);
   const [fixedItemDraft, setFixedItemDraft] = useState('');
   const [fixedItemNoteDraft, setFixedItemNoteDraft] = useState('');
@@ -187,26 +209,51 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   const [resettingFixedItem, setResettingFixedItem] = useState<string | null>(null);
   const [resettingAllFixed, setResettingAllFixed] = useState(false);
 
-  const hasOverride = income !== config.monthlyIncome;
   const hasAnyFixedOverride = config.fixedExpenses.some(fe => {
     const monthFE = monthFEs.find(mfe => mfe.name === fe.name);
     return monthFE !== undefined && monthFE.amount !== fe.amount;
   });
 
-  async function handleSaveIncomeOverride() {
-    const val = parseFloat(incomeDraft);
-    if (!val || val < 0) { setEditingIncome(false); return; }
-    setSavingIncomeDraft(true);
-    try {
-      if (val === config.monthlyIncome && !incomeNoteDraft.trim()) {
-        if (hasOverride) await onDeleteMonthlyIncomeOverride(thisMonthKey);
-      } else {
-        await onSetMonthlyIncomeOverride(thisMonthKey, val, incomeNoteDraft.trim() || undefined);
-      }
-      setEditingIncome(false);
-    } finally {
-      setSavingIncomeDraft(false);
+  function toggleLedger() {
+    setLedgerOpen(o => {
+      const next = !o;
+      if (typeof window !== 'undefined') localStorage.setItem('income-ledger-open', String(next));
+      return next;
+    });
+  }
+
+  async function handleSaveRecurring() {
+    const val = parseFloat(recurringDraft);
+    if (!val || val < 0) { setEditingRecurring(false); return; }
+    setEditingRecurring(false);
+    if (val === config.monthlyIncome && !recurringNoteDraft.trim()) {
+      if (hasOverride) onDeleteMonthlyIncomeOverride(thisMonthKey);
+    } else {
+      onSetMonthlyIncomeOverride(thisMonthKey, val, recurringNoteDraft.trim() || undefined);
     }
+  }
+
+  async function handleAddIncomeEntry() {
+    const val = parseFloat(addAmountDraft);
+    if (!val || val <= 0) return;
+    setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft('');
+    onAddIncomeEntry(val, addNoteDraft.trim() || undefined);
+  }
+
+  function handleSaveEntryEdit(id: string) {
+    const val = parseFloat(editEntryAmount);
+    if (!val || val <= 0) return;
+    setEditingEntryId(null);
+    onEditIncomeEntry(id, val, editEntryNote.trim() || undefined);
+  }
+
+  function handleDeleteEntry(id: string) {
+    onDeleteIncomeEntry(id);
+  }
+
+  function fmtEntryDate(dateStr: string) {
+    const [yr, mo, day] = dateStr.split('-').map(Number);
+    return new Date(yr, mo - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   async function handleSaveFixedItem(fe: { name: string; defaultAmount: number }) {
@@ -264,68 +311,148 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
         <div className={s.heroEyebrow}>Spent this month</div>
         <div className={s.heroAmountRow}>
           <div className={s.heroAmount}>{fmt(totalCommitted)}</div>
-          {income > 0 && (
-            <div className={s.heroIncome}>
-              {editingIncome ? (
-                <>
-                  <span>/ $</span>
-                  <input
-                    autoFocus
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={incomeDraft}
-                    onChange={(e) => setIncomeDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveIncomeOverride(); if (e.key === 'Escape') setEditingIncome(false); }}
-                    className={s.incomeEditInput}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Note (optional)"
-                    value={incomeNoteDraft}
-                    onChange={(e) => setIncomeNoteDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveIncomeOverride(); if (e.key === 'Escape') setEditingIncome(false); }}
-                    className={s.incomeNoteInput}
-                  />
-                  <span>· {monthLabel}</span>
-                  <button onClick={handleSaveIncomeOverride} disabled={savingIncomeDraft} className={s.incomeBtnSave}>
-                    {savingIncomeDraft ? '…' : 'Save'}
-                  </button>
-                  {hasOverride && (
-                    <button
-                      onClick={async () => { setSavingIncomeDraft(true); try { await onDeleteMonthlyIncomeOverride(thisMonthKey); setEditingIncome(false); } finally { setSavingIncomeDraft(false); } }}
-                      disabled={savingIncomeDraft}
-                      className={s.incomeBtnReset}
-                    >
-                      Reset to default
-                    </button>
-                  )}
-                  <button onClick={() => setEditingIncome(false)} className={s.incomeBtnCancel}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <span>/ {fmt(income)} · {monthLabel}</span>
-                  {hasOverride && <span className={s.customBadge}>custom</span>}
-                  {hasOverride && incomeNote && (
-                    <span className={s.overrideNote}>{incomeNote}</span>
-                  )}
-                  <button
-                    onClick={() => { setIncomeDraft(String(income)); setIncomeNoteDraft(incomeNote ?? ''); setEditingIncome(true); }}
-                    className={s.incomeEditBtn}
-                    title="Edit this month's income"
-                  >
-                    <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
-                    </svg>
-                  </button>
-                </>
-              )}
+          <div className={s.heroIncome}>
+              <button className={s.incomeToggle} onClick={toggleLedger}>
+                <span>of <strong style={{ color: '#1a1a1a', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{fmt(effectiveIncome)}</strong> total income</span>
+                <span className={s.caretBox}>
+                  <svg className={`${s.caretIcon}${ledgerOpen ? ` ${s.caretIconOpen}` : ''}`} viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 6l4 4 4-4" />
+                  </svg>
+                </span>
+              </button>
             </div>
-          )}
         </div>
 
+        {ledgerOpen && (
+          <div className={s.ledgerCard}>
+
+            {/* Recurring monthly row */}
+            <div className={`${s.ledgerRow} ${s.ledgerRowBg}`}>
+              <span className={s.ledgerRowLeft}>
+                <span>Income</span>
+                {hasOverride && <span className={s.customBadge}>custom</span>}
+                {hasOverride && incomeNote && <span className={s.ledgerNote}>{incomeNote}</span>}
+              </span>
+              {editingRecurring ? (
+                <div className={s.ledgerEditRow}>
+                  <div className={s.moneyInputWrap}>
+                    <span className={s.moneyPrefix}>$</span>
+                    <input
+                      autoFocus type="number" min="0" step="1"
+                      value={recurringDraft}
+                      onChange={e => setRecurringDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSaveRecurring(); if (e.key === 'Escape') setEditingRecurring(false); }}
+                      className={s.moneyInput}
+                    />
+                  </div>
+                  <input
+                    type="text" placeholder="Note (optional)"
+                    value={recurringNoteDraft}
+                    onChange={e => setRecurringNoteDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSaveRecurring(); if (e.key === 'Escape') setEditingRecurring(false); }}
+                    className={s.noteInput}
+                  />
+                  <button onClick={handleSaveRecurring} disabled={!recurringDraft} className={s.ledgerSaveBtn}>Save</button>
+                  {hasOverride && (
+                    <button onClick={() => { setEditingRecurring(false); onDeleteMonthlyIncomeOverride(thisMonthKey); }} className={s.ledgerCancelBtn}>Reset</button>
+                  )}
+                  <button onClick={() => setEditingRecurring(false)} className={s.ledgerCancelBtn}>Cancel</button>
+                </div>
+              ) : (
+                <span className={s.ledgerRowRight}>
+                  <span className={s.ledgerAmount}>{fmt(income)}</span>
+                  <button className={s.ledgerPencilBtn} onClick={() => { setEditingRecurring(true); setRecurringDraft(income > 0 ? String(income) : ''); setRecurringNoteDraft(incomeNote ?? ''); }} title="Override this month's income">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6L4 10z"/></svg>
+                  </button>
+                </span>
+              )}
+            </div>
+
+            {/* One-off entries */}
+            {thisMonthAdditions.map((entry) => (
+              <div key={entry.id} className={`${s.ledgerRow} ${s.ledgerBorderTop}`}>
+                {editingEntryId === entry.id ? (
+                  <div className={s.ledgerEditRow}>
+                    <div className={s.moneyInputWrap}>
+                      <span className={s.moneyPrefix}>$</span>
+                      <input
+                        autoFocus type="number" min="0" step="1"
+                        value={editEntryAmount}
+                        onChange={e => setEditEntryAmount(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveEntryEdit(entry.id); if (e.key === 'Escape') setEditingEntryId(null); }}
+                        className={s.moneyInput}
+                      />
+                    </div>
+                    <input
+                      type="text" placeholder="Note (optional)"
+                      value={editEntryNote}
+                      onChange={e => setEditEntryNote(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSaveEntryEdit(entry.id); if (e.key === 'Escape') setEditingEntryId(null); }}
+                      className={s.noteInput}
+                    />
+                    <button onClick={() => handleSaveEntryEdit(entry.id)} disabled={!editEntryAmount} className={s.ledgerSaveBtn}>Save</button>
+                    <button onClick={() => setEditingEntryId(null)} className={s.ledgerCancelBtn}>Cancel</button>
+                  </div>
+                ) : (
+                  <>
+                    <span className={s.ledgerEntryMeta}>{fmtEntryDate(entry.date)}{entry.note ? ` · ${entry.note}` : ''}</span>
+                    <span className={s.ledgerRowRight}>
+                      <span className={s.ledgerAmount}>+{fmt(entry.amount)}</span>
+                      <button className={s.ledgerPencilBtn} onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); }} title="Edit entry">
+                        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6L4 10z"/></svg>
+                      </button>
+                      <button className={s.ledgerCloseBtn} onClick={() => handleDeleteEntry(entry.id)} title="Remove entry">
+                        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+                      </button>
+                    </span>
+                  </>
+                )}
+              </div>
+            ))}
+
+            {/* Add row */}
+            <div className={`${s.ledgerAddRow} ${s.ledgerBorderTop}`}>
+              {addingIncome ? (
+                <div className={s.ledgerEditRow}>
+                  <div className={s.moneyInputWrap}>
+                    <span className={s.moneyPrefix}>$</span>
+                    <input
+                      autoFocus type="number" min="0" step="1" placeholder="Amount"
+                      value={addAmountDraft}
+                      onChange={e => setAddAmountDraft(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddIncomeEntry(); if (e.key === 'Escape') { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); } }}
+                      className={s.moneyInput}
+                    />
+                  </div>
+                  <input
+                    type="text" placeholder="Note (optional)"
+                    value={addNoteDraft}
+                    onChange={e => setAddNoteDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddIncomeEntry(); if (e.key === 'Escape') { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); } }}
+                    className={s.noteInput}
+                  />
+                  <button onClick={handleAddIncomeEntry} disabled={!addAmountDraft} className={s.ledgerSaveBtn}>Add</button>
+                  <button onClick={() => { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); }} className={s.ledgerCancelBtn}>Cancel</button>
+                </div>
+              ) : (
+                <button className={s.dashedChip} onClick={() => setAddingIncome(true)}>
+                  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M8 3v10M3 8h10"/></svg>
+                  Add one-off income
+                </button>
+              )}
+            </div>
+
+            {/* Total row */}
+            <div className={`${s.ledgerRow} ${s.ledgerRowBg} ${s.ledgerTotalRow}`}>
+              <span className={s.ledgerTotalLabel}>Total income</span>
+              <span className={s.ledgerTotalAmt}>{fmt(effectiveIncome)}</span>
+            </div>
+
+          </div>
+        )}
+
         <div className={s.progressTrack}>
-          {income > 0 && (
+          {effectiveIncome > 0 && (
             <div className={s.progressFill} style={{ width: `${Math.min(100, pct)}%` }}>
               {carryOverIn > 0 && (
                 <div className={s.progressSegment} style={{ flex: carryOverIn, background: DANGER }} />
@@ -340,7 +467,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
           )}
         </div>
 
-        {income > 0 && (
+        {effectiveIncome > 0 && (
           <div className={s.progressLegend}>
             {carryOverIn > 0 && (
               <span className={s.progressLegendItem}>
@@ -363,10 +490,10 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
           </div>
         )}
 
-        {income > 0 && isOver ? (
+        {effectiveIncome > 0 && isOver ? (
           <div className={s.overBudgetAlert}>
             <span style={{ color: DANGER }}>
-              Over budget by <strong className={s.overBudgetAlertAmount}>{fmt(totalCommitted - income)}</strong> — overspend carried to next month
+              Over budget by <strong className={s.overBudgetAlertAmount}>{fmt(totalCommitted - effectiveIncome)}</strong> — overspend carried to next month
             </span>
           </div>
         ) : carryOverIn > 0 ? (
@@ -380,7 +507,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
         )}
 
         <div
-          className={`${s.statGrid} grid-cols-2 ${income > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}
+          className={`${s.statGrid} grid-cols-2 ${effectiveIncome > 0 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}
         >
           {(
             [
@@ -395,15 +522,16 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
               <div className={s.statValue}>{value}</div>
             </div>
           ))}
-          {income > 0 && (
+          {effectiveIncome > 0 && (
             <div>
               <div className={s.statLabel}>Left to spend</div>
               <div className={s.statValue} style={{ color: isOver ? DANGER : ACCENT }}>
-                {isOver ? `-${fmt(totalCommitted - income)}` : fmt(income - totalCommitted)}
+                {isOver ? `-${fmt(totalCommitted - effectiveIncome)}` : fmt(effectiveIncome - totalCommitted)}
               </div>
             </div>
           )}
         </div>
+
       </div>
 
       <div className={s.divider} />

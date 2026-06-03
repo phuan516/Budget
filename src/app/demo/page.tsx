@@ -110,8 +110,6 @@ const INITIAL_CONFIG: Config = {
     { id: '5', name: 'Gym', amount: 40 },
   ],
   monthlyIncome: 5000,
-  monthlyIncomeOverrides: {},
-  monthlyIncomeOverrideNotes: {},
   fixedExpenseOverrides: {},
   fixedExpenseOverrideNotes: {},
   savingGoals: [
@@ -243,16 +241,10 @@ export default function DemoPage() {
   }
 
   async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number, note?: string) {
-    setConfig((c) => ({ ...c, monthlyIncomeOverrides: { ...c.monthlyIncomeOverrides, [monthKey]: amount } }));
     setMonthConfigs((mc) => ({ ...mc, [monthKey]: { ...(mc[monthKey] ?? { fixedExpenses: [] }), income: amount, incomeNote: note } }));
   }
 
   async function handleDeleteMonthlyIncomeOverride(monthKey: string) {
-    setConfig((c) => {
-      const next = { ...c.monthlyIncomeOverrides };
-      delete next[monthKey];
-      return { ...c, monthlyIncomeOverrides: next };
-    });
     setMonthConfigs((mc) => {
       const existing = mc[monthKey];
       if (!existing) return mc;
@@ -391,6 +383,9 @@ export default function DemoPage() {
             onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
             onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
             onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
+            onAddIncomeEntry={async () => {}}
+            onEditIncomeEntry={async () => {}}
+            onDeleteIncomeEntry={async () => {}}
           />
         )}
         {activeTab === 'transactions' && (

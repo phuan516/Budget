@@ -47,44 +47,283 @@
   flex-wrap: wrap;
 }
 
-/* Income edit */
-.incomeEditInput {
-  width: 90px;
+/* Income toggle */
+.incomeToggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 0 6px;
+  color: #888;
+  font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .incomeToggle { font-size: 13px; }
+}
+
+.caretBox {
+  display: inline-flex;
+  padding: 3px;
   border: 1px solid #d8d8d8;
   border-radius: 6px;
-  padding: 3px 7px;
+  line-height: 0;
+}
+
+.caretIcon {
+  transition: transform 160ms ease;
+  display: block;
+}
+
+.caretIconOpen {
+  transform: rotate(180deg);
+}
+
+/* Ledger card */
+.ledgerCard {
+  max-width: 460px;
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 640px) {
+  .ledgerCard {
+    border-radius: 12px;
+    margin-bottom: 14px;
+    max-width: 100%;
+  }
+}
+
+.ledgerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 14px;
   font-size: 13px;
-  outline: none;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .ledgerRow { padding: 12px 14px; }
+}
+
+.ledgerRowBg {
+  background: #fafafa;
+}
+
+.ledgerBorderTop {
+  border-top: 1px solid #ececec;
+}
+
+.ledgerRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ledgerRowRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.ledgerNote {
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+}
+
+.autoTag {
+  font-size: 11px;
+  color: oklch(0.65 0.13 150);
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .autoTag { font-size: 10px; font-weight: 600; text-transform: uppercase; }
+}
+
+.ledgerAmount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.ledgerEntryMeta {
+  font-size: 13px;
+  color: #444;
+  flex: 1;
+  min-width: 0;
+}
+
+.ledgerPencilBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  padding: 0 1px;
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.ledgerPencilBtn:hover { color: #888; }
+
+.ledgerCloseBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ccc;
+  padding: 0 1px;
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.ledgerCloseBtn:hover { color: #888; }
+
+.ledgerAddRow {
+  padding: 9px 14px;
+}
+
+@media (max-width: 640px) {
+  .ledgerAddRow { padding: 10px 14px; }
+}
+
+.dashedChip {
+  background: none;
+  border: 1px dashed #d8d8d8;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #888;
+  font-family: inherit;
+}
+
+@media (max-width: 640px) {
+  .dashedChip { width: 100%; justify-content: center; }
+}
+
+.ledgerTotalRow {
+  border-top: 1.5px solid #d8d8d8 !important;
+}
+
+.ledgerTotalLabel {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ledgerTotalAmt {
+  font-size: 17px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.incomeBtnSave {
+@media (max-width: 640px) {
+  .ledgerTotalLabel { font-size: 14px; }
+  .ledgerTotalAmt { font-size: 19px; }
+}
+
+/* Inline edit forms inside ledger */
+.ledgerEditRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 2px 0;
+}
+
+.moneyInputWrap {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #d8d8d8;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #fff;
+  gap: 5px;
+  min-width: 90px;
+  transition: border-color 0.15s;
+}
+
+.moneyInputWrap:focus-within {
+  border-color: #1a1a1a;
+}
+
+.moneyPrefix {
+  color: #888;
+  font-size: 13px;
+}
+
+.moneyInput {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  width: 80px;
+  background: transparent;
+  color: #1a1a1a;
+  font-family: inherit;
+}
+
+.noteInput {
+  border: 1.5px solid #d8d8d8;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 14px;
+  outline: none;
+  color: #1a1a1a;
+  background: #fff;
+  min-width: 100px;
+  flex: 1;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.noteInput:focus {
+  border-color: #1a1a1a;
+}
+
+.ledgerSaveBtn {
   border: none;
   background: #1a1a1a;
   color: #fff;
-  padding: 3px 10px;
+  padding: 5px 12px;
   border-radius: 999px;
   font-size: 11px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.incomeBtnReset {
-  border: 1px solid #d8d8d8;
-  background: none;
-  color: #888;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  cursor: pointer;
+.ledgerSaveBtn:disabled {
+  background: #d8d8d8;
+  cursor: not-allowed;
 }
 
-.incomeBtnCancel {
+.ledgerCancelBtn {
   border: none;
   background: none;
   color: #aaa;
   font-size: 11px;
   cursor: pointer;
-  padding: 3px 6px;
+  padding: 5px 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .customBadge {
@@ -94,32 +333,6 @@
   border-radius: 4px;
   padding: 1px 5px;
   font-weight: 500;
-}
-
-.incomeEditBtn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #ccc;
-  padding: 0 2px;
-  display: flex;
-  align-items: center;
-}
-
-.incomeNoteInput {
-  width: 140px;
-  border: 1px solid #d8d8d8;
-  border-radius: 6px;
-  padding: 3px 7px;
-  font-size: 12px;
-  outline: none;
-  color: #555;
-}
-
-.overrideNote {
-  font-size: 11px;
-  color: #888;
-  font-style: italic;
 }
 
 /* Progress bar */

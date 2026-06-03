@@ -176,7 +176,7 @@ export default function DashboardPage() {
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const existingMonthConfig = monthConfigs[currentMonthKey];
     if (existingMonthConfig?.income !== undefined) {
-      const { income: _i, incomeNote: _n, ...rest } = existingMonthConfig;
+      const { income: _i, incomeNote: _n, incomeEntries: _e, ...rest } = existingMonthConfig;
       setMonthConfigs({ ...monthConfigs, [currentMonthKey]: rest });
     }
     await fetch('/api/config/income', {
@@ -189,9 +189,9 @@ export default function DashboardPage() {
 
   async function handleSetMonthlyIncomeOverride(monthKey: string, amount: number, note?: string) {
     if (!selectedSheet) return;
-    updateConfig({ monthlyIncomeOverrides: { ...config.monthlyIncomeOverrides, [monthKey]: amount } });
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
-    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, income: amount, incomeNote: note } });
+    const { incomeEntries: _e, ...rest } = existing;
+    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...rest, income: amount, incomeNote: note } });
     await fetch('/api/config/income/override', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -201,9 +201,6 @@ export default function DashboardPage() {
 
   async function handleDeleteMonthlyIncomeOverride(monthKey: string) {
     if (!selectedSheet) return;
-    const next = { ...config.monthlyIncomeOverrides };
-    delete next[monthKey];
-    updateConfig({ monthlyIncomeOverrides: next });
     const existing = monthConfigs[monthKey];
     if (existing) {
       const { income: _i, incomeNote: _n, ...rest } = existing;
@@ -239,6 +236,59 @@ export default function DashboardPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, fixedExpenses }),
+    });
+    loadTransactions(true);
+  }
+
+  async function handleAddIncomeEntry(amount: number, note?: string) {
+    if (!selectedSheet) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const monthKey = today.slice(0, 7);
+    const newEntry = { id: `tmp_${Date.now()}`, date: today, amount, note };
+    const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
+    setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, incomeEntries: [...(existing.incomeEntries ?? []), newEntry] } });
+    await fetch('/api/config/income/entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId: selectedSheet.id, amount, note }),
+    });
+    loadTransactions(true);
+  }
+
+  async function handleEditIncomeEntry(id: string, amount: number, note?: string) {
+    if (!selectedSheet) return;
+    const monthKey = Object.keys(monthConfigs).find(k => monthConfigs[k]?.incomeEntries?.some(e => e.id === id));
+    if (!monthKey) return;
+    const existing = monthConfigs[monthKey];
+    if (!existing) return;
+    setMonthConfigs({
+      ...monthConfigs,
+      [monthKey]: { ...existing, incomeEntries: existing.incomeEntries?.map(e => e.id === id ? { ...e, amount, note } : e) },
+    });
+    const [tabName, rowIndexStr] = id.split('|');
+    await fetch('/api/config/income/entries', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId: selectedSheet.id, tabName, rowIndex: parseInt(rowIndexStr), amount, note }),
+    });
+    loadTransactions(true);
+  }
+
+  async function handleDeleteIncomeEntry(id: string) {
+    if (!selectedSheet) return;
+    const monthKey = Object.keys(monthConfigs).find(k => monthConfigs[k]?.incomeEntries?.some(e => e.id === id));
+    if (!monthKey) return;
+    const existing = monthConfigs[monthKey];
+    if (!existing) return;
+    setMonthConfigs({
+      ...monthConfigs,
+      [monthKey]: { ...existing, incomeEntries: existing.incomeEntries?.filter(e => e.id !== id) },
+    });
+    const [tabName, rowIndexStr] = id.split('|');
+    await fetch('/api/config/income/entries', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId: selectedSheet.id, tabName, rowIndex: parseInt(rowIndexStr) }),
     });
     loadTransactions(true);
   }
@@ -548,6 +598,9 @@ export default function DashboardPage() {
             onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
             onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
             onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
+            onAddIncomeEntry={handleAddIncomeEntry}
+            onEditIncomeEntry={handleEditIncomeEntry}
+            onDeleteIncomeEntry={handleDeleteIncomeEntry}
           />
         )}
         {activeTab === 'transactions' && (

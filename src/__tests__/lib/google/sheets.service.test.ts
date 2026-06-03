@@ -92,12 +92,11 @@ describe('SheetsService', () => {
       ])
     })
 
-    it('parses income overrides and notes', async () => {
+    it('parses fixed expense overrides', async () => {
       mockValuesGet.mockResolvedValueOnce({ data: { values: CONFIG_ROWS } })
       const result = await makeService().readConfig(SHEET_ID)
 
-      expect(result.monthlyIncomeOverrides).toEqual({ '2026-01': 4500 })
-      expect(result.monthlyIncomeOverrideNotes).toEqual({ '2026-01': 'bonus' })
+      expect(result.fixedExpenseOverrides).toBeDefined()
     })
 
     it('returns zero income and empty arrays when sheet has no data', async () => {

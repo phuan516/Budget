@@ -13,7 +13,7 @@ const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'
 const MONTH_TAB_REGEX = /^[A-Z][a-z]{2} \d{4}$/;
 
 // Config section labels (must match exactly what's written to the sheet)
-const CONFIG_SECTIONS = ['INCOME', 'INCOME OVERRIDES', 'FIXED EXPENSE OVERRIDES', 'SAVING GOALS', 'CATEGORIES', 'CARDS', 'FIXED EXPENSES'] as const;
+const CONFIG_SECTIONS = ['INCOME', 'FIXED EXPENSE OVERRIDES', 'SAVING GOALS', 'CATEGORIES', 'CARDS', 'FIXED EXPENSES'] as const;
 const CONFIG_SECTION_SET = new Set<string>(CONFIG_SECTIONS);
 
 const TYPE_TO_SECTION: Record<string, string> = {
@@ -128,9 +128,6 @@ export class SheetsService {
         ['INCOME'],
         ['Amount'],
         [],
-        ['INCOME OVERRIDES'],
-        ['Month', 'Amount'],
-        [],
         ['SAVING GOALS'],
         ['Name', 'Target', 'Initial'],
         [],
@@ -151,7 +148,7 @@ export class SheetsService {
         requestBody: { values: configLayout },
       });
 
-      const boldRowIdxs = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16]; // 0-based
+      const boldRowIdxs = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13]; // 0-based
       await this.sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
@@ -215,8 +212,6 @@ export class SheetsService {
     cards: { id: string; name: string }[];
     fixedExpenses: { id: string; name: string; amount: number }[];
     monthlyIncome: number;
-    monthlyIncomeOverrides: { [monthKey: string]: number };
-    monthlyIncomeOverrideNotes: { [monthKey: string]: string };
     fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } };
     fixedExpenseOverrideNotes: { [monthKey: string]: { [expenseName: string]: string } };
     incomeRowIndex: number | null;
@@ -256,18 +251,6 @@ export class SheetsService {
       const monthlyIncome = incomeRows.length > 0 ? parseFloat(incomeRows[0].row[0] ?? '') || 0 : 0;
       const incomeRowIndex = incomeRows.length > 0 ? incomeRows[0].rowNum : null;
 
-      const monthlyIncomeOverrides: { [monthKey: string]: number } = {};
-      const monthlyIncomeOverrideNotes: { [monthKey: string]: string } = {};
-      for (const { row } of getDataRows('INCOME OVERRIDES')) {
-        const key = (row[0] ?? '').toString().trim();
-        const amt = parseFloat((row[1] ?? '').toString()) || 0;
-        if (key && amt) {
-          monthlyIncomeOverrides[key] = amt;
-          const note = (row[2] ?? '').toString().trim();
-          if (note) monthlyIncomeOverrideNotes[key] = note;
-        }
-      }
-
       const fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } } = {};
       const fixedExpenseOverrideNotes: { [monthKey: string]: { [expenseName: string]: string } } = {};
       for (const { row } of getDataRows('FIXED EXPENSE OVERRIDES')) {
@@ -298,8 +281,7 @@ export class SheetsService {
       const savingGoals = getDataRows('SAVING GOALS').map(({ row, rowNum }) => ({
         id: String(rowNum), name: (row[0] ?? '').toString(), amount: parseFloat(row[1] ?? '') || 0, initialAmount: parseFloat(row[2] ?? '') || 0,
       }));
-
-      return { categories, cards, fixedExpenses, monthlyIncome, monthlyIncomeOverrides, monthlyIncomeOverrideNotes, fixedExpenseOverrides, fixedExpenseOverrideNotes, incomeRowIndex, savingGoals };
+      return { categories, cards, fixedExpenses, monthlyIncome, fixedExpenseOverrides, fixedExpenseOverrideNotes, incomeRowIndex, savingGoals };
     } catch (error) {
       console.error('Error reading config:', error);
       throw new Error('Failed to read config');
@@ -437,6 +419,160 @@ export class SheetsService {
     }
   }
 
+  // Ensures an INCOME ENTRIES section exists in a month tab, inserting it after the INCOME value row if missing.
+  async ensureMonthTabIncomeEntriesSection(sheetId: string, monthLabel: string): Promise<void> {
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `${quoteSheet(monthLabel)}!A:C`,
+    });
+    const rows = (response.data.values || []) as string[][];
+
+    if (rows.some(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME ENTRIES')) return;
+
+    const incomeLabelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME');
+    if (incomeLabelIdx === -1) return;
+
+    // Insert after the INCOME value row (immediately after label + 1 data row)
+    let insertAt = incomeLabelIdx + 1;
+    while (insertAt < rows.length) {
+      const cell = (rows[insertAt]?.[0] ?? '').toString().trim().toUpperCase();
+      if (cell === '' || cell === 'FIXED EXPENSES' || cell === 'TRANSACTIONS') break;
+      insertAt++;
+    }
+
+    const spreadsheet = await this.sheets.spreadsheets.get({ spreadsheetId: sheetId, fields: 'sheets.properties' });
+    const numericSheetId = spreadsheet.data.sheets?.find(s => s.properties?.title === monthLabel)?.properties?.sheetId ?? 0;
+
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: { requests: [{ insertDimension: { range: { sheetId: numericSheetId, dimension: 'ROWS', startIndex: insertAt, endIndex: insertAt + 2 }, inheritFromBefore: false } }] },
+    });
+
+    const labelRow = insertAt + 1;
+    const headerRow = insertAt + 2;
+    await this.sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: [
+          { range: `${quoteSheet(monthLabel)}!A${labelRow}`, values: [['INCOME ENTRIES']] },
+          { range: `${quoteSheet(monthLabel)}!A${headerRow}:C${headerRow}`, values: [['Date', 'Amount', 'Note']] },
+        ],
+      },
+    });
+
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [insertAt, insertAt + 1].map(rowIdx => ({
+          repeatCell: {
+            range: { sheetId: numericSheetId, startRowIndex: rowIdx, endRowIndex: rowIdx + 1 },
+            cell: { userEnteredFormat: { textFormat: { bold: true } } },
+            fields: 'userEnteredFormat.textFormat.bold',
+          },
+        })),
+      },
+    });
+  }
+
+  // Deletes all income entry rows from a month tab's INCOME ENTRIES section (leaves the section header).
+  async clearMonthTabIncomeEntries(sheetId: string, tabName: string): Promise<void> {
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `${quoteSheet(tabName)}!A:A`,
+    });
+    const rows = (response.data.values || []) as string[][];
+
+    const entriesLabelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME ENTRIES');
+    if (entriesLabelIdx === -1) return;
+
+    const dataStart = entriesLabelIdx + 2;
+    let dataEnd = dataStart;
+    while (dataEnd < rows.length) {
+      const cell = (rows[dataEnd]?.[0] ?? '').toString().trim().toUpperCase();
+      if (cell === '' || cell === 'FIXED EXPENSES' || cell === 'TRANSACTIONS') break;
+      dataEnd++;
+    }
+    if (dataEnd <= dataStart) return;
+
+    const spreadsheet = await this.sheets.spreadsheets.get({ spreadsheetId: sheetId, fields: 'sheets.properties' });
+    const tabSheetId = spreadsheet.data.sheets?.find(s => s.properties?.title === tabName)?.properties?.sheetId;
+    if (tabSheetId == null) return;
+
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [{ deleteDimension: { range: { sheetId: tabSheetId, dimension: 'ROWS', startIndex: dataStart, endIndex: dataEnd } } }],
+      },
+    });
+  }
+
+  // Appends an income entry to a month tab's INCOME ENTRIES section and updates the INCOME total.
+  async addMonthTabIncomeEntry(sheetId: string, monthLabel: string, date: string, amount: number, note?: string): Promise<void> {
+    await this.ensureMonthTabIncomeEntriesSection(sheetId, monthLabel);
+
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `${quoteSheet(monthLabel)}!A:C`,
+    });
+    const rows = (response.data.values || []) as string[][];
+
+    const entriesLabelIdx = rows.findIndex(r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME ENTRIES');
+    if (entriesLabelIdx === -1) throw new Error(`INCOME ENTRIES section not found in ${monthLabel}`);
+
+    let insertAt = entriesLabelIdx + 2; // skip label + header
+    while (insertAt < rows.length) {
+      const cell = (rows[insertAt]?.[0] ?? '').toString().trim().toUpperCase();
+      if (cell === '' || cell === 'FIXED EXPENSES' || cell === 'TRANSACTIONS') break;
+      insertAt++;
+    }
+
+    const spreadsheet = await this.sheets.spreadsheets.get({ spreadsheetId: sheetId, fields: 'sheets.properties' });
+    const numericSheetId = spreadsheet.data.sheets?.find(s => s.properties?.title === monthLabel)?.properties?.sheetId ?? 0;
+
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: { requests: [{ insertDimension: { range: { sheetId: numericSheetId, dimension: 'ROWS', startIndex: insertAt, endIndex: insertAt + 1 }, inheritFromBefore: true } }] },
+    });
+
+    const newRowNum = insertAt + 1;
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${quoteSheet(monthLabel)}!A${newRowNum}:C${newRowNum}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[date, amount, note ?? '']] },
+    });
+  }
+
+  // Updates an income entry in a month tab by its 1-based row index (preserves date).
+  async updateMonthTabIncomeEntry(sheetId: string, tabName: string, rowIndex: number, amount: number, note?: string): Promise<void> {
+    const readRes = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `${quoteSheet(tabName)}!A${rowIndex}:C${rowIndex}`,
+    });
+    const row = ((readRes.data.values || [])[0] || []) as string[];
+    const date = (row[0] ?? '').toString().trim();
+
+    await this.sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${quoteSheet(tabName)}!A${rowIndex}:C${rowIndex}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [[date, amount, note ?? '']] },
+    });
+  }
+
+  // Deletes an income entry row from a month tab.
+  async deleteMonthTabIncomeEntry(sheetId: string, tabName: string, rowIndex: number): Promise<void> {
+    const spreadsheet = await this.sheets.spreadsheets.get({ spreadsheetId: sheetId, fields: 'sheets.properties' });
+    const tabSheetId = spreadsheet.data.sheets?.find(s => s.properties?.title === tabName)?.properties?.sheetId;
+    if (tabSheetId == null) throw new Error(`Month tab "${tabName}" not found`);
+
+    await this.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: { requests: [{ deleteDimension: { range: { sheetId: tabSheetId, dimension: 'ROWS', startIndex: rowIndex - 1, endIndex: rowIndex } } }] },
+    });
+  }
+
   // Rewrites the FIXED EXPENSES section on every month tab at or after minMonthLabel to match the canonical list from Config.
   async syncFixedExpensesToAllMonthSheets(
     spreadsheetId: string,
@@ -546,14 +682,17 @@ export class SheetsService {
 
     const expenseRows = fixedExpenses.map(fe => [fe.name, fe.amount, '']);
     const rows: (string | number)[][] = [
-      [`${monthLabel} Budget`],   // row 0 (1-based: 1)
-      [],                          // row 1
-      ['INCOME'],                  // row 2
-      [income, ''],                // row 3 — col A = amount, col B = note
-      [],                          // row 4
-      ['FIXED EXPENSES'],          // row 5
-      ['Name', 'Amount', 'Note'],  // row 6
-      ...expenseRows,              // rows 7+
+      [`${monthLabel} Budget`],        // row 0 (1-based: 1)
+      [],                               // row 1
+      ['INCOME'],                       // row 2
+      [income, ''],                     // row 3 — col A = total, col B = note
+      [],                               // row 4
+      ['INCOME ENTRIES'],               // row 5
+      ['Date', 'Amount', 'Note'],       // row 6
+      [],                               // row 7
+      ['FIXED EXPENSES'],               // row 8
+      ['Name', 'Amount', 'Note'],       // row 9
+      ...expenseRows,                   // rows 10+
       [],
       ['TRANSACTIONS'],
       ['Date', 'Amount', 'Category', 'Card', 'Note'],
@@ -576,17 +715,17 @@ export class SheetsService {
 
     if (numericSheetId == null) return;
 
-    // 0-based row indices to bold:
-    // 0: title, 2: INCOME, 5: FIXED EXPENSES, 6: Name|Amount|Note header
-    // 7+expenseRows.length+1: TRANSACTIONS, 7+expenseRows.length+2: Date|Amount|... header
-    const afterExpenses = 7 + expenseRows.length;
+    // 0-based row indices to bold
+    const afterExpenses = 10 + expenseRows.length;
     const boldRows = [
       0,               // title
       2,               // INCOME label
-      5,               // FIXED EXPENSES label
-      6,               // Name | Amount | Note header
-      afterExpenses + 1, // TRANSACTIONS label (blank row at afterExpenses, then TRANSACTIONS)
-      afterExpenses + 2, // Date | Amount | … header
+      5,               // INCOME ENTRIES label
+      6,               // Date|Amount|Note header
+      8,               // FIXED EXPENSES label
+      9,               // Name|Amount|Note header
+      afterExpenses + 1, // TRANSACTIONS label
+      afterExpenses + 2, // Date|Amount|… header
     ];
 
     await this.sheets.spreadsheets.batchUpdate({
@@ -818,7 +957,7 @@ export class SheetsService {
   async readTransactions(spreadsheetId: string): Promise<{
     transactions: { id: string; tab: string; row: number; date: string; amount: number; category: string; card: string; note: string }[];
     monthTabKeys: string[];
-    monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }>;
+    monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[]; incomeEntries?: { id: string; date: string; amount: number; note?: string }[] }>;
   }> {
     try {
       const spreadsheet = await this.sheets.spreadsheets.get({
@@ -836,7 +975,7 @@ export class SheetsService {
       });
 
       const transactions: { id: string; tab: string; row: number; date: string; amount: number; category: string; card: string; note: string }[] = [];
-      const monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }> = {};
+      const monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[]; incomeEntries?: { id: string; date: string; amount: number; note?: string }[] }> = {};
 
       for (let tabIdx = 0; tabIdx < monthTabs.length; tabIdx++) {
         const tabName = monthTabs[tabIdx];
@@ -867,6 +1006,29 @@ export class SheetsService {
           }
         }
 
+        // --- Read INCOME ENTRIES section ---
+        const tabIncomeEntries: { id: string; date: string; amount: number; note?: string }[] = [];
+        const incomeEntriesLabelIdx = rows.findIndex(
+          r => (r[0] ?? '').toString().trim().toUpperCase() === 'INCOME ENTRIES'
+        );
+        if (incomeEntriesLabelIdx !== -1) {
+          const dataStart = incomeEntriesLabelIdx + 2; // skip label + header
+          let i = dataStart;
+          while (i < rows.length) {
+            const cell = (rows[i]?.[0] ?? '').toString().trim();
+            const cellUpper = cell.toUpperCase();
+            if (cell === '' || cellUpper === 'FIXED EXPENSES' || cellUpper === 'TRANSACTIONS') break;
+            const entryDate = cell;
+            const entryAmt = parseFloat((rows[i]?.[1] ?? '').toString()) || 0;
+            const entryNote = (rows[i]?.[2] ?? '').toString().trim() || undefined;
+            const rowNum = i + 1; // 1-based
+            if (entryDate && entryAmt > 0) {
+              tabIncomeEntries.push({ id: `${tabName}|${rowNum}`, date: entryDate, amount: entryAmt, note: entryNote });
+            }
+            i++;
+          }
+        }
+
         // --- Read FIXED EXPENSES section ---
         const tabFixedExpenses: { name: string; amount: number; note?: string }[] = [];
         const feLabelIdx = rows.findIndex(
@@ -891,6 +1053,7 @@ export class SheetsService {
           income: tabIncome,
           incomeNote: tabIncomeNote,
           fixedExpenses: tabFixedExpenses,
+          incomeEntries: tabIncomeEntries.length > 0 ? tabIncomeEntries : undefined,
         };
 
         // --- Read TRANSACTIONS section ---

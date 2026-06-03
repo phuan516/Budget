@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
     const label = monthKeyToLabel(monthKey);
     const current = await service.readConfig(sheetId);
     await service.ensureMonthTabExists(sheetId, label, current.fixedExpenses, current.monthlyIncome);
+    await service.clearMonthTabIncomeEntries(sheetId, label);
     await service.setMonthTabIncome(sheetId, label, income, note ?? undefined);
     return NextResponse.json({ ok: true });
   } catch (error) {

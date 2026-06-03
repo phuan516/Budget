@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expanded Ledger — Income Controls Reference</title>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #f0eee9; }
+    body { font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="wireframes/shared.jsx"></script>
+  <script type="text/babel" src="wireframes/income-controls.jsx"></script>
+
+  <script type="text/babel" data-presets="react">
+    function App() {
+      return (
+        <DesignCanvas>
+          <DCSection id="ledger" title="Expanded ledger — income controls" subtitle="Total income = recurring base (auto-fills monthly) + one-off entries · the total is always the computed sum, never edited directly">
+            <DCArtboard id="E" label="Desktop · expanded ledger" width={980} height={600}><IncomeE /></DCArtboard>
+            <DCArtboard id="E-mob" label="Mobile · expanded ledger" width={375} height={760}><IncomeEMobile /></DCArtboard>
+          </DCSection>
+
+          <DCPostIt top={-20} left={60} rotate={-3} width={220}>
+            Reference design for the "expanded ledger" income control. Click an artboard ⤢ to focus. See README.md for full specs.
+          </DCPostIt>
+        </DesignCanvas>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

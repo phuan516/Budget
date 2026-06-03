@@ -13,8 +13,6 @@ export interface Config {
   cards: { id: string; name: string }[];
   fixedExpenses: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
-  monthlyIncomeOverrides: { [monthKey: string]: number };
-  monthlyIncomeOverrideNotes: { [monthKey: string]: string };
   fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } };
   fixedExpenseOverrideNotes: { [monthKey: string]: { [expenseName: string]: string } };
   savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
@@ -51,8 +49,8 @@ interface BudgetStore {
   monthTabKeys: string[];
   setMonthTabKeys: (keys: string[]) => void;
 
-  monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }>;
-  setMonthConfigs: (configs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] }>) => void;
+  monthConfigs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[]; incomeEntries?: { id: string; date: string; amount: number; note?: string }[] }>;
+  setMonthConfigs: (configs: Record<string, { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[]; incomeEntries?: { id: string; date: string; amount: number; note?: string }[] }>) => void;
 
   activeTab: DashboardTab;
   setActiveTab: (tab: DashboardTab) => void;
@@ -63,8 +61,6 @@ const DEFAULT_CONFIG: Config = {
   cards: [],
   fixedExpenses: [],
   monthlyIncome: 0,
-  monthlyIncomeOverrides: {},
-  monthlyIncomeOverrideNotes: {},
   fixedExpenseOverrides: {},
   fixedExpenseOverrideNotes: {},
   savingGoals: [],
