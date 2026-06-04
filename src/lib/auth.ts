@@ -14,7 +14,7 @@ export const authOptions: NextAuthOptions = {
             'https://www.googleapis.com/auth/drive.readonly',
           ].join(' '),
           access_type: 'offline',
-          prompt: 'select_account',
+          prompt: 'consent',
         },
       },
     }),
