@@ -11,7 +11,7 @@ export const authOptions: NextAuthOptions = {
           scope: [
             'openid', 'email', 'profile',
             'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/drive.file',
           ].join(' '),
           access_type: 'offline',
           prompt: 'consent',

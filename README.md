@@ -50,7 +50,7 @@ The app authenticates via Google and reads/writes your Google Sheet, so you need
 2. Set **User type** to External, then fill in the app name and support email
 3. Add these scopes:
    - `https://www.googleapis.com/auth/spreadsheets`
-   - `https://www.googleapis.com/auth/drive.readonly`
+   - `https://www.googleapis.com/auth/drive.file`
    - `https://www.googleapis.com/auth/userinfo.email`
    - `https://www.googleapis.com/auth/userinfo.profile`
 4. Add your Google account as a **test user**

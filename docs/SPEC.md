@@ -217,7 +217,7 @@ Row N+3+: <transaction rows>
 Auth is handled server-side via **NextAuth.js v4** with the Google provider. The flow uses the OAuth 2.0 authorization code flow with PKCE — there is no client-side token handling or localStorage involvement.
 
 - **Callback route:** `GET/POST /api/auth/[...nextauth]` — NextAuth's catch-all handler
-- **Config:** `src/lib/auth.ts` — GoogleProvider with `access_type: offline`, `prompt: select_account`, and scopes for spreadsheets + drive.readonly
+- **Config:** `src/lib/auth.ts` — GoogleProvider with `access_type: offline`, `prompt: select_account`, and scopes for spreadsheets + drive.file
 - **Session:** The access token is stored in NextAuth's encrypted JWT (httpOnly cookie). The JWT callback saves `account.access_token` into the token; the session callback exposes it as `session.accessToken`.
 - **Client auth state:** `src/context/AuthContext.tsx` — wraps `SessionProvider` and exposes a `useAuth()` hook with `{ user, loading, signIn, signOut }`. `signIn` calls `nextSignIn('google', { callbackUrl })` and `signOut` redirects to `/`.
 - **Server auth:** `src/lib/api/auth.ts` — `buildSheetsService()` calls `getServerSession(authOptions)` to retrieve the token, then instantiates an `OAuth2Client` for Google API calls. No `Authorization` header is read from requests.
@@ -605,7 +605,7 @@ vercel --prod
 - Server-side session lookup via `getServerSession` on each API request; no bearer token passed from client
 - `NEXTAUTH_SECRET` must be a strong random value — used to sign/encrypt the JWT cookie
 - User data stays in their own Google Sheet; the app never stores transactions server-side
-- Minimal OAuth scopes requested: spreadsheets read/write + drive.readonly + userinfo + openid
+- Minimal OAuth scopes requested: spreadsheets read/write + drive.file + userinfo + openid
 - All user input is passed through the Google Sheets API which handles its own injection protection; no direct SQL or shell execution
 
 ---
