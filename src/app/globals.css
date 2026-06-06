@@ -20,12 +20,16 @@
 
   /* Semantic states */
   --color-success: oklch(0.65 0.13 150);
+  --color-success-strong: oklch(0.55 0.13 150);
   --color-success-bg: oklch(0.97 0.03 150);
   --color-success-border: oklch(0.88 0.07 150);
   --color-danger: oklch(0.58 0.18 25);
   --color-danger-bg: oklch(0.97 0.03 25);
   --color-danger-border: oklch(0.88 0.07 25);
+  --color-danger-text: #c0392b;
   --color-warn: oklch(0.72 0.12 55);
+  --color-saved: #0F9D58;
+  --color-saved-bg: #e8f5e9;
 
   /* Border radii */
   --radius-sm: 6px;

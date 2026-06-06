@@ -288,8 +288,6 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
 
   return (
     <div className={s.root}>
-      <style>{`@keyframes txn-slide-in{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}`}</style>
-
       <form onSubmit={handleAdd} className={s.form}>
         <div className={s.formHeader}>
           <span className={s.formTitle}>Add transaction</span>
@@ -408,6 +406,7 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
           onClick={() => setShareOpen(true)}
           className={s.shareBtn}
           title="Share"
+          aria-label="Share"
         >
           <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 2.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM5 8a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM11 9.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4z" />
@@ -422,7 +421,7 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
         <div className={`${s.leftoverBanner} ${leftover < 0 ? s.leftoverBannerOver : s.leftoverBannerPositive}`}>
 
           {leftover < 0 && (
-            <span style={{ color: 'oklch(0.58 0.18 25)' }}>
+            <span style={{ color: 'var(--color-danger)' }}>
               Over budget by <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(Math.abs(leftover))}</strong>
             </span>
           )}
@@ -430,10 +429,10 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
           {leftover >= 0 && adjustedLeftover > 0 && (
             <>
               <div className={s.leftoverBannerRow}>
-                <span style={{ color: 'oklch(0.55 0.13 150)' }}>
+                <span style={{ color: 'var(--color-success-strong)' }}>
                   {claimedAmount > 0 ? 'Remaining: ' : 'Left to spend: '}
                   <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmt(adjustedLeftover)}</strong>
-                  {claimedAmount === 0 && <span style={{ color: '#888' }}> — consider moving to savings</span>}
+                  {claimedAmount === 0 && <span style={{ color: 'var(--color-ink-secondary)' }}> — consider moving to savings</span>}
                 </span>
                 {!claimOpen && (
                   <motion.button type="button" className={s.claimBtn} onClick={openClaimForm} whileTap={{ scale: 0.96 }} transition={{ duration: 0.1 }}>
@@ -663,7 +662,7 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
                 >
                   {t.amount < 0 ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
                 </div>
-                <button onClick={() => openEdit(t)} className={s.txnEditBtn} title="Edit">
+                <button onClick={() => openEdit(t)} className={s.txnEditBtn} title="Edit" aria-label="Edit transaction">
                   <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
                   </svg>
@@ -673,6 +672,7 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
                   disabled={deletingId === t.id}
                   className={s.txnDeleteBtn}
                   title="Delete"
+                  aria-label="Delete transaction"
                 >
                   {deletingId === t.id ? '…' : '×'}
                 </button>

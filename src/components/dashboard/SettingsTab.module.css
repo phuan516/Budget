@@ -124,6 +124,7 @@
 
 .incomeSaveBtn {
   border: none;
+  background: var(--color-ink-primary, #1a1a1a);
   color: #fff;
   padding: 8px 16px;
   border-radius: 999px;
@@ -131,6 +132,15 @@
   font-weight: 500;
   cursor: pointer;
   transition: background var(--duration-base, 150ms);
+}
+
+.incomeSaveBtnSaved {
+  background: var(--color-saved, #0F9D58);
+}
+
+.incomeSaveBtnDisabled {
+  background: var(--color-border-strong, #c8c8c8);
+  cursor: not-allowed;
 }
 
 /* ── List items ── */
@@ -165,6 +175,12 @@
 .addRow {
   display: flex;
   gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .addRow {
+    flex-direction: column;
+  }
 }
 
 /* ── Fixed expense rows ── */

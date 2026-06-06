@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useId } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import s from './CustomSelect.module.css';
 
@@ -19,8 +19,15 @@ interface Props {
 
 export default function CustomSelect({ value, onChange, options }: Props) {
   const [open, setOpen] = useState(false);
-  const [hovered, setHovered] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  const listboxId = `${uid}-listbox`;
+
+  const selectableIndices = options.reduce<number[]>((acc, opt, i) => {
+    if (!opt.divider && !opt.disabled) acc.push(i);
+    return acc;
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -31,16 +38,86 @@ export default function CustomSelect({ value, onChange, options }: Props) {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) setActiveIndex(-1);
+  }, [open]);
+
+  function openDropdown() {
+    const selectedIdx = options.findIndex((o) => !o.divider && !o.disabled && o.value === value);
+    setActiveIndex(selectedIdx >= 0 ? selectedIdx : (selectableIndices[0] ?? -1));
+    setOpen(true);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!open) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        openDropdown();
+      }
+      return;
+    }
+
+    const currentPos = selectableIndices.indexOf(activeIndex);
+
+    switch (e.key) {
+      case 'ArrowDown': {
+        e.preventDefault();
+        const next = currentPos < selectableIndices.length - 1
+          ? selectableIndices[currentPos + 1]
+          : selectableIndices[0];
+        setActiveIndex(next ?? -1);
+        break;
+      }
+      case 'ArrowUp': {
+        e.preventDefault();
+        const prev = currentPos > 0
+          ? selectableIndices[currentPos - 1]
+          : selectableIndices[selectableIndices.length - 1];
+        setActiveIndex(prev ?? -1);
+        break;
+      }
+      case 'Home': {
+        e.preventDefault();
+        setActiveIndex(selectableIndices[0] ?? -1);
+        break;
+      }
+      case 'End': {
+        e.preventDefault();
+        setActiveIndex(selectableIndices[selectableIndices.length - 1] ?? -1);
+        break;
+      }
+      case 'Enter':
+      case ' ': {
+        e.preventDefault();
+        const opt = options[activeIndex];
+        if (opt && !opt.divider && !opt.disabled) {
+          onChange(opt.value);
+          setOpen(false);
+        }
+        break;
+      }
+      case 'Escape':
+      case 'Tab': {
+        setOpen(false);
+        break;
+      }
+    }
+  }
+
   const selected = options.find((o) => !o.disabled && !o.divider && o.value === value);
+  const activeOptionId = activeIndex >= 0 ? `${uid}-opt-${activeIndex}` : undefined;
 
   return (
     <div ref={ref} className={s.selectWrap} style={open ? { zIndex: 10 } : undefined}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? setOpen(false) : openDropdown())}
+        onKeyDown={handleKeyDown}
         className={s.selectBtn}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={listboxId}
+        aria-activedescendant={open ? activeOptionId : undefined}
       >
         <span className={`${s.selectBtnText} ${!selected ? s.selectBtnTextPlaceholder : ''}`}>
           {selected ? selected.label : '— none —'}
@@ -57,9 +134,11 @@ export default function CustomSelect({ value, onChange, options }: Props) {
 
       <AnimatePresence>
         {open && (
-          <motion.div
+          <motion.ul
+            id={listboxId}
             className={s.selectDropdown}
             role="listbox"
+            aria-label="Options"
             initial={{ y: -4 }}
             animate={{ y: 0 }}
             exit={{ y: -4 }}
@@ -68,26 +147,26 @@ export default function CustomSelect({ value, onChange, options }: Props) {
             {options.map((opt, i) => {
               if (opt.divider) {
                 return (
-                  <div
+                  <li
                     key={i}
+                    role="presentation"
                     className={`${s.selectDivider} ${i > 0 ? s.selectDividerBordered : ''}`}
                   >
                     {opt.label}
-                  </div>
+                  </li>
                 );
               }
               const isSelected = opt.value === value;
-              const isHovered = hovered === `${i}`;
+              const isActive = i === activeIndex;
               return (
-                <button
+                <li
                   key={i}
-                  type="button"
+                  id={`${uid}-opt-${i}`}
                   role="option"
                   aria-selected={isSelected}
-                  onMouseEnter={() => setHovered(`${i}`)}
-                  onMouseLeave={() => setHovered(null)}
+                  onMouseEnter={() => setActiveIndex(i)}
                   onClick={() => { onChange(opt.value); setOpen(false); }}
-                  className={`${s.selectOption} ${isHovered ? s.selectOptionHovered : ''} ${isSelected ? s.selectOptionSelected : ''}`}
+                  className={`${s.selectOption} ${isActive ? s.selectOptionHovered : ''} ${isSelected ? s.selectOptionSelected : ''}`}
                 >
                   {opt.label}
                   {isSelected && (
@@ -95,10 +174,10 @@ export default function CustomSelect({ value, onChange, options }: Props) {
                       <path d="M1 5l3.5 3.5L11 1" />
                     </svg>
                   )}
-                </button>
+                </li>
               );
             })}
-          </motion.div>
+          </motion.ul>
         )}
       </AnimatePresence>
     </div>

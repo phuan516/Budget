@@ -26,10 +26,10 @@ function OverviewSkeleton() {
   );
 }
 
-const ACCENT = 'oklch(0.65 0.13 150)';
-const WARN = 'oklch(0.72 0.12 55)';
-const DANGER = 'oklch(0.58 0.18 25)';
-const INK = '#1a1a1a';
+const ACCENT = 'var(--color-success)';
+const WARN = 'var(--color-warn)';
+const DANGER = 'var(--color-danger)';
+const INK = 'var(--color-ink-primary)';
 
 function fmt(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -381,7 +381,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
               ) : (
                 <span className={s.ledgerRowRight}>
                   <span className={s.ledgerAmount}>{fmt(income)}</span>
-                  <button className={s.ledgerPencilBtn} onClick={() => { setEditingRecurring(true); setRecurringDraft(income > 0 ? String(income) : ''); setRecurringNoteDraft(incomeNote ?? ''); }} title="Override this month's income">
+                  <button className={s.ledgerPencilBtn} onClick={() => { setEditingRecurring(true); setRecurringDraft(income > 0 ? String(income) : ''); setRecurringNoteDraft(incomeNote ?? ''); }} title="Override this month's income" aria-label="Override this month's income">
                     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6L4 10z"/></svg>
                   </button>
                 </span>
@@ -418,10 +418,10 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
                     <span className={s.ledgerEntryMeta}>{fmtEntryDate(entry.date)}{entry.note ? ` · ${entry.note}` : ''}</span>
                     <span className={s.ledgerRowRight}>
                       <span className={s.ledgerAmount}>+{fmt(entry.amount)}</span>
-                      <button className={s.ledgerPencilBtn} onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); }} title="Edit entry">
+                      <button className={s.ledgerPencilBtn} onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); }} title="Edit entry" aria-label="Edit entry">
                         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6L4 10z"/></svg>
                       </button>
-                      <button className={s.ledgerCloseBtn} onClick={() => handleDeleteEntry(entry.id)} title="Remove entry">
+                      <button className={s.ledgerCloseBtn} onClick={() => handleDeleteEntry(entry.id)} title="Remove entry" aria-label="Remove entry">
                         <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
                       </button>
                     </span>
@@ -735,6 +735,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
                                 onClick={(e) => { e.stopPropagation(); setEditingFixedItem(item.name); setFixedItemDraft(String(item.amount)); setFixedItemNoteDraft(item.note ?? ''); }}
                                 className={s.breakdownEditBtn}
                                 title={`Override ${item.name} for ${monthLabel}`}
+                                aria-label={`Override ${item.name} for ${monthLabel}`}
                               >
                                 <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />

@@ -31,7 +31,6 @@ function SettingsSkeleton() {
   );
 }
 
-const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 
 interface Props {
   config: Config;
@@ -44,8 +43,8 @@ interface Props {
 
 function PencilBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className={s.pencilBtn} title="Edit">
-      <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <button onClick={onClick} className={s.pencilBtn} title="Edit" aria-label="Edit">
+      <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
       </svg>
     </button>
@@ -63,14 +62,14 @@ function AddButton({ onClick, disabled }: { onClick: () => void; disabled?: bool
       disabled={disabled}
       className={`${s.btnPrimary} ${disabled ? s.btnPrimaryDisabled : ''}`}
     >
-      {disabled ? '…' : 'Add'}
+      Add
     </button>
   );
 }
 
 function DeleteBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
   return (
-    <button onClick={onClick} disabled={loading} className={s.deleteBtn} title="Remove">
+    <button onClick={onClick} disabled={loading} className={s.deleteBtn} title="Remove" aria-label="Remove">
       {loading ? '…' : '×'}
     </button>
   );
@@ -262,13 +261,13 @@ function FixedExpenseSection({
                     <input type="number" min="0" step="0.01" value={editAmount}
                       onChange={(e) => handleAmountChange(e.target.value, setEditAmount, setEditPct)}
                       className={`${s.input} ${s.inputMono}`}
-                      style={{ paddingLeft: 22, width: '100%', boxSizing: 'border-box', padding: '5px 9px 5px 22px' }} />
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '5px 9px 5px 22px' }} />
                   </div>
                   <div className={s.symbolWrap}>
                     <input type="number" min="0" step="0.1" value={editPct}
                       onChange={(e) => handlePctChange(e.target.value, setEditAmount, setEditPct)}
                       className={`${s.input} ${s.inputMono}`}
-                      style={{ paddingRight: 26, width: '100%', boxSizing: 'border-box', padding: '5px 26px 5px 9px' }} />
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '5px 26px 5px 9px' }} />
                     <span className={s.symbolSuffix}>%</span>
                   </div>
                   <button onClick={() => saveEdit(item.id)} disabled={editSaving || !editName.trim() || !editAmount}
@@ -394,7 +393,7 @@ function SavingGoalSection({
           {items.map((item) => (
             <div key={item.id} className={s.fixedItem}>
               {editingId === item.id ? (
-                <div className={`${s.fixedEditRow} max-sm:flex-col`}>
+                <div className={s.fixedEditRow}>
                   <input autoFocus type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Escape') setEditingId(null); }}
                     className={s.input} style={{ flex: 2, padding: '5px 9px' }} placeholder="Name…" />
@@ -424,7 +423,7 @@ function SavingGoalSection({
         </div>
       )}
       {items.length === 0 && <div className={s.emptyNote}>None yet</div>}
-      <div className={`${s.addRow} max-sm:flex-col`}>
+      <div className={s.addRow}>
         <input type="text" placeholder="Name…" value={draftName} onChange={(e) => setDraftName(e.target.value)} className={s.input} style={{ flex: 2 }} />
         <input type="number" placeholder="Target amount" min="0" step="0.01" value={draftTarget} onChange={(e) => setDraftTarget(e.target.value)} className={`${s.input} ${s.inputMono}`} style={{ flex: 1 }} />
         <input type="number" placeholder="Already saved" min="0" step="0.01" value={draftInitial} onChange={(e) => setDraftInitial(e.target.value)} className={`${s.input} ${s.inputMono}`} style={{ flex: 1 }} />
@@ -460,8 +459,6 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onEdit
     );
   }
 
-  const saveBtnBg = incomeSaved ? '#0F9D58' : (savingIncome || !incomeValue) ? '#d8d8d8' : '#1a1a1a';
-
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
     <div className={s.root}>
@@ -479,14 +476,13 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onEdit
               onChange={(e) => { setIncomeValue(e.target.value); setIncomeSaved(false); }}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSaveIncome(); }}
               className={`${s.input} ${s.inputMono}`}
-              style={{ paddingLeft: 22, fontFamily: MONO, width: '100%', boxSizing: 'border-box' }}
+              style={{ paddingLeft: 22, width: '100%', boxSizing: 'border-box' }}
             />
           </div>
           <button
             onClick={handleSaveIncome}
             disabled={savingIncome || !incomeValue}
-            className={s.incomeSaveBtn}
-            style={{ background: saveBtnBg, cursor: savingIncome || !incomeValue ? 'not-allowed' : 'pointer' }}
+            className={`${s.incomeSaveBtn} ${incomeSaved ? s.incomeSaveBtnSaved : ''} ${(savingIncome || !incomeValue) ? s.incomeSaveBtnDisabled : ''}`}
           >
             {savingIncome ? '…' : incomeSaved ? 'Saved ✓' : 'Save'}
           </button>
