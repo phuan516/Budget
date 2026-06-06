@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Transaction, Config } from '@/lib/store/useStore';
 import BreakdownCard from './share-cards/BreakdownCard';
 import YearReviewCard from './share-cards/YearReviewCard';
@@ -92,8 +93,6 @@ export default function ShareModal({ isOpen, onClose, monthTransactions, allTran
     if (isDecember && selected === 'ytd') setSelected('breakdown');
   }, [isDecember, selected]);
 
-  if (!isOpen) return null;
-
   const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
   const viewMonthConfig = monthConfigs?.[monthKey];
   const income = viewMonthConfig?.income ?? config.monthlyIncome ?? 0;
@@ -137,77 +136,91 @@ export default function ShareModal({ isOpen, onClose, monthTransactions, allTran
   }
 
   return (
-    <div
-      className={s.overlay}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className={s.modal}>
-        {/* Header */}
-        <div className={s.header}>
-          <span className={s.title}>Share · {monthName} {viewYear}</span>
-          <button className={s.closeBtn} onClick={onClose} title="Close">×</button>
-        </div>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className={s.overlay}
+          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <motion.div
+            className={s.modal}
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* Header */}
+            <div className={s.header}>
+              <span className={s.title}>Share · {monthName} {viewYear}</span>
+              <button className={s.closeBtn} onClick={onClose} title="Close">×</button>
+            </div>
 
-        {/* Style picker */}
-        <div className={s.stylePicker}>
-          {availableStyles.map((st) => (
-            <button
-              key={st.id}
-              className={`${s.styleBtn} ${selected === st.id ? s.styleBtnActive : ''}`}
-              onClick={() => setSelected(st.id)}
-            >
-              <div className={s.styleThumbnail} style={{ background: st.bg }}>
-                <ThumbnailPreview
-                  style={st.id}
-                  monthTransactions={monthTransactions}
-                  allTransactions={allTransactions}
-                  viewYear={viewYear}
-                  viewMonth={viewMonth}
-                  income={income}
-                />
+            {/* Style picker */}
+            <div className={s.stylePicker}>
+              {availableStyles.map((st) => (
+                <button
+                  key={st.id}
+                  className={`${s.styleBtn} ${selected === st.id ? s.styleBtnActive : ''}`}
+                  onClick={() => setSelected(st.id)}
+                >
+                  <div className={s.styleThumbnail} style={{ background: st.bg }}>
+                    <ThumbnailPreview
+                      style={st.id}
+                      monthTransactions={monthTransactions}
+                      allTransactions={allTransactions}
+                      viewYear={viewYear}
+                      viewMonth={viewMonth}
+                      income={income}
+                    />
+                  </div>
+                  <div className={s.styleBtnLabel}>{st.label}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Card preview — ref used only for measuring width */}
+            <div ref={previewAreaRef} className={s.previewArea} style={{ height: scaledH }}>
+              <div style={{ width: scaledW, height: scaledH, overflow: 'hidden', position: 'relative' }}>
+                <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', pointerEvents: 'none' }}>
+                  {renderCard()}
+                </div>
               </div>
-              <div className={s.styleBtnLabel}>{st.label}</div>
-            </button>
-          ))}
-        </div>
+            </div>
 
-        {/* Card preview — ref used only for measuring width */}
-        <div ref={previewAreaRef} className={s.previewArea} style={{ height: scaledH }}>
-          <div style={{ width: scaledW, height: scaledH, overflow: 'hidden', position: 'relative' }}>
-            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', pointerEvents: 'none' }}>
+            {/* Actions */}
+            <div className={s.actions}>
+              <button className={`${s.downloadBtn} ${s.downloadBtnFull}`} onClick={handleDownload} disabled={downloading}>
+                {downloading ? (
+                  <>
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" style={{ animation: 'spin 0.8s linear infinite' }}>
+                      <path d="M8 2a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4V2z" />
+                    </svg>
+                    Exporting…
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 2v8M5 7l3 3 3-3M3 12h10" />
+                    </svg>
+                    Download
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Off-screen full-resolution card — captured by handleDownload for a crisp 1080px PNG */}
+          <div aria-hidden style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none', zIndex: -1 }}>
+            <div ref={downloadRef}>
               {renderCard()}
             </div>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className={s.actions}>
-          <button className={`${s.downloadBtn} ${s.downloadBtnFull}`} onClick={handleDownload} disabled={downloading}>
-            {downloading ? (
-              <>
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" style={{ animation: 'spin 0.8s linear infinite' }}>
-                  <path d="M8 2a6 6 0 1 0 6 6h-2a4 4 0 1 1-4-4V2z" />
-                </svg>
-                Exporting…
-              </>
-            ) : (
-              <>
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 2v8M5 7l3 3 3-3M3 12h10" />
-                </svg>
-                Download
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Off-screen full-resolution card — captured by handleDownload for a crisp 1080px PNG */}
-      <div aria-hidden style={{ position: 'fixed', left: '-9999px', top: 0, pointerEvents: 'none', zIndex: -1 }}>
-        <div ref={downloadRef}>
-          {renderCard()}
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

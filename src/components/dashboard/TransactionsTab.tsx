@@ -2,10 +2,25 @@
 
 import { useState, useMemo } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
+import { AnimatePresence, motion } from 'framer-motion';
 import CustomSelect from '@/components/ui/CustomSelect';
 import ShareModal from './ShareModal';
 
 import s from './TransactionsTab.module.css';
+
+function TxnSkeletonRow() {
+  return (
+    <div className={s.txnRow}>
+      <div className={s.txnBody}>
+        <div className="skeleton" style={{ width: 110, height: 13, marginBottom: 6 }} />
+        <div className="skeleton" style={{ width: 72, height: 11 }} />
+      </div>
+      <div className="skeleton" style={{ width: 68, height: 14 }} />
+      <div style={{ width: 18, flexShrink: 0 }} />
+      <div style={{ width: 18, flexShrink: 0 }} />
+    </div>
+  );
+}
 
 type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
 
@@ -363,13 +378,15 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
 
         {formError && <div className={s.formError}>{formError}</div>}
         <div className={s.formActions}>
-          <button
+          <motion.button
             type="submit"
             disabled={saving}
             className={`${s.btnPrimary} ${saving ? s.btnPrimaryDisabled : ''}`}
+            whileTap={saving ? undefined : { scale: 0.96 }}
+            transition={{ duration: 0.1 }}
           >
             {saving ? 'Saving…' : 'Add'}
-          </button>
+          </motion.button>
         </div>
       </form>
 
@@ -419,9 +436,9 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
                   {claimedAmount === 0 && <span style={{ color: '#888' }}> — consider moving to savings</span>}
                 </span>
                 {!claimOpen && (
-                  <button type="button" className={s.claimBtn} onClick={openClaimForm}>
+                  <motion.button type="button" className={s.claimBtn} onClick={openClaimForm} whileTap={{ scale: 0.96 }} transition={{ duration: 0.1 }}>
                     Move to savings →
-                  </button>
+                  </motion.button>
                 )}
               </div>
 
@@ -566,15 +583,21 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
         </div>
       )}
 
+      <AnimatePresence mode="wait">
       {isLoading ? (
-        <div className={s.listSpinner}>
-          <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
-        </div>
+        <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+          <div className={s.list}>
+            {Array.from({ length: 6 }).map((_, i) => <TxnSkeletonRow key={i} />)}
+          </div>
+        </motion.div>
       ) : displayed.length === 0 ? (
-        <div className={s.listEmpty}>
-          {monthFiltered.length === 0 ? `No transactions in ${monthLabel}` : 'No transactions match your filters'}
-        </div>
+        <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+          <div className={s.listEmpty}>
+            {monthFiltered.length === 0 ? `No transactions in ${monthLabel}` : 'No transactions match your filters'}
+          </div>
+        </motion.div>
       ) : (
+        <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
         <div className={s.list}>
           {displayed.map((t) => {
             const displayNote = stripClaimTag(t.note);
@@ -657,7 +680,9 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
             );
           })}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <ShareModal
         isOpen={shareOpen}

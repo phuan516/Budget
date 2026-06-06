@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import s from './CustomSelect.module.css';
 
 export interface SelectOption {
@@ -33,7 +34,7 @@ export default function CustomSelect({ value, onChange, options }: Props) {
   const selected = options.find((o) => !o.disabled && !o.divider && o.value === value);
 
   return (
-    <div ref={ref} className={s.selectWrap}>
+    <div ref={ref} className={s.selectWrap} style={open ? { zIndex: 10 } : undefined}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -46,51 +47,60 @@ export default function CustomSelect({ value, onChange, options }: Props) {
         </span>
         <svg
           viewBox="0 0 10 6" width="10" height="10" fill="none"
-          stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-          style={{ flexShrink: 0, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}
+          stroke="var(--color-ink-secondary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ flexShrink: 0, transition: `transform var(--duration-base)`, transform: open ? 'rotate(180deg)' : 'none' }}
           aria-hidden="true"
         >
           <path d="M1 1l4 4 4-4" />
         </svg>
       </button>
 
-      {open && (
-        <div className={s.selectDropdown} role="listbox">
-          {options.map((opt, i) => {
-            if (opt.divider) {
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className={s.selectDropdown}
+            role="listbox"
+            initial={{ y: -4 }}
+            animate={{ y: 0 }}
+            exit={{ y: -4 }}
+            transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {options.map((opt, i) => {
+              if (opt.divider) {
+                return (
+                  <div
+                    key={i}
+                    className={`${s.selectDivider} ${i > 0 ? s.selectDividerBordered : ''}`}
+                  >
+                    {opt.label}
+                  </div>
+                );
+              }
+              const isSelected = opt.value === value;
+              const isHovered = hovered === `${i}`;
               return (
-                <div
+                <button
                   key={i}
-                  className={`${s.selectDivider} ${i > 0 ? s.selectDividerBordered : ''}`}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onMouseEnter={() => setHovered(`${i}`)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className={`${s.selectOption} ${isHovered ? s.selectOptionHovered : ''} ${isSelected ? s.selectOptionSelected : ''}`}
                 >
                   {opt.label}
-                </div>
+                  {isSelected && (
+                    <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="var(--color-ink-primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M1 5l3.5 3.5L11 1" />
+                    </svg>
+                  )}
+                </button>
               );
-            }
-            const isSelected = opt.value === value;
-            const isHovered = hovered === `${i}`;
-            return (
-              <button
-                key={i}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onMouseEnter={() => setHovered(`${i}`)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`${s.selectOption} ${isHovered ? s.selectOptionHovered : ''} ${isSelected ? s.selectOptionSelected : ''}`}
-              >
-                {opt.label}
-                {isSelected && (
-                  <svg viewBox="0 0 12 10" width="12" height="10" fill="none" stroke="#1a1a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M1 5l3.5 3.5L11 1" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

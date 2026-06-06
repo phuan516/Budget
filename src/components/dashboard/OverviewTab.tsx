@@ -2,8 +2,29 @@
 
 import { useMemo, useState } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import s from './OverviewTab.module.css';
+
+function OverviewSkeleton() {
+  return (
+    <div style={{ padding: '32px 0 24px' }}>
+      {/* Hero */}
+      <div className="skeleton" style={{ width: 80, height: 12, marginBottom: 12 }} />
+      <div className="skeleton" style={{ width: 220, height: 52, marginBottom: 12 }} />
+      <div className="skeleton" style={{ width: 160, height: 16, marginBottom: 24 }} />
+      {/* Progress bar */}
+      <div className="skeleton" style={{ width: '100%', height: 6, borderRadius: 2, marginBottom: 24 }} />
+      {/* Fixed expense rows */}
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
+          <div className="skeleton" style={{ width: 120, height: 13 }} />
+          <div className="skeleton" style={{ width: 72, height: 13 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const ACCENT = 'oklch(0.65 0.13 150)';
 const WARN = 'oklch(0.72 0.12 55)';
@@ -291,14 +312,6 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className={s.spinner}>
-        <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   const dayLabel = (day: number) =>
     new Date(currentYear, currentMonth, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
@@ -306,6 +319,13 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   const warnColor = isOver ? DANGER : WARN;
 
   return (
+    <AnimatePresence mode="wait">
+    {isLoading ? (
+      <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+        <OverviewSkeleton />
+      </motion.div>
+    ) : (
+    <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
     <div>
       <div className={s.hero}>
         <div className={s.heroEyebrow}>Spent this month</div>
@@ -754,5 +774,8 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
         )}
       </div>
     </div>
+    </motion.div>
+    )}
+    </AnimatePresence>
   );
 }

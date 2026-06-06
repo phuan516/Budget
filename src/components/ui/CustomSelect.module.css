@@ -1,14 +1,15 @@
 .selectWrap {
   position: relative;
+  z-index: 0;
 }
 
 .selectBtn {
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
+  border: 1px solid var(--color-border-strong, #c8c8c8);
+  border-radius: var(--radius-md, 8px);
   padding: 9px 10px 9px 11px;
   font-size: 13px;
-  color: #1a1a1a;
-  background: #fff;
+  color: var(--color-ink-primary, #1a1a1a);
+  background: var(--color-surface-0, #ffffff);
   outline: none;
   width: 100%;
   box-sizing: border-box;
@@ -18,6 +19,13 @@
   gap: 8px;
   cursor: pointer;
   text-align: left;
+  transition: border-color var(--duration-base, 150ms);
+}
+
+.selectBtn:focus {
+  border-color: #5B3FFF;
+  box-shadow: 0 0 0 3px rgba(91, 63, 255, 0.18);
+  outline: none;
 }
 
 .selectBtnText {
@@ -28,7 +36,7 @@
 }
 
 .selectBtnTextPlaceholder {
-  color: #aaa;
+  color: var(--color-ink-tertiary, #aaa);
 }
 
 .selectDropdown {
@@ -36,10 +44,10 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: #fff;
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.09);
+  background: var(--color-surface-0, #ffffff);
+  border: 1px solid var(--color-border-strong, #c8c8c8);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(0,0,0,0.09));
   z-index: 200;
   overflow: hidden;
   max-height: 220px;
@@ -70,9 +78,9 @@
   border: none;
   cursor: pointer;
   background: transparent;
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
   font-weight: 400;
-  transition: background 0.1s;
+  transition: background var(--duration-fast, 100ms);
 }
 
 .selectOptionHovered {

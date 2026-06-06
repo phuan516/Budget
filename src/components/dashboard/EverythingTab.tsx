@@ -6,8 +6,46 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LineChart, Line, ResponsiveContainer,
 } from 'recharts';
+import { AnimatePresence, motion } from 'framer-motion';
 import CustomSelect from '@/components/ui/CustomSelect';
 import s from './EverythingTab.module.css';
+
+function ChartsSkeleton() {
+  return (
+    <div className={s.charts}>
+      {[220, 180, 220, 220].map((h, i) => (
+        <div key={i} className={s.chartSection}>
+          <div className="skeleton" style={{ width: 140, height: 13, marginBottom: 16 }} />
+          <div className="skeleton" style={{ width: '100%', height: h, borderRadius: 6 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EverythingSkeleton() {
+  return (
+    <div className={s.root}>
+      {/* Sub-nav placeholders */}
+      <div className={s.subNav}>
+        {['All Transactions', 'Charts', 'Monthly Config'].map((label) => (
+          <div key={label} className="skeleton" style={{ width: label.length * 7, height: 14, borderRadius: 4 }} />
+        ))}
+      </div>
+      {/* Table rows */}
+      <div style={{ marginTop: 16 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <div className="skeleton" style={{ width: 72, height: 12, flexShrink: 0 }} />
+            <div className="skeleton" style={{ flex: 1, height: 13 }} />
+            <div className="skeleton" style={{ width: 60, height: 13, flexShrink: 0 }} />
+            <div className="skeleton" style={{ width: 68, height: 13, flexShrink: 0 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -53,6 +91,7 @@ interface Props {
 
 export default function EverythingTab({ transactions, config, monthConfigs, isLoading, onSetMonthlyIncomeOverride, onDeleteMonthlyIncomeOverride, onSetFixedExpenseOverride, onDeleteFixedExpenseOverride, onSetMonthFixedExpenses, onAddIncomeEntry, onEditIncomeEntry, onDeleteIncomeEntry, onEdit, onDelete }: Props) {
   const [subTab, setSubTab] = useState<'transactions' | 'charts' | 'edit-months'>('transactions');
+  const [chartsReady, setChartsReady] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
@@ -115,6 +154,12 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
     () => [...new Set(transactions.map(t => t.card).filter(Boolean))].sort(),
     [transactions]
   );
+
+  useEffect(() => {
+    if (subTab !== 'charts') { setChartsReady(false); return; }
+    const id = requestAnimationFrame(() => setChartsReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [subTab]);
 
   useEffect(() => {
     if (!monthDropdownOpen) return;
@@ -349,13 +394,14 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
 
   if (isLoading) {
     return (
-      <div className={s.spinner}>
-        <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+        <EverythingSkeleton />
+      </motion.div>
     );
   }
 
   return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
     <div className={s.root}>
       <div className={s.subNav}>
         {(['transactions', 'charts', 'edit-months'] as const).map(t => (
@@ -887,6 +933,13 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
       )}
 
       {subTab === 'charts' && (
+        <AnimatePresence mode="wait">
+        {!chartsReady ? (
+          <motion.div key="charts-skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+            <ChartsSkeleton />
+          </motion.div>
+        ) : (
+        <motion.div key="charts-content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
         <div className={s.charts}>
 
           <div className={s.chartSection}>
@@ -976,7 +1029,11 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
           </div>
 
         </div>
+        </motion.div>
+        )}
+        </AnimatePresence>
       )}
     </div>
+    </motion.div>
   );
 }

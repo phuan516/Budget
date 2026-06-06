@@ -2,7 +2,34 @@
 
 import { useState } from 'react';
 import { Config } from '@/lib/store/useStore';
+import { motion } from 'framer-motion';
 import s from './SettingsTab.module.css';
+
+function SettingsSkeleton() {
+  return (
+    <div className={s.root}>
+      {/* Income section */}
+      <div style={{ marginBottom: 32 }}>
+        <div className="skeleton" style={{ width: 120, height: 11, marginBottom: 14 }} />
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div className="skeleton" style={{ width: 180, height: 38, borderRadius: 8 }} />
+          <div className="skeleton" style={{ width: 70, height: 38, borderRadius: 999 }} />
+        </div>
+      </div>
+      {/* Section with pill items */}
+      {['Categories', 'Cards', 'Fixed Expenses'].map((label) => (
+        <div key={label} style={{ marginBottom: 28 }}>
+          <div className="skeleton" style={{ width: 90, height: 11, marginBottom: 12 }} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="skeleton" style={{ width: 70 + i * 20, height: 32, borderRadius: 999 }} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 
@@ -427,15 +454,16 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onEdit
 
   if (isLoading) {
     return (
-      <div className={s.spinner}>
-        <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+        <SettingsSkeleton />
+      </motion.div>
     );
   }
 
   const saveBtnBg = incomeSaved ? '#0F9D58' : (savingIncome || !incomeValue) ? '#d8d8d8' : '#1a1a1a';
 
   return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
     <div className={s.root}>
       <section className={s.section}>
         <SectionTitle>Monthly Income</SectionTitle>
@@ -498,5 +526,6 @@ export default function SettingsTab({ config, isLoading, onAdd, onDelete, onEdit
         onEdit={onEdit}
       />
     </div>
+    </motion.div>
   );
 }

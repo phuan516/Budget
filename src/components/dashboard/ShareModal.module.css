@@ -10,14 +10,14 @@
 }
 
 .modal {
-  background: #fff;
-  border-radius: 16px;
+  background: var(--color-surface-0);
+  border-radius: var(--radius-lg);
   padding: 28px 24px 24px;
   width: 100%;
   max-width: 560px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -32,22 +32,22 @@
 .title {
   font-size: 15px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-ink-primary);
 }
 
 .closeBtn {
   background: none;
   border: none;
   cursor: pointer;
-  color: #aaa;
+  color: var(--color-ink-tertiary);
   font-size: 18px;
   line-height: 1;
   padding: 2px 4px;
-  transition: color 0.15s;
+  transition: color var(--duration-base);
 }
 
 .closeBtn:hover {
-  color: #1a1a1a;
+  color: var(--color-ink-primary);
 }
 
 /* Style picker */
@@ -60,11 +60,11 @@
 .styleBtn {
   border: 2px solid #e8e8e8;
   border-radius: 10px;
-  background: #fafafa;
+  background: var(--color-surface-1);
   cursor: pointer;
   padding: 0;
   overflow: hidden;
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-base);
   display: flex;
   flex-direction: column;
 }
@@ -74,7 +74,7 @@
 }
 
 .styleBtnActive {
-  border-color: #1a1a1a;
+  border-color: var(--color-ink-primary);
 }
 
 .styleThumbnail {
@@ -94,7 +94,7 @@
   color: #666;
   text-align: center;
   padding: 6px 4px;
-  background: #fff;
+  background: var(--color-surface-0);
 }
 
 /* Preview area */
@@ -140,17 +140,17 @@
 
 .downloadBtn {
   border: none;
-  background: #1a1a1a;
+  background: var(--color-ink-primary);
   color: #fff;
   padding: 9px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: opacity 0.15s;
+  transition: opacity var(--duration-base);
 }
 
 .downloadBtn:disabled {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '@/lib/store/useStore';
 import { SheetMetadata } from '@/lib/google/sheets';
 
@@ -459,61 +460,75 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
       </div>
 
       {/* ── NAME MODAL ── */}
-      {showNameModal && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: '0 16px' }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowNameModal(false); }}
-        >
-          <div style={{ background: '#fff', borderRadius: 14, padding: '28px 24px 24px', width: '100%', maxWidth: 400, boxShadow: '0 16px 48px rgba(0,0,0,0.14)' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 4px', color: '#1a1a1a' }}>Name your budget sheet</h2>
-            <p style={{ fontSize: 12, color: '#888', margin: '0 0 18px' }}>You can edit or keep the auto-generated name.</p>
-
-            <div style={{ position: 'relative', marginBottom: 6, display: 'flex', alignItems: 'center', border: nameError ? '1.5px solid #e53e3e' : '1.5px solid #d8d8d8', borderRadius: 8, overflow: 'hidden' }}>
-              <span style={{ padding: '10px 0 10px 12px', fontSize: 14, color: '#888', whiteSpace: 'nowrap', flexShrink: 0, userSelect: 'none' }}>Ledger —</span>
-              <input
-                autoFocus
-                type="text"
-                value={newSheetName}
-                onChange={(e) => { setNewSheetName(e.target.value); setNameError(null); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateConfirm(); if (e.key === 'Escape') setShowNameModal(false); }}
-                style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 40px 10px 6px', fontSize: 14, color: '#1a1a1a', background: 'transparent' }}
-                placeholder={`${autoSheetSuffix()}…`}
-              />
-              {newSheetName && (
-                <button
-                  onClick={() => { setNewSheetName(''); setNameError(null); }}
-                  style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 16, lineHeight: 1, padding: 2 }}
-                  aria-label="Clear"
-                >×</button>
-              )}
-            </div>
-
-            {nameError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{nameError}</p>}
-
-            <button
-              onClick={() => { setNewSheetName(autoSheetSuffix()); setNameError(null); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', padding: '0 0 18px', textDecoration: 'underline', textUnderlineOffset: 2 }}
+      <AnimatePresence>
+        {showNameModal && (
+          <motion.div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: '0 16px' }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowNameModal(false); }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.div
+              style={{ background: '#fff', borderRadius: 14, padding: '28px 24px 24px', width: '100%', maxWidth: 400, boxShadow: '0 16px 48px rgba(0,0,0,0.14)' }}
+              initial={{ opacity: 0, scale: 0.97, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 8 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             >
-              Use auto-generated name
-            </button>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 4px', color: '#1a1a1a' }}>Name your budget sheet</h2>
+              <p style={{ fontSize: 12, color: '#888', margin: '0 0 18px' }}>You can edit or keep the auto-generated name.</p>
 
-            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ position: 'relative', marginBottom: 6, display: 'flex', alignItems: 'center', border: nameError ? '1.5px solid #e53e3e' : '1.5px solid #d8d8d8', borderRadius: 8, overflow: 'hidden' }}>
+                <span style={{ padding: '10px 0 10px 12px', fontSize: 14, color: '#888', whiteSpace: 'nowrap', flexShrink: 0, userSelect: 'none' }}>Ledger —</span>
+                <input
+                  autoFocus
+                  type="text"
+                  value={newSheetName}
+                  onChange={(e) => { setNewSheetName(e.target.value); setNameError(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateConfirm(); if (e.key === 'Escape') setShowNameModal(false); }}
+                  style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 40px 10px 6px', fontSize: 14, color: '#1a1a1a', background: 'transparent' }}
+                  placeholder={`${autoSheetSuffix()}…`}
+                />
+                {newSheetName && (
+                  <button
+                    onClick={() => { setNewSheetName(''); setNameError(null); }}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 16, lineHeight: 1, padding: 2 }}
+                    aria-label="Clear"
+                  >×</button>
+                )}
+              </div>
+
+              {nameError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{nameError}</p>}
+
               <button
-                onClick={() => setShowNameModal(false)}
-                style={{ flex: 1, padding: '10px 0', border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                onClick={() => { setNewSheetName(autoSheetSuffix()); setNameError(null); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', padding: '0 0 18px', textDecoration: 'underline', textUnderlineOffset: 2 }}
               >
-                Cancel
+                Use auto-generated name
               </button>
-              <button
-                onClick={handleCreateConfirm}
-                style={{ flex: 2, padding: '10px 0', border: 'none', background: '#1a1a1a', color: '#fff', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-              >
-                Create sheet
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setShowNameModal(false)}
+                  style={{ flex: 1, padding: '10px 0', border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <motion.button
+                  onClick={handleCreateConfirm}
+                  style={{ flex: 2, padding: '10px 0', border: 'none', background: '#1a1a1a', color: '#fff', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.1 }}
+                >
+                  Create sheet
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

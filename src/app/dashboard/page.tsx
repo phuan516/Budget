@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useStore, DashboardTab, Transaction } from '@/lib/store/useStore';
 import OverviewTab from '@/components/dashboard/OverviewTab';
@@ -605,60 +606,70 @@ export default function DashboardPage() {
       </nav>
 
       <main className="flex-1 px-12 max-sm:px-5" style={{ overflowY: 'auto' }}>
-        {activeTab === 'overview' && (
-          <OverviewTab
-            transactions={transactions}
-            config={config}
-            monthConfigs={monthConfigs}
-            isLoading={configLoading || txnLoading}
-            onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
-            onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
-            onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
-            onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
-            onAddIncomeEntry={handleAddIncomeEntry}
-            onEditIncomeEntry={handleEditIncomeEntry}
-            onDeleteIncomeEntry={handleDeleteIncomeEntry}
-          />
-        )}
-        {activeTab === 'transactions' && (
-          <TransactionsTab
-            transactions={transactions}
-            config={config}
-            monthConfigs={monthConfigs}
-            isLoading={txnLoading}
-            onAdd={handleAddTransaction}
-            onDelete={handleDeleteTransaction}
-            onEdit={handleEditTransaction}
-          />
-        )}
-        {activeTab === 'settings' && (
-          <SettingsTab
-            config={config}
-            isLoading={configLoading}
-            onAdd={handleConfigAdd}
-            onDelete={handleConfigDelete}
-            onEdit={handleConfigEdit}
-            onSetIncome={handleSetIncome}
-          />
-        )}
-        {activeTab === 'everything' && (
-          <EverythingTab
-            transactions={transactions}
-            config={config}
-            monthConfigs={monthConfigs}
-            isLoading={configLoading || txnLoading}
-            onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
-            onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
-            onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
-            onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
-            onSetMonthFixedExpenses={handleSetMonthFixedExpenses}
-            onAddIncomeEntry={handleAddIncomeEntryForMonth}
-            onEditIncomeEntry={handleEditIncomeEntry}
-            onDeleteIncomeEntry={handleDeleteIncomeEntry}
-            onEdit={handleEditTransaction}
-            onDelete={handleDeleteTransaction}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -3 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {activeTab === 'overview' && (
+              <OverviewTab
+                transactions={transactions}
+                config={config}
+                monthConfigs={monthConfigs}
+                isLoading={configLoading || txnLoading}
+                onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
+                onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
+                onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
+                onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
+                onAddIncomeEntry={handleAddIncomeEntry}
+                onEditIncomeEntry={handleEditIncomeEntry}
+                onDeleteIncomeEntry={handleDeleteIncomeEntry}
+              />
+            )}
+            {activeTab === 'transactions' && (
+              <TransactionsTab
+                transactions={transactions}
+                config={config}
+                monthConfigs={monthConfigs}
+                isLoading={txnLoading}
+                onAdd={handleAddTransaction}
+                onDelete={handleDeleteTransaction}
+                onEdit={handleEditTransaction}
+              />
+            )}
+            {activeTab === 'settings' && (
+              <SettingsTab
+                config={config}
+                isLoading={configLoading}
+                onAdd={handleConfigAdd}
+                onDelete={handleConfigDelete}
+                onEdit={handleConfigEdit}
+                onSetIncome={handleSetIncome}
+              />
+            )}
+            {activeTab === 'everything' && (
+              <EverythingTab
+                transactions={transactions}
+                config={config}
+                monthConfigs={monthConfigs}
+                isLoading={configLoading || txnLoading}
+                onSetMonthlyIncomeOverride={handleSetMonthlyIncomeOverride}
+                onDeleteMonthlyIncomeOverride={handleDeleteMonthlyIncomeOverride}
+                onSetFixedExpenseOverride={handleSetFixedExpenseOverride}
+                onDeleteFixedExpenseOverride={handleDeleteFixedExpenseOverride}
+                onSetMonthFixedExpenses={handleSetMonthFixedExpenses}
+                onAddIncomeEntry={handleAddIncomeEntryForMonth}
+                onEditIncomeEntry={handleEditIncomeEntry}
+                onDeleteIncomeEntry={handleDeleteIncomeEntry}
+                onEdit={handleEditTransaction}
+                onDelete={handleDeleteTransaction}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
     </div>

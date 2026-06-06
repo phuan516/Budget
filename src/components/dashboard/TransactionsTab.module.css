@@ -4,11 +4,11 @@
 
 /* ── Add form ── */
 .form {
-  border: 1px solid #ececec;
+  border: 1px solid var(--color-border-subtle, #e8e8e8);
   border-radius: 12px;
   padding: 18px 20px;
   margin-bottom: 28px;
-  background: #fafafa;
+  background: var(--color-surface-1, #fafafa);
 }
 
 .formHeader {
@@ -21,12 +21,12 @@
 .formTitle {
   font-size: 13px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
 }
 
 .typeToggle {
   display: flex;
-  border: 1px solid #d8d8d8;
+  border: 1px solid var(--color-border-strong, #c8c8c8);
   border-radius: 999px;
   overflow: hidden;
   font-size: 12px;
@@ -36,13 +36,13 @@
   padding: 5px 12px;
   border: none;
   background: transparent;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--duration-base, 150ms), color var(--duration-base, 150ms);
 }
 
 .typeToggleBtnActive {
-  background: #1a1a1a;
+  background: var(--color-ink-primary, #1a1a1a);
   color: #fff;
   font-weight: 600;
 }
@@ -73,7 +73,7 @@
 
 .formLabel {
   font-size: 11px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   display: block;
   margin-bottom: 5px;
 }
@@ -95,15 +95,22 @@
 
 /* ── Shared input / button styles ── */
 .input {
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
+  border: 1px solid var(--color-border-strong, #c8c8c8);
+  border-radius: var(--radius-md, 8px);
   padding: 9px 11px;
   font-size: 13px;
-  color: #1a1a1a;
-  background: #fff;
+  color: var(--color-ink-primary, #1a1a1a);
+  background: var(--color-surface-0, #ffffff);
   outline: none;
   width: 100%;
   box-sizing: border-box;
+  transition: border-color var(--duration-base, 150ms);
+}
+
+.input:focus {
+  border-color: #5B3FFF;
+  box-shadow: 0 0 0 3px rgba(91, 63, 255, 0.18);
+  outline: none;
 }
 
 .inputMono {
@@ -112,17 +119,22 @@
 
 .btnPrimary {
   border: none;
-  background: #1a1a1a;
+  background: var(--color-ink-primary, #1a1a1a);
   color: #fff;
   padding: 9px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 999px);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: background var(--duration-base, 150ms), opacity var(--duration-base, 150ms);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #333;
 }
 
 .btnPrimaryDisabled {
-  background: #d8d8d8;
+  background: var(--color-border-strong, #c8c8c8);
   cursor: not-allowed;
 }
 
@@ -153,14 +165,14 @@
   border: none;
   cursor: pointer;
   padding: 4px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   font-size: 16px;
   line-height: 1;
 }
 
 .monthNavBtnDisabled {
   cursor: not-allowed;
-  color: #d8d8d8;
+  color: var(--color-border-strong, #c8c8c8);
 }
 
 .monthLabel {
@@ -172,7 +184,7 @@
 
 .monthCount {
   font-size: 12px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
 }
 
@@ -184,11 +196,11 @@
   color: #ccc;
   display: flex;
   align-items: center;
-  transition: color 0.15s;
+  transition: color var(--duration-base, 150ms);
 }
 
 .shareBtn:hover {
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
 }
 
 /* ── Leftover banner ── */
@@ -227,7 +239,7 @@
   font-weight: 500;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background var(--duration-base, 150ms);
 }
 
 .claimBtn:hover {
@@ -267,7 +279,7 @@
   border: none;
   cursor: pointer;
   font-size: 12px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   padding: 5px 10px;
 }
 
@@ -283,7 +295,7 @@
 }
 
 .claimSaveBtnDisabled {
-  background: #d8d8d8;
+  background: var(--color-border-strong, #c8c8c8);
   cursor: not-allowed;
 }
 
@@ -353,7 +365,7 @@
 
 .filterCount {
   font-size: 12px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
 }
 
@@ -362,7 +374,7 @@
   border: none;
   cursor: pointer;
   font-size: 12px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   text-decoration: underline;
   padding: 0;
 }
@@ -370,7 +382,7 @@
 /* ── Summary ── */
 .summary {
   font-size: 12px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   margin-bottom: 14px;
   display: flex;
   gap: 12px;
@@ -378,7 +390,7 @@
 }
 
 .summarySep {
-  color: #d8d8d8;
+  color: var(--color-border-strong, #c8c8c8);
 }
 
 .summaryRefund {
@@ -395,7 +407,7 @@
 .listEmpty {
   text-align: center;
   padding: 40px 0;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   font-size: 13px;
 }
 
@@ -420,7 +432,7 @@
 
 .txnPrimary {
   font-size: 13px;
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -442,20 +454,20 @@
 }
 
 .txnNote {
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   font-size: 12px;
 }
 
 .txnMeta {
   font-size: 11px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   margin-top: 2px;
 }
 
 .txnAmount {
   font-size: 14px;
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
   font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
   flex-shrink: 0;
 }
@@ -488,14 +500,14 @@
 }
 
 .txnEditBtn:hover {
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
 }
 
 .txnEditForm {
-  border: 1px solid #d8d8d8;
+  border: 1px solid var(--color-border-strong, #c8c8c8);
   border-radius: 10px;
   padding: 14px 16px;
-  background: #fafafa;
+  background: var(--color-surface-1, #fafafa);
   margin: 4px 0;
 }
 
@@ -522,7 +534,7 @@
 
 .txnEditSaveBtn {
   border: none;
-  background: #1a1a1a;
+  background: var(--color-ink-primary, #1a1a1a);
   color: #fff;
   padding: 7px 16px;
   border-radius: 999px;
@@ -536,6 +548,6 @@
   border: none;
   cursor: pointer;
   font-size: 12px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   padding: 5px 8px;
 }

@@ -3,6 +3,46 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Semantic ink */
+  --color-ink-primary: #1a1a1a;
+  --color-ink-secondary: #888;
+  --color-ink-tertiary: #aaa;
+
+  /* Surfaces */
+  --color-surface-0: #ffffff;
+  --color-surface-1: #fafafa;
+  --color-surface-2: #f5f5f5;
+
+  /* Borders */
+  --color-border-strong: #c8c8c8;
+  --color-border-subtle: #e8e8e8;
+
+  /* Semantic states */
+  --color-success: oklch(0.65 0.13 150);
+  --color-success-bg: oklch(0.97 0.03 150);
+  --color-success-border: oklch(0.88 0.07 150);
+  --color-danger: oklch(0.58 0.18 25);
+  --color-danger-bg: oklch(0.97 0.03 25);
+  --color-danger-border: oklch(0.88 0.07 25);
+  --color-warn: oklch(0.72 0.12 55);
+
+  /* Border radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.18);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.09);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.16);
+
+  /* Transitions */
+  --duration-fast: 100ms;
+  --duration-base: 150ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
@@ -32,4 +72,25 @@
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* ── Skeleton shimmer ── */
+@keyframes shimmer {
+  from { background-position: -600px 0; }
+  to   { background-position:  600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%);
+  background-size: 1200px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+/* ── Global focus ring (accessibility baseline) ── */
+:focus-visible {
+  outline: 2px solid #5B3FFF;
+  outline-offset: 2px;
+  border-radius: 3px;
 }

@@ -19,21 +19,28 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   margin-bottom: 12px;
 }
 
 /* ── Shared input ── */
 .input {
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
+  border: 1px solid var(--color-border-strong, #c8c8c8);
+  border-radius: var(--radius-md, 8px);
   padding: 8px 11px;
   font-size: 13px;
-  color: #1a1a1a;
-  background: #fff;
+  color: var(--color-ink-primary, #1a1a1a);
+  background: var(--color-surface-0, #ffffff);
   outline: none;
   flex: 1;
   min-width: 0;
+  transition: border-color var(--duration-base, 150ms);
+}
+
+.input:focus {
+  border-color: #5B3FFF;
+  box-shadow: 0 0 0 3px rgba(91, 63, 255, 0.18);
+  outline: none;
 }
 
 .inputMono {
@@ -43,7 +50,7 @@
 /* ── Buttons ── */
 .btnPrimary {
   border: none;
-  background: #1a1a1a;
+  background: var(--color-ink-primary, #1a1a1a);
   color: #fff;
   padding: 8px 14px;
   border-radius: 999px;
@@ -54,7 +61,7 @@
 }
 
 .btnPrimaryDisabled {
-  background: #d8d8d8;
+  background: var(--color-border-strong, #c8c8c8);
   cursor: not-allowed;
 }
 
@@ -65,7 +72,7 @@
 .btnGhost {
   border: none;
   background: none;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   font-size: 12px;
   cursor: pointer;
   padding: 5px 8px;
@@ -112,7 +119,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 13px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
 }
 
 .incomeSaveBtn {
@@ -123,7 +130,7 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--duration-base, 150ms);
 }
 
 /* ── List items ── */
@@ -145,7 +152,7 @@
 .itemName {
   flex: 1;
   font-size: 13px;
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
 }
 
 .emptyNote {
@@ -188,7 +195,7 @@
 .fixedViewName {
   flex: 1;
   font-size: 13px;
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
 }
 
 .fixedViewAmount {
@@ -216,7 +223,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 13px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   pointer-events: none;
 }
 
@@ -226,7 +233,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: 13px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   pointer-events: none;
 }
 
@@ -241,11 +248,11 @@
 .goalViewName {
   flex: 1;
   font-size: 13px;
-  color: #1a1a1a;
+  color: var(--color-ink-primary, #1a1a1a);
 }
 
 .goalViewMeta {
   font-size: 12px;
-  color: #888;
+  color: var(--color-ink-secondary, #888);
   font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
 }
