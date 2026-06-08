@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Fragment } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -44,11 +44,16 @@ export default function DashboardPage() {
   const [txnLoading, setTxnLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const desktopMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
     function onDown(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      const target = e.target as Node;
+      if (
+        menuRef.current && !menuRef.current.contains(target) &&
+        desktopMenuRef.current && !desktopMenuRef.current.contains(target)
+      ) setMenuOpen(false);
     }
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
@@ -513,19 +518,46 @@ export default function DashboardPage() {
             <span style={{ color: '#d8d8d8', fontSize: 13 }}>/</span>
             <span style={{ fontSize: 13, color: '#444' }}>{selectedSheet.name}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#888' }}>
-            <span>{user.email}</span>
-            <span>·</span>
-            <Link href="/sheets/select" style={{ color: '#888', fontSize: 12, textDecoration: 'none' }}>
-              Change sheet
-            </Link>
-            <span>·</span>
+          <div ref={desktopMenuRef} style={{ position: 'relative', display: 'inline-flex' }}>
             <button
-              onClick={handleSignOut}
-              style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, padding: 0 }}
+              onClick={() => setMenuOpen((o) => !o)}
+              style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
             >
-              Sign out
+              {user.email}
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ display: 'block', flexShrink: 0 }}>
+                <path d="M1 1l4 4 4-4" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
+            {menuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                background: '#fff',
+                border: '1px solid #ececec',
+                borderRadius: 10,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.09)',
+                minWidth: 160,
+                zIndex: 300,
+                overflow: 'hidden',
+              }}>
+                {[
+                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); }, separator: true },
+                  { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
+                  { label: 'Sign out', action: () => { setMenuOpen(false); handleSignOut(); } },
+                ].map(({ label, action, separator }) => (
+                  <Fragment key={label}>
+                    <button
+                      onClick={action}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a' }}
+                    >
+                      {label}
+                    </button>
+                    {separator && <div style={{ height: 1, background: '#f0f0f0' }} />}
+                  </Fragment>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         {/* Mobile */}
@@ -559,20 +591,23 @@ export default function DashboardPage() {
                 zIndex: 300,
                 overflow: 'hidden',
               }}>
-                <div style={{ padding: '10px 14px 8px', fontSize: 11, color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ padding: '10px 14px 8px', fontSize: 12, color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>
                   {user.email}
                 </div>
                 {[
+                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); }, separator: true },
                   { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
                   { label: 'Sign out', action: () => { setMenuOpen(false); handleSignOut(); } },
-                ].map(({ label, action }) => (
-                  <button
-                    key={label}
-                    onClick={action}
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a' }}
-                  >
-                    {label}
-                  </button>
+                ].map(({ label, action, separator }) => (
+                  <Fragment key={label}>
+                    <button
+                      onClick={action}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '11px 14px', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: '#1a1a1a' }}
+                    >
+                      {label}
+                    </button>
+                    {separator && <div style={{ height: 1, background: '#f0f0f0' }} />}
+                  </Fragment>
                 ))}
               </div>
             )}

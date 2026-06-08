@@ -100,7 +100,7 @@ export default function SheetSelectionPage() {
 
       <header style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
         {/* Desktop */}
-        <div className="hidden sm:flex justify-between items-center px-12 py-7">
+        <div className="hidden sm:flex justify-between items-center px-12 py-5">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Image src="/ledger-A-512.png" alt="Ledger" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0 }} />
             <span style={{ fontSize: 13, fontWeight: 600 }}>Ledger</span>

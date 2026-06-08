@@ -1,0 +1,485 @@
+/* ── Shell ── */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 32px;
+  border-bottom: 1px solid #ececec;
+  flex-shrink: 0;
+}
+
+.headerLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #1a1a1a;
+}
+
+.headerLogoText {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+
+/* ── Three-pane body ── */
+.body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Version rail ── */
+.rail {
+  width: 168px;
+  flex-shrink: 0;
+  border-right: 1px solid #ececec;
+  padding: 28px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.railEyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #888;
+  letter-spacing: 0.4px;
+  margin-bottom: 14px;
+}
+
+.railRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: color 0.15s;
+}
+
+.railRow:hover {
+  color: #1a1a1a !important;
+}
+
+.railDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.railSpacer {
+  flex: 1;
+}
+
+.railArchive {
+  margin-top: 16px;
+  font-size: 11px;
+  color: #888;
+  font-family: var(--font-jetbrains-mono, 'JetBrains Mono', monospace);
+  cursor: pointer;
+}
+
+.railArchive:hover {
+  color: #1a1a1a;
+}
+
+/* ── Timeline ── */
+.timeline {
+  flex: 1;
+  padding: 36px 56px;
+  overflow-y: auto;
+}
+
+.timelineHeader {
+  margin-bottom: 28px;
+}
+
+.h1 {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  line-height: 1;
+  margin: 0 0 6px;
+}
+
+.sub {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
+}
+
+.timelineList {
+  position: relative;
+  padding-left: 28px;
+}
+
+.timelineRule {
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 0;
+  width: 1px;
+  background: #d8d8d8;
+}
+
+.releaseBlock {
+  position: relative;
+  margin-bottom: 34px;
+}
+
+.timelineNode {
+  position: absolute;
+  left: -28px;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid;
+}
+
+.metaRow {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.versionNum {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-jetbrains-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  color: #444;
+}
+
+.dateStr {
+  font-size: 11px;
+  color: #888;
+}
+
+.releaseTitle {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  margin: 0 0 12px;
+}
+
+.changeList {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.changeItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.tagCell {
+  width: 62px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.changeText {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 480px;
+}
+
+/* ── Subscribe rail ── */
+.subscribeRail {
+  width: 220px;
+  flex-shrink: 0;
+  border-left: 1px solid #ececec;
+  padding: 36px 24px;
+  overflow-y: auto;
+}
+
+.subscribeCard {
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.subscribeTitle {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.subscribeSub {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 12px;
+}
+
+.subscribeForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.subscribeInput {
+  height: 32px;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.subscribeInput:focus {
+  border-color: #1a1a1a;
+}
+
+.subscribeBtn {
+  height: 32px;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.15s;
+}
+
+.subscribeBtn:hover {
+  opacity: 0.85;
+}
+
+.subscribeSuccess {
+  font-size: 12px;
+  color: oklch(0.55 0.13 150);
+  font-weight: 500;
+  padding: 4px 0;
+}
+
+.subscribeLinks {
+  margin-top: 20px;
+  font-size: 11px;
+  color: #888;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.subscribeLinksLabel {
+  color: #888;
+}
+
+.subscribeLink {
+  color: #888;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.subscribeLink:hover {
+  color: #1a1a1a;
+}
+
+/* ── Tag ── */
+.tag {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* ── Mobile layout ── */
+.mobileShell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+.mobileHeader {
+  flex-shrink: 0;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #ececec;
+  background: #fff;
+}
+
+.mobileHeaderTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobileBack {
+  display: flex;
+  align-items: center;
+  color: #888;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.mobileBack:hover {
+  color: #1a1a1a;
+}
+
+.mobileTitle {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+}
+
+.filterChips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.chipActive {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.chipInactive {
+  background: transparent;
+  color: #888;
+  border-color: #d8d8d8;
+}
+
+.chipInactive:hover {
+  border-color: #888;
+  color: #1a1a1a;
+}
+
+.mobileScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 0;
+}
+
+.mobileTimelineList {
+  position: relative;
+  padding-left: 22px;
+  padding-bottom: 32px;
+}
+
+.mobileRule {
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  bottom: 0;
+  width: 1px;
+  background: #d8d8d8;
+}
+
+.mobileReleaseBlock {
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.mobileNode {
+  position: absolute;
+  left: -22px;
+  top: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid;
+}
+
+.mobileMetaRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.mobileVersionNum {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-jetbrains-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  color: #444;
+}
+
+.mobileDateStr {
+  font-size: 10px;
+  color: #888;
+}
+
+.mobileReleaseTitle {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin: 0 0 10px;
+}
+
+.mobileChangeList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobileChangeItem {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mobileChangeText {
+  font-size: 12.5px;
+  color: #444;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.mobileSubscribeCard {
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 8px;
+  margin-bottom: 32px;
+}
