@@ -25,7 +25,7 @@ Initial public release.
 - Daily spend heatmap calendar shaded by spend intensity with per-day amount and entry-count tooltips.
 - No-spend streak counter alongside biggest and cheapest spending day stats.
 - Spending breakdown by category with percentage bars and saving goals progress tracker.
-- Fixed expense breakdown with per-item monthly override support.
+- Expense breakdown with per-item monthly override support.
 - Add expenses and refunds with date, amount, category, card/payment method, and an optional note.
 - Month navigation for browsing any past month's transactions.
 - Search by keyword; filter by category or card; sort by date or amount.
@@ -34,7 +34,7 @@ Initial public release.
 - Leftover banner on closed months — see unspent budget and move it to a saving goal in one click.
 - Share cards — export the current month as a styled image in five formats: Breakdown, Monthly, Streak, Year to Date, and Wrapped.
 - Settings panel for managing categories, cards and payment methods, recurring fixed expenses, and saving goals.
-- Fixed expense entry accepts both a dollar amount and a percentage-of-income field that stay in sync.
+- Expense entry accepts both a dollar amount and a percentage-of-income field that stay in sync.
 - Saving goals with a target amount, optional starting balance, and progress tracking from categorized transactions.
 - Everything tab with three sub-views: all-time transaction list (searchable, filterable by month, category, and card, with inline edit and delete); Charts; and Monthly Config.
 - Monthly Config in the Everything tab — edit income, fixed expenses, and income entries for any past month without navigating to it individually. Supports adding, editing, and removing fixed expense line items per month.
