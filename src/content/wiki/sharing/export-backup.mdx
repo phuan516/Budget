@@ -1,0 +1,53 @@
+---
+title: Export & backup
+section: Sharing
+slug: export-backup
+order: 2
+lede: Your data is already in Google Sheets — here is how to export it, back it up, or move it somewhere else.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/sharing/export-backup.mdx
+---
+
+## Your sheet is the backup
+
+Because Ledger writes everything to a Google Sheet you own, your data is automatically backed up to Google Drive. Google Drive keeps a revision history — you can restore any earlier version of your sheet from **File → Version history** in Google Sheets.
+
+## Exporting to CSV or Excel
+
+Google Sheets can export any sheet tab directly:
+
+1. Open your budget sheet in Google Sheets.
+2. Select the tab you want to export (e.g. "Jun 2026" or "Config").
+3. Go to **File → Download** and choose **.csv** or **.xlsx**.
+
+To export all months at once, use **File → Download → .xlsx** — this downloads a single Excel file with one worksheet per tab.
+
+## Downloading all data at once
+
+From Google Drive:
+
+1. Right-click your budget spreadsheet.
+2. Click **Download**.
+
+Google will convert it to `.xlsx` format with all tabs preserved.
+
+## Sharing the sheet with someone else
+
+If you want to share your budget with a partner, accountant, or advisor:
+
+1. Open the sheet in Google Sheets.
+2. Click **Share** in the top-right corner.
+3. Add the person's email and set their permission level (Viewer, Commenter, or Editor).
+
+The shared person will see the live data and any updates you make in Ledger. They can also edit directly in Google Sheets if you grant Editor access.
+
+## Moving to a different Google account
+
+1. Open the sheet in Google Sheets under your current account.
+2. Go to **File → Make a copy** to create a copy in the target account's Drive (you will need to be signed into both accounts, or share the sheet with the new account first).
+3. Sign into Ledger with the new account and create a new sheet, then manually copy your data from the old sheet into the new one.
+
+## What is not in the sheet
+
+The only thing not stored in your Google Sheet is your Ledger authentication session — that lives in a secure cookie in your browser. It expires and is re-created each time you sign in. There is nothing to export or migrate from Ledger's servers.
+
+> **Tip:** For a read-only year-end archive, download the full `.xlsx` at the end of December. The sheet includes every transaction and all your config defaults for that year.

@@ -1,0 +1,41 @@
+---
+title: Your first entry
+section: Getting started
+slug: your-first-entry
+order: 3
+lede: Add your first transaction in under a minute — here is exactly what each field means and how it ends up in your sheet.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/getting-started/your-first-entry.mdx
+---
+
+## Opening the add form
+
+From the dashboard, go to the **Transactions** tab and tap or click the add button. A form slides up with five fields.
+
+## The five fields
+
+| Field | Required | Notes |
+|---|---|---|
+| Date | Yes | Defaults to today. Tap to pick any past or future date. |
+| Amount | Yes | Enter a number — no currency symbol needed. Negative amounts are treated as refunds. |
+| Category | Yes | Pick from the categories you defined in Config. |
+| Card | Yes | Pick the payment method you used. |
+| Note | No | Free text — merchant name, description, anything useful. |
+
+## What happens when you save
+
+Ledger writes the transaction to the correct month tab in your Google Sheet. If that month tab does not exist yet, it is created automatically with your current income and fixed-expense defaults. The dashboard list refreshes immediately.
+
+## The row in your sheet
+
+```
+Date        Amount  Category  Card       Note
+2026-06-08  14.50   Food      Visa       lunch
+```
+
+You can see and edit this row directly in Google Sheets. Deleting it there will remove it from Ledger on the next refresh.
+
+## Carry-over transactions
+
+If a previous month ended with overspending, Ledger automatically writes a carry-over entry into the following month. These entries are excluded from list totals, charts, and share cards — they affect only the running balance calculation.
+
+> **Tip:** Add categories and cards in **Config** before your first entry so the dropdowns are ready. You can always add more later — the new options appear in the form immediately.

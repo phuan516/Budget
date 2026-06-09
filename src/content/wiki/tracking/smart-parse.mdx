@@ -1,0 +1,38 @@
+---
+title: Categories
+section: Tracking
+slug: smart-parse
+order: 2
+lede: How categories work in Ledger — defining them, using them, and keeping your list manageable.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/tracking/smart-parse.mdx
+---
+
+## How categories work
+
+Every transaction in Ledger belongs to exactly one category. Categories are free-form labels you define — there are no built-in ones. Common examples: Food, Transport, Rent, Entertainment, Health.
+
+When you add a transaction, you pick the category from a dropdown. Ledger writes the category name as plain text into the sheet row. If you later rename a category in Config, existing transactions keep the old name — they are not retroactively updated.
+
+## The category breakdown
+
+The **Overview** tab shows a spending breakdown by category for the current month: a bar for each category showing its share of total variable spend (fixed expenses are shown separately). The **Everything** tab shows the same breakdown aggregated across all months.
+
+## Savings goals and categories
+
+A saving goal can be linked to one or more categories. Ledger sums all transactions in those categories and uses that total as the "amount saved so far" progress toward the goal. For example, a "Vacation fund" goal linked to a "Travel" category will track every transaction you categorize as Travel.
+
+## Adding and removing categories
+
+Go to **Config → Categories**. Add a new category by typing a name and clicking Add. Delete a category with the trash icon. 
+
+Deleting a category does not delete or recategorize any past transactions that used it — those rows in the sheet remain unchanged. The deleted category simply no longer appears in the add/edit dropdown for future transactions.
+
+## Fixed expenses vs. variable categories
+
+Fixed expenses (rent, subscriptions, insurance) are configured separately in **Config → Fixed Expenses**. They show up in their own section on the Overview tab and are excluded from the category breakdown. Everything else you spend is "variable" and falls under a category.
+
+## Carry-over transactions
+
+When a month ends with more spending than income, Ledger writes an automatic carry-over entry into the next month. This entry is excluded from all category breakdowns, charts, and share card totals — it only affects the running balance shown in the Overview.
+
+> **Tip:** Keep your category list short — 6 to 10 categories is easier to review at a glance than 30. You can always merge two categories later by editing the affected transactions in the sheet directly.

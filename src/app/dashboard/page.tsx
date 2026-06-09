@@ -15,7 +15,7 @@ import EverythingTab from '@/components/dashboard/EverythingTab';
 const TABS: { id: DashboardTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'transactions', label: 'Transactions' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'config', label: 'Config' },
   { id: 'everything', label: 'Everything' },
 ];
 
@@ -542,7 +542,8 @@ export default function DashboardPage() {
                 overflow: 'hidden',
               }}>
                 {[
-                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); }, separator: true },
+                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); } },
+                  { label: 'Docs', action: () => { setMenuOpen(false); window.open('/wiki', '_blank', 'noopener,noreferrer'); }, separator: true },
                   { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
                   { label: 'Sign out', action: () => { setMenuOpen(false); handleSignOut(); } },
                 ].map(({ label, action, separator }) => (
@@ -595,7 +596,8 @@ export default function DashboardPage() {
                   {user.email}
                 </div>
                 {[
-                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); }, separator: true },
+                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); } },
+                  { label: 'Docs', action: () => { setMenuOpen(false); window.open('/wiki', '_blank', 'noopener,noreferrer'); }, separator: true },
                   { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
                   { label: 'Sign out', action: () => { setMenuOpen(false); handleSignOut(); } },
                 ].map(({ label, action, separator }) => (
@@ -675,7 +677,7 @@ export default function DashboardPage() {
                 onEdit={handleEditTransaction}
               />
             )}
-            {activeTab === 'settings' && (
+            {activeTab === 'config' && (
               <SettingsTab
                 config={config}
                 isLoading={configLoading}

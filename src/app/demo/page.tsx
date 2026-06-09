@@ -9,13 +9,13 @@ import TransactionsTab from '@/components/dashboard/TransactionsTab';
 import SettingsTab from '@/components/dashboard/SettingsTab';
 import EverythingTab from '@/components/dashboard/EverythingTab';
 
-type DashboardTab = 'overview' | 'transactions' | 'settings' | 'everything';
+type DashboardTab = 'overview' | 'transactions' | 'config' | 'everything';
 type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
 
 const TABS: { id: DashboardTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'transactions', label: 'Transactions' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'config', label: 'Config' },
   { id: 'everything', label: 'Everything' },
 ];
 
@@ -399,7 +399,7 @@ export default function DemoPage() {
             onEdit={handleEditTransaction}
           />
         )}
-        {activeTab === 'settings' && (
+        {activeTab === 'config' && (
           <SettingsTab
             config={config}
             isLoading={false}

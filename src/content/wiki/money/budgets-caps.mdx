@@ -1,0 +1,46 @@
+---
+title: Budgets & caps
+section: Money
+slug: budgets-caps
+order: 2
+lede: Fixed expenses track your recurring bills; saving goals track what you want to set aside — both show up on the Overview with progress at a glance.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/money/budgets-caps.mdx
+---
+
+## Fixed expenses
+
+Fixed expenses are your recurring monthly bills — rent, subscriptions, insurance, phone plan. They are defined in **Config → Fixed Expenses** and show on the Overview tab as a separate section from your variable (category-based) spending.
+
+### Adding a fixed expense
+
+In Config → Fixed Expenses, enter a name and a monthly amount. You can also enter a percentage of income instead of a dollar amount — the two fields stay in sync as you type. Click Add.
+
+The new expense is synced to the current month's tab and all future month tabs. Past month tabs are not changed.
+
+### Per-month overrides
+
+On the Overview tab, each fixed expense row has an edit icon. Tap it to set a different amount for that specific month — useful when a bill changes for one month (a one-time annual payment, a promo rate expiring, etc.). To reset a month's override back to the Config default, clear the override and save.
+
+### Fixed expenses in the Everything tab
+
+The **Everything** tab includes a **Fixed Expenses Over Time** chart showing each fixed expense's amount per month across your full history. This makes it easy to see when amounts changed due to overrides.
+
+## Saving goals
+
+Saving goals track progress toward a financial target. Define them in **Config → Saving Goals** with a name, a target amount, and an optional starting balance.
+
+### Linking a goal to categories
+
+A saving goal tracks spending in specific categories as "money saved." For example, a "Vacation" goal linked to a "Travel" category will sum all Travel transactions and show that total as progress toward the goal's target.
+
+Progress is shown as a percentage bar on the Overview tab.
+
+### Allocating a leftover surplus
+
+When a past month ends with unspent budget, a banner appears in the Transactions tab offering to allocate that surplus to a saving goal. One click records the allocation and updates the goal's progress.
+
+## How fixed expenses affect carry-over
+
+At month-end, Ledger calculates: income − variable spending − fixed expenses = surplus or deficit. If the result is negative (deficit), the difference is written as a carry-over entry into the next month. Fixed expenses count toward this calculation.
+
+> **Tip:** Use the percentage-of-income field for expenses that should scale with your income — for example, a savings contribution target set at 20% of income. When your income changes month to month, the target adjusts automatically.

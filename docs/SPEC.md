@@ -22,6 +22,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - **Authentication:** NextAuth.js v4 with Google provider (server-side OAuth 2.0 authorization code flow + PKCE)
 - **Data Storage:** Google Sheets API v4 + Google Drive API v3
 - **Session Management:** Access token stored in NextAuth's encrypted JWT (httpOnly cookie); no localStorage
+- **Email:** Resend (access-request notification emails)
 
 ### Infrastructure
 - **Hosting:** Vercel
@@ -46,7 +47,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] Add new transactions (date, amount, category, card, note)
 - [x] View transactions (list view, current month)
 - [x] Delete transactions
-- [ ] Edit existing transactions
+- [x] Edit existing transactions (inline edit — updates row in place; cross-month edit deletes + re-adds)
 - [x] Search transactions by category, note, or card
 - [x] Filter transactions by category and card
 - [x] Sort transactions by date or amount (ascending/descending)
@@ -57,6 +58,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] Manage fixed expenses (name + amount)
 - [x] Manage savings goals (name + target + initial amount)
 - [x] Set monthly income (default for new months)
+- [x] One-time income entries per month (bonuses, freelance) — logged as dated line items in the month tab
 - [x] All config stored in the Google Sheet (Config tab) as defaults
 - [x] Per-month income override with optional note
 - [x] Per-month fixed expense amount override with optional note
@@ -79,7 +81,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - [x] Everything tab — income vs. spending chart (per month, carry-overs excluded)
 - [x] Everything tab — category breakdown chart (all time, carry-overs excluded)
 - [x] Everything tab — fixed expense chart (per month)
-- [x] Share cards — shareable image cards (Monthly Recap, Year Review, Year-to-Date, Breakdown, Streak); all calculations exclude carry-over transactions
+- [x] Share cards — shareable image cards (Monthly, Wrapped, Year to Date, Breakdown, Streak); all calculations exclude carry-over transactions
 - [ ] Budget vs. actual comparisons
 
 ### Mobile Experience
@@ -97,7 +99,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 │  ┌───────────────────────────────────┐  │
 │  │     Pages/Components (React)      │  │
 │  │  - Dashboard (Overview/Txns/      │  │
-│  │    Settings/Everything)           │  │
+│  │    Config/Everything)             │  │
 │  │  - Sheet Selector                 │  │
 │  │  - Landing / Sign-in              │  │
 │  └───────────────┬───────────────────┘  │
@@ -108,7 +110,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 │  │  - config (categories, cards...)  │  │
 │  │  - transactions                   │  │
 │  │  - monthTabKeys, monthConfigs     │  │
-│  │  - activeTab, isSidebarOpen       │  │
+│  │  - activeTab                      │  │
 │  └───────────────┬───────────────────┘  │
 │                  │                       │
 │  ┌───────────────▼───────────────────┐  │
@@ -116,11 +118,13 @@ A mobile-first web application that uses Google Sheets as a backend database for
 │  │  - /sheets/list                   │  │
 │  │  - /sheets/create                 │  │
 │  │  - /sheets/select                 │  │
-│  │  - /transactions (GET/POST/DELETE)│  │
-│  │  - /config (GET/POST update)      │  │
+│  │  - /transactions (GET/add/update/ │  │
+│  │    delete)                        │  │
+│  │  - /config (GET/items/income/     │  │
+│  │    fixed-expense)                 │  │
 │  └───────────────┬───────────────────┘  │
 └──────────────────┼───────────────────────┘
-                   │ HTTPS + Bearer token
+                   │ HTTPS (session token via httpOnly cookie)
                    ▼
          ┌─────────────────────┐
          │  Google APIs        │
@@ -233,7 +237,6 @@ Zustand manages app-level state (selected sheet, config, transactions). Logging 
 
 **GET /api/sheets/list**
 - Lists user's Google Sheets via Drive API
-- Requires: `Authorization` header
 - Returns: `SheetMetadata[]` — `{ id, name, modifiedTime, thumbnailLink, ownedByMe }`
 
 **POST /api/sheets/create**
@@ -245,6 +248,16 @@ Zustand manages app-level state (selected sheet, config, transactions). Logging 
 - Validates that the chosen sheet has a Config tab
 - Body: `{ sheetId: string }`
 - Returns: `{ valid: true, sheet: { id, name, url } }` or `{ valid: false, error: string }`
+
+**GET /api/sheets/details**
+- Returns the current name of a sheet (used to sync the header when the sheet is renamed externally)
+- Query: `?sheetId=<id>`
+- Returns: `{ name: string }`
+
+**POST /api/request-access**
+- Sends an access-request email to `ADMIN_EMAIL` via Resend
+- Body: `{ name: string, email: string, note?: string }`
+- Returns: `{ success: true }` or `{ error: string }`
 
 ### Config
 
@@ -279,6 +292,18 @@ When the `type` is `fixed_expense`, all three endpoints sync the change to the c
 - Resets a month tab income to the current Config default
 - Body: `{ sheetId, monthKey }`
 
+**POST /api/config/income/entries**
+- Appends a one-time income entry to a month tab (bonus, freelance payment, etc.)
+- Body: `{ sheetId, amount, note?, tabName?, date? }` — defaults to current month/today
+
+**PATCH /api/config/income/entries**
+- Updates an existing income entry by tab + row
+- Body: `{ sheetId, tabName, rowIndex, amount, note? }`
+
+**DELETE /api/config/income/entries**
+- Removes an income entry by tab + row
+- Body: `{ sheetId, tabName, rowIndex }`
+
 **POST /api/config/fixed-expense/override**
 - Writes a fixed expense amount override to a specific month tab
 - Body: `{ sheetId, monthKey, expenseName, income: number, note? }`
@@ -286,6 +311,10 @@ When the `type` is `fixed_expense`, all three endpoints sync the change to the c
 **DELETE /api/config/fixed-expense/override**
 - Resets a month tab fixed expense to the current Config default
 - Body: `{ sheetId, monthKey, expenseName }`
+
+**POST /api/config/fixed-expense/month-list**
+- Writes the full fixed expense list for a specific month tab (bulk override)
+- Body: `{ sheetId, monthKey, fixedExpenses: { name, amount, note? }[] }`
 
 ### Transactions
 
@@ -299,9 +328,14 @@ When the `type` is `fixed_expense`, all three endpoints sync the change to the c
 - Body: `{ sheetId, date, amount, category, card, note }`
 - Returns: `{ success: true, transaction }`
 
+**POST /api/transactions/update**
+- Updates a transaction row in place (same month)
+- Body: `{ sheetId, tab, row, date, amount, category, card, note }`
+- Returns: `{ ok: true }`
+
 **DELETE /api/transactions/delete**
-- Deletes a transaction row by row index
-- Body: `{ sheetId, sheetName, rowIndex }`
+- Deletes a transaction row by tab + row position
+- Body: `{ sheetId, tab, row }`
 
 ---
 
@@ -328,14 +362,12 @@ interface SelectedSheet {
   url: string;
 }
 
-// Config (defaults + override maps — stored in Config tab)
+// Config (defaults — stored in Config tab; income overrides live in month tabs)
 interface Config {
   categories: { id: string; name: string }[];
   cards: { id: string; name: string }[];
   fixedExpenses: { id: string; name: string; amount: number }[];
   monthlyIncome: number;
-  monthlyIncomeOverrides: { [monthKey: string]: number };
-  monthlyIncomeOverrideNotes: { [monthKey: string]: string };
   fixedExpenseOverrides: { [monthKey: string]: { [expenseName: string]: number } };
   fixedExpenseOverrideNotes: { [monthKey: string]: { [expenseName: string]: string } };
   savingGoals: { id: string; name: string; amount: number; initialAmount: number }[];
@@ -346,12 +378,15 @@ interface MonthConfig {
   income?: number;
   incomeNote?: string;
   fixedExpenses: { name: string; amount: number; note?: string }[];
+  incomeEntries?: { id: string; date: string; amount: number; note?: string }[];
 }
 
 // Transactions
 interface Transaction {
-  id: string;       // row index within the month sheet (used for deletion)
-  date: string;     // YYYY-MM-DD
+  id: string;   // composite key: "<tabName>|<rowIndex>" (used for edits/deletes)
+  tab: string;  // month tab name, e.g. "Jun 2026"
+  row: number;  // 1-based row index within the tab
+  date: string; // YYYY-MM-DD
   amount: number;
   category: string;
   card: string;
@@ -364,15 +399,16 @@ interface Transaction {
 Only `selectedSheet` is persisted to localStorage. All other state is re-fetched on load.
 
 ```typescript
+type DashboardTab = 'overview' | 'transactions' | 'config' | 'everything';
+
 interface BudgetStore {
   selectedSheet: SelectedSheet | null;
   availableSheets: SheetMetadata[];
   config: Config;
   transactions: Transaction[];
-  monthTabKeys: string[];                        // keys of all existing month tabs (e.g. "2026-04")
-  monthConfigs: Record<string, MonthConfig>;     // per-month income + fixed expenses, keyed by "YYYY-MM"
-  activeTab: 'overview' | 'transactions' | 'settings' | 'everything';
-  isSidebarOpen: boolean;
+  monthTabKeys: string[];                        // YYYY-MM keys for all existing month tabs
+  monthConfigs: Record<string, MonthConfig>;     // per-month income + fixed expenses, keyed by YYYY-MM
+  activeTab: DashboardTab;
 }
 ```
 
@@ -383,39 +419,50 @@ interface BudgetStore {
 ```
 src/
 ├── app/
-│   ├── page.tsx                        # Landing / sign-in
-│   ├── dashboard/page.tsx              # Dashboard with tab nav
-│   ├── sheets/select/page.tsx          # Sheet selector
-│   ├── globals.css                     # Tailwind v4 theme + global styles
+│   ├── page.tsx                            # Landing / sign-in
+│   ├── dashboard/page.tsx                  # Dashboard with tab nav + all data-mutation handlers
+│   ├── demo/page.tsx                       # Demo mode (no auth, pure client-side state)
+│   ├── sheets/select/page.tsx              # Sheet selector
+│   ├── changelog/                          # Public changelog
+│   ├── wiki/                               # MDX-driven docs wiki
+│   ├── privacy/                            # Privacy policy
+│   ├── terms/                              # Terms of service
+│   ├── globals.css                         # Tailwind v4 theme + global styles
 │   └── api/
-│       ├── auth/[...nextauth]/route.ts # NextAuth catch-all handler
+│       ├── auth/[...nextauth]/route.ts     # NextAuth catch-all handler
+│       ├── request-access/route.ts         # POST — access-request email via Resend
 │       ├── sheets/list/route.ts
 │       ├── sheets/create/route.ts
 │       ├── sheets/select/route.ts
-│       ├── transactions/route.ts       # GET — returns transactions + monthTabKeys + monthConfigs
+│       ├── sheets/details/route.ts         # GET — fetch current sheet name
+│       ├── transactions/route.ts           # GET — returns transactions + monthTabKeys + monthConfigs
 │       ├── transactions/add/route.ts
+│       ├── transactions/update/route.ts    # POST — edit transaction in place
 │       ├── transactions/delete/route.ts
 │       ├── config/route.ts
-│       ├── config/items/route.ts
+│       ├── config/items/route.ts           # POST/PATCH/DELETE — categories, cards, expenses, goals
 │       ├── config/income/route.ts
 │       ├── config/income/override/route.ts
-│       └── config/fixed-expense/override/route.ts
+│       ├── config/income/entries/route.ts  # POST/PATCH/DELETE — one-time income entries
+│       ├── config/fixed-expense/override/route.ts
+│       └── config/fixed-expense/month-list/route.ts  # POST — bulk write fixed expenses for a month
 ├── components/
-│   ├── sheets/SheetSelector.tsx        # Sheet list + create form
+│   ├── sheets/SheetSelector.tsx            # Sheet list + create form
 │   └── dashboard/
-│       ├── OverviewTab.tsx             # Spending summary, savings, fixed expenses (per-month config)
-│       ├── TransactionsTab.tsx         # Transaction list + add form
-│       ├── SettingsTab.tsx             # All config management (defaults)
-│       └── EverythingTab.tsx           # All-time transaction list + income/category/fixed expense charts
+│       ├── OverviewTab.tsx                 # Spending summary, savings, fixed expenses (per-month config)
+│       ├── TransactionsTab.tsx             # Transaction list + add/edit form
+│       ├── SettingsTab.tsx                 # All config management — shown as "Config" tab
+│       └── EverythingTab.tsx               # All-time list + income/category/fixed expense charts
 ├── context/
-│   └── AuthContext.tsx                 # AuthProvider + useAuth() — wraps NextAuth SessionProvider
+│   └── AuthContext.tsx                     # AuthProvider + useAuth() — wraps NextAuth SessionProvider
 ├── types/
-│   └── next-auth.d.ts                  # Extends Session + JWT to include accessToken
+│   └── next-auth.d.ts                      # Extends Session + JWT to include accessToken
 └── lib/
-    ├── auth.ts                         # NextAuth authOptions (GoogleProvider config)
-    ├── api/auth.ts                     # buildSheetsService — reads session via getServerSession
-    ├── google/sheets.ts                # SheetsService class + exported helpers (monthKeyToLabel, etc.)
-    └── store/useStore.ts               # Zustand store
+    ├── auth.ts                             # NextAuth authOptions (GoogleProvider config)
+    ├── api/auth.ts                         # buildSheetsService — reads session via getServerSession
+    ├── google/sheets.ts                    # SheetsService class + exported helpers
+    ├── wiki.ts                             # MDX parser + nav builder for /wiki
+    └── store/useStore.ts                   # Zustand store
 ```
 
 ---
@@ -495,8 +542,8 @@ Dashboard → Transactions tab
 ### Edit Config (Defaults)
 
 ```
-Dashboard → Settings tab
-  → Add / delete category / card / fixed expense / saving goal
+Dashboard → Config tab
+  → Add / edit / delete category / card / fixed expense / saving goal
     → POST / PATCH / DELETE /api/config/items
       → Optimistic update in Zustand
         → Refreshes from sheet on next load
@@ -530,9 +577,11 @@ Dashboard → Overview tab
 - [x] Monthly sheet tabs (auto-created per month)
 - [x] Transaction list view
 - [x] Add transaction form
+- [x] Edit transaction (inline form, updates row in place)
 - [x] Delete transaction
 - [x] Config management (categories, cards, fixed expenses)
 - [x] Savings goals + monthly income configuration
+- [x] One-time income entries per month
 
 ### Phase 3: Dashboard & Analytics
 - [x] Monthly spending overview
@@ -546,9 +595,12 @@ Dashboard → Overview tab
 
 ### Phase 4: Polish
 - [x] Mobile-responsive layout
+- [x] Switch sheets from dashboard (header menu → Change sheet)
+- [x] Demo mode at /demo (no sign-in required)
+- [x] Public changelog at /changelog
+- [x] Docs wiki at /wiki
 - [ ] Skeleton loading states
 - [ ] Empty state screens
-- [ ] Switch sheets from dashboard
 
 ### Phase 5: Future
 - [ ] PWA / offline support
@@ -575,7 +627,10 @@ NEXTAUTH_URL=http://localhost:3000          # set to your production URL in Verc
 NEXTAUTH_SECRET=your_random_secret          # generate with: openssl rand -base64 32
 
 # Access control
-ADMIN_EMAIL=your@email.com                  # email allowed to sign in
+ADMIN_EMAIL=your@email.com                  # only this email is allowed to sign in
+
+# Resend (optional — enables /api/request-access email notifications)
+RESEND_API_KEY=re_...
 ```
 
 **Google Cloud Console setup:**

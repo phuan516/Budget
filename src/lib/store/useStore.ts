@@ -29,7 +29,7 @@ export interface Transaction {
   note: string;
 }
 
-export type DashboardTab = 'overview' | 'transactions' | 'settings' | 'everything';
+export type DashboardTab = 'overview' | 'transactions' | 'config' | 'everything';
 
 interface BudgetStore {
   selectedSheet: SelectedSheet | null;

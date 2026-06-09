@@ -1,0 +1,39 @@
+---
+title: Income controls
+section: Money
+slug: income-controls
+order: 1
+lede: Set a default monthly income, log one-time additions, and override income for any specific month — without touching other months.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/money/income-controls.mdx
+---
+
+## Default monthly income
+
+Your default income is stored in the Config tab of your sheet. It is the amount Ledger copies into each new month tab when that month is created. Go to **Config → Income** to change it.
+
+Changing the default does not retroactively update past months. Each month tab has its own income figure that can be updated individually from the **Everything** tab.
+
+## Per-month income overrides
+
+On the **Overview** tab, the income line shows the amount for the currently selected month. Tap the edit icon next to it to override the income for that month specifically without changing the global default.
+
+The optional note field lets you explain why — e.g. "bonus payment" or "part-time month." To remove an override and return the month to the current default, clear the income field and save.
+
+## One-time income entries
+
+If you received an irregular payment (freelance work, a tax refund, a gift), you can log it as an additional income entry for the month. On the **Overview** tab, open the income section and use the "Add entry" form to record the amount and an optional label. These entries are summed with the base income to produce the month's total.
+
+## How income affects the dashboard
+
+The income total for a month drives:
+
+- **Progress bar** on the Overview tab — shows committed spend (variable + fixed) vs. income.
+- **Remaining budget** calculation — income minus all spending.
+- **Carry-over** — if spending exceeds income at month-end, the difference is written as a carry-over entry into the next month.
+- **Everything tab charts** — the Income vs. Spending bar chart plots income alongside spending for each month.
+
+## The Everything tab income editor
+
+The **Everything** tab includes a per-month config editor where you can see and override income for any month in your history without navigating to each month individually.
+
+> **Tip:** If your income varies month to month (hourly work, commission, multiple jobs), override the income on each month's Overview rather than updating the global default — that way the global default stays close to your typical figure and each month's history is accurate.

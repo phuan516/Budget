@@ -1,0 +1,35 @@
+---
+title: What is Ledger
+section: Getting started
+slug: what-is-ledger
+order: 1
+lede: Ledger is a personal budget tracker that lives inside your own Google Sheet — no separate database, no subscription, your data stays yours.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/getting-started/what-is-ledger.mdx
+---
+
+## How it works
+
+Ledger connects to a Google Sheet that you own and uses it as its database. Every transaction you record, every category you create, and every income figure you set is written directly into rows in your spreadsheet. You can open that sheet in Google Sheets at any time — nothing is hidden.
+
+When you sign in, Ledger requests only two Google permissions: the ability to read and write sheets it creates (`drive.file` scope), and your basic profile information to show your name and avatar. It cannot see the rest of your Drive. There is currently no way to connect an existing outside sheet — Ledger can only work with sheets it has created.
+
+## What Ledger is not
+
+Ledger does not connect to your bank. It does not import statements automatically. You enter transactions yourself — either through the app's form or directly in the sheet. That deliberateness is the point: manually recording a purchase is the habit that builds awareness.
+
+## The sheet structure
+
+When you create a new budget sheet, Ledger writes a **Config** tab and a tab for the current month (e.g. "Jun 2026"). The Config tab stores your default income, categories, cards, fixed expenses, and saving goals. Each month tab stores its own snapshot of income and fixed expenses — so changing your defaults in January never rewrites what December looked like.
+
+## Your data, always
+
+Because everything lives in a Google Sheet you own:
+
+- You can read, edit, or delete any row at any time.
+- You can share the sheet with a partner or accountant.
+- If you stop using Ledger, your data is still there in Google Sheets.
+- Ledger servers store nothing except the session token needed to talk to Google on your behalf during your active session.
+
+## Demo mode
+
+Not ready to create a sheet? Visit `/demo` to explore the full dashboard with sample data — no sign-in required.

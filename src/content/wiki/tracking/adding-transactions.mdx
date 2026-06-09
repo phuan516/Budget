@@ -1,0 +1,47 @@
+---
+title: Adding transactions
+section: Tracking
+slug: adding-transactions
+order: 1
+lede: The Transactions tab is your daily entry point — here is how the add form works and what each field does.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/tracking/adding-transactions.mdx
+---
+
+## The Transactions tab
+
+The Transactions tab shows all entries for the currently selected month, sorted by date. A month picker at the top lets you browse any past month. The add button opens the entry form.
+
+## Fields in detail
+
+### Date
+Defaults to today's date. Change it to record a transaction that happened on a different day. Month tabs are created on demand — if you enter a date in a month that has no tab yet, Ledger creates one automatically with your current income and fixed-expense defaults.
+
+### Amount
+A plain number. No currency symbol. Decimals are supported (`14.50`). Enter a negative number to record a refund — it will reduce your spending total for that category.
+
+### Category
+A dropdown of the categories you set up in Config. Categories group your spending for the breakdown view and savings goal tracking. If no category fits yet, open Config → Categories to add one — it appears in the dropdown immediately.
+
+### Card / payment method
+A dropdown of the payment methods from Config → Cards. Useful for tracking which card you used, separating debit from credit, or distinguishing cash from digital payments.
+
+### Note
+Optional free text. This field is full-text searchable from the transaction list. Good uses: merchant name, a reminder ("split with Alex"), or a receipt reference.
+
+## Searching and filtering
+
+The transaction list has a search bar and filter chips above it. Search matches against category, card, and note text. The filter chips let you narrow to a specific category or card. Sort by date (newest first by default) or by amount.
+
+## Deleting a transaction
+
+Tap the delete icon on any row to remove it. The row is removed from your Google Sheet immediately.
+
+## Editing a transaction
+
+Tap the edit icon on any row to open an inline edit form pre-filled with the current values. Change what you need and save — the row in your sheet is updated in place.
+
+## Past months
+
+You can still add and delete transactions in past months — useful for recording something you missed. You can also update a past month's income and fixed-expense amounts from the monthly config tab in the **Everything** tab. Adding a transaction to a past month may recalculate carry-over amounts for all subsequent months.
+
+> **Tip:** The transaction list total shown at the top of the tab excludes carry-over entries. That number represents only the spending you actually entered for the month.

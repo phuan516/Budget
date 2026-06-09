@@ -1,0 +1,46 @@
+---
+title: Editing transactions
+section: Tracking
+slug: editing-transactions
+order: 3
+lede: Fix a wrong amount, change a category, or delete a duplicate — edits write directly back to your Google Sheet.
+editUrl: https://github.com/phuan516/Budget/edit/master/src/content/wiki/tracking/editing-transactions.mdx
+---
+
+## Inline editing
+
+Every row in the Transactions list has an edit icon. Tapping it opens an inline form pre-filled with the current values for that transaction. Change any field and save — the row in your Google Sheet is updated immediately.
+
+Fields you can edit:
+- Date
+- Amount
+- Category
+- Card / payment method
+- Note
+
+## Deleting a transaction
+
+Tap the delete icon on any row to remove it. You will see a confirmation before the row is deleted. Once confirmed, the row is removed from the Google Sheet and the dashboard totals update automatically.
+
+## Editing directly in Google Sheets
+
+Because all data lives in your spreadsheet, you can also edit transactions directly in Google Sheets. Changes made there are picked up by Ledger on the next data refresh (navigating back to the dashboard, changing months, or reloading the page).
+
+Keep these rules in mind when editing the sheet directly:
+
+- **Date format:** must be `YYYY-MM-DD` (e.g. `2026-06-08`).
+- **Amount:** a plain number with no currency symbol.
+- **Category and Card:** must match the names in your Config tab exactly (case-sensitive).
+- **Do not change row order** above the `TRANSACTIONS` header — the section structure is parsed by position.
+
+## Past months
+
+You can add, edit, and delete transactions in any past month tab. The income and fixed-expense figures stored in the past month tab are not affected — only the transaction rows change. If the edit causes a past month to go from surplus to deficit (or vice versa), the carry-over chain for all subsequent months is recalculated on the next data load.
+
+## The leftover banner
+
+When you view a past month in the Transactions tab, a banner appears at the top showing either the unspent amount or the overspend. If there is a surplus, the banner offers a one-click action to allocate it to a saving goal.
+
+## Carry-over rows
+
+Carry-over rows are written automatically by Ledger when a month overspends. You can see them in the sheet but you cannot edit them through the app — they are recalculated automatically whenever the carry-over chain is refreshed.
