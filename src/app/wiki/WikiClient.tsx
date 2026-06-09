@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import type { WikiArticle, NavGroup, Block } from '@/lib/wiki';
 import s from './wiki.module.css';
@@ -230,6 +231,16 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
   // ── Desktop three-pane ───────────────────────────────────────
   const DesktopLayout = (
     <div className={s.shell}>
+      <header className={s.header}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link href="/" className={s.headerLogo}>
+            <Image src="/ledger-A-512.png" alt="Ledger" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0 }} />
+            <span className={s.headerLogoText}>Ledger</span>
+          </Link>
+          <span className={s.headerSlash}>/</span>
+          <span style={{ fontSize: 13, color: '#444' }}>Wiki</span>
+        </div>
+      </header>
       <div className={s.body}>
         {NavTree}
 

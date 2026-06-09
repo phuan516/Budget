@@ -237,10 +237,14 @@ export default function ChangelogClient({ releases }: { releases: Release[] }) {
     <>
       <div className="hidden lg:flex flex-col" style={{ height: '100vh', overflow: 'hidden', background: '#fff', color: '#1a1a1a' }}>
         <header className={s.header}>
-          <Link href="/" className={s.headerLogo}>
-            <Image src="/ledger-A-512.png" alt="Ledger" width={20} height={20} style={{ borderRadius: '50%', flexShrink: 0 }} />
-            <span className={s.headerLogoText}>Ledger</span>
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Link href="/" className={s.headerLogo}>
+              <Image src="/ledger-A-512.png" alt="Ledger" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0 }} />
+              <span className={s.headerLogoText}>Ledger</span>
+            </Link>
+            <span style={{ color: '#d8d8d8', fontSize: 13 }}>/</span>
+            <span style={{ fontSize: 13, color: '#444' }}>Changelog</span>
+          </div>
         </header>
         <DesktopChangelog releases={releases} />
       </div>

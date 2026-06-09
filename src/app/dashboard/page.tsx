@@ -542,8 +542,8 @@ export default function DashboardPage() {
                 overflow: 'hidden',
               }}>
                 {[
-                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); } },
-                  { label: 'Docs', action: () => { setMenuOpen(false); window.open('/wiki', '_blank', 'noopener,noreferrer'); }, separator: true },
+                  { label: "What's new", action: () => { setMenuOpen(false); window.location.href = '/changelog'; } },
+                  { label: 'Docs', action: () => { setMenuOpen(false); window.location.href = '/wiki'; }, separator: true },
                   { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
                   { label: 'Sign out', action: () => { setMenuOpen(false); handleSignOut(); } },
                 ].map(({ label, action, separator }) => (
@@ -596,8 +596,8 @@ export default function DashboardPage() {
                   {user.email}
                 </div>
                 {[
-                  { label: "What's new", action: () => { setMenuOpen(false); window.open('/changelog', '_blank', 'noopener,noreferrer'); } },
-                  { label: 'Docs', action: () => { setMenuOpen(false); window.open('/wiki', '_blank', 'noopener,noreferrer'); }, separator: true },
+                  { label: "What's new", action: () => { setMenuOpen(false); window.location.href = '/changelog'; } },
+                  { label: 'Docs', action: () => { setMenuOpen(false); window.location.href = '/wiki'; }, separator: true },
                   { label: 'Change sheet', action: () => { setMenuOpen(false); router.push('/sheets/select'); } },
                   { label: 'Sign out', action: () => { setMenuOpen(false); handleSignOut(); } },
                 ].map(({ label, action, separator }) => (
