@@ -22,7 +22,6 @@ A mobile-first web application that uses Google Sheets as a backend database for
 - **Authentication:** NextAuth.js v4 with Google provider (server-side OAuth 2.0 authorization code flow + PKCE)
 - **Data Storage:** Google Sheets API v4 + Google Drive API v3
 - **Session Management:** Access token stored in NextAuth's encrypted JWT (httpOnly cookie); no localStorage
-- **Email:** Resend (access-request notification emails)
 
 ### Infrastructure
 - **Hosting:** Vercel
@@ -254,11 +253,6 @@ Zustand manages app-level state (selected sheet, config, transactions). Logging 
 - Query: `?sheetId=<id>`
 - Returns: `{ name: string }`
 
-**POST /api/request-access**
-- Sends an access-request email to `ADMIN_EMAIL` via Resend
-- Body: `{ name: string, email: string, note?: string }`
-- Returns: `{ success: true }` or `{ error: string }`
-
 ### Config
 
 **GET /api/config**
@@ -430,7 +424,6 @@ src/
 │   ├── globals.css                         # Tailwind v4 theme + global styles
 │   └── api/
 │       ├── auth/[...nextauth]/route.ts     # NextAuth catch-all handler
-│       ├── request-access/route.ts         # POST — access-request email via Resend
 │       ├── sheets/list/route.ts
 │       ├── sheets/create/route.ts
 │       ├── sheets/select/route.ts
@@ -629,8 +622,6 @@ NEXTAUTH_SECRET=your_random_secret          # generate with: openssl rand -base6
 # Access control
 ADMIN_EMAIL=your@email.com                  # only this email is allowed to sign in
 
-# Resend (optional — enables /api/request-access email notifications)
-RESEND_API_KEY=re_...
 ```
 
 **Google Cloud Console setup:**

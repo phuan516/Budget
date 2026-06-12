@@ -11,7 +11,6 @@ A mobile-first personal budget tracker that uses Google Sheets as a backend. Sig
 - **Date:** date-fns
 - **APIs:** Google Sheets API v4, Google Drive API v3 (via `googleapis`)
 - **Auth:** NextAuth.js v4 (Google provider, server-side OAuth 2.0 + PKCE)
-- **Email:** Resend (access-request notifications)
 - **Hosting:** Vercel
 
 ## Features
@@ -97,9 +96,6 @@ NEXTAUTH_SECRET=your_random_secret   # generate: openssl rand -base64 32
 
 # Access control — only this email can sign in
 ADMIN_EMAIL=your@email.com
-
-# Resend — for access-request notification emails (optional)
-RESEND_API_KEY=re_...
 ```
 
 ### 3. Run Locally
@@ -137,7 +133,6 @@ src/
 │   ├── globals.css                     # Tailwind v4 theme + global styles
 │   └── api/
 │       ├── auth/[...nextauth]/route.ts # NextAuth catch-all handler
-│       ├── request-access/route.ts     # POST — send access-request email via Resend
 │       ├── sheets/
 │       │   ├── list/route.ts           # GET  — list user's spreadsheets
 │       │   ├── create/route.ts         # POST — create new budget sheet
@@ -193,7 +188,6 @@ Add the following environment variables in your Vercel project settings:
 | `NEXTAUTH_URL` | Your production URL (e.g. `https://your-app.vercel.app`) |
 | `NEXTAUTH_SECRET` | A strong random value (`openssl rand -base64 32`) |
 | `ADMIN_EMAIL` | Email allowed to sign in |
-| `RESEND_API_KEY` | Resend API key (optional, for access-request emails) |
 
 Also add your production callback URL (`https://your-app.vercel.app/api/auth/callback/google`) to the **Authorized redirect URIs** in Google Cloud Console.
 

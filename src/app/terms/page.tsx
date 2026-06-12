@@ -134,10 +134,10 @@ export default function TermsPage() {
           <p>
             If you have any questions about these terms, please contact:{' '}
             <a
-              href="mailto:phuan516@mtroyal.ca"
+              href="mailto:help@wizardindustries.app"
               className="text-[#1a1a1a] underline underline-offset-2"
             >
-              phuan516@mtroyal.ca
+              help@wizardindustries.app
             </a>
           </p>
         </Section>

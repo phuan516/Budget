@@ -152,10 +152,10 @@ export default function PrivacyPage() {
             If you have any questions or concerns about this privacy policy or how Ledger handles your
             data, please contact:{' '}
             <a
-              href="mailto:phuan516@mtroyal.ca"
+              href="mailto:help@wizardindustries.app"
               className="text-[#1a1a1a] underline underline-offset-2"
             >
-              phuan516@mtroyal.ca
+              help@wizardindustries.app
             </a>
           </p>
         </Section>
