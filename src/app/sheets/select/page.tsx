@@ -55,7 +55,11 @@ export default function SheetSelectionPage() {
         setSelectedSheet(data.sheet);
         router.push('/dashboard');
       } else {
-        setError(data.error || 'Invalid sheet structure');
+        setError(
+          data.error === 'Config'
+            ? 'This sheet is missing a Config tab — it may not be a Ledger budget sheet.'
+            : (data.error || 'Invalid sheet structure')
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to select sheet');

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-13
+
+### Added
+
+- Shared sheet support — sheets shared with you by others now appear in the sheet selector alongside your own sheets.
+
+### Changed
+
+- OAuth scope updated from `drive.file` to `drive.metadata.readonly` + `spreadsheets`. `drive.metadata.readonly` allows listing all sheets in your Drive (including shared ones); `spreadsheets` allows reading and writing to any sheet you have access to. Existing users will be prompted to re-authorize once on next sign-in.
+
+---
+
 ## [1.0.0] - 2026-06-07
 
 Initial public release.
@@ -16,7 +28,7 @@ Initial public release.
 - Privacy policy at `/privacy` and terms of service at `/terms`.
 - Google Sign-In authentication — no separate account or password needed.
 - Google Sheets integration — Ledger reads and writes directly to a Google Sheet you own; nothing is stored on Ledger servers.
-- Google OAuth scope limited to `drive.file` — Ledger only requests access to the specific sheets you select, not your entire Drive.
+- Google OAuth scopes limited to `drive.metadata.readonly` (list Drive files) and `spreadsheets` (read/write sheets) — Ledger does not request access to Drive file content beyond your spreadsheets.
 - Sheet selector — create a new budget spreadsheet from within the app. Switch between your Ledger sheets at any time from the header.
 - Demo mode — explore the full app at `/demo` without signing in.
 - Monthly overview with total committed spend vs. income progress bar, segmented by variable, fixed, and carry-over spend.

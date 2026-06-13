@@ -17,6 +17,7 @@ A mobile-first personal budget tracker that uses Google Sheets as a backend. Sig
 
 - Sign in with Google (OAuth 2.0, no password)
 - Create a new Google Sheet as your budget database — all data lives in your own Drive
+- Connect sheets shared with you by others (e.g. a shared family budget)
 - Add, edit, and delete transactions (date, amount, category, card, note)
 - Search, sort, and filter transactions by category, card, or keyword
 - Dashboard with monthly spending summary, category breakdown, fixed expenses, and savings progress
@@ -54,7 +55,7 @@ The app uses NextAuth.js server-side OAuth, so you need a Google Cloud project w
 2. Set **User type** to External, then fill in the app name and support email
 3. Add these scopes:
    - `https://www.googleapis.com/auth/spreadsheets`
-   - `https://www.googleapis.com/auth/drive.file`
+   - `https://www.googleapis.com/auth/drive.metadata.readonly`
    - `https://www.googleapis.com/auth/userinfo.email`
    - `https://www.googleapis.com/auth/userinfo.profile`
 4. Add your Google account as a **test user**
