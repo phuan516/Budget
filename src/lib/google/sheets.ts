@@ -189,17 +189,16 @@ export class SheetsService {
     }
   }
 
-  // Returns the display name and URL of a spreadsheet via the Drive API.
+  // Returns the display name and URL of a spreadsheet via the Sheets API.
   async getSheetDetails(sheetId: string): Promise<{ name: string; url: string }> {
     try {
-      const drive = google.drive({ version: 'v3', auth: this.auth });
-      const response = await drive.files.get({
-        fileId: sheetId,
-        fields: 'name',
+      const response = await this.sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'properties.title',
       });
 
       const url = `https://docs.google.com/spreadsheets/d/${sheetId}`;
-      return { name: response.data.name || 'Unknown', url };
+      return { name: response.data.properties?.title || 'Unknown', url };
     } catch (error) {
       console.error('Error getting sheet details:', error);
       throw new Error('Failed to get sheet details');

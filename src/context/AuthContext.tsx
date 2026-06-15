@@ -19,6 +19,7 @@ function AuthContextInner({ children }: { children: ReactNode }) {
     ? { name: session.user.name ?? session.user.email ?? 'User', email: session.user.email ?? '' }
     : null;
 
+
   const signingOut = useRef(false);
   const clearSelectedSheet = useStore((s) => s.clearSelectedSheet);
 
