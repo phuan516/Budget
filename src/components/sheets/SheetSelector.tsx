@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import { useStore } from '@/lib/store/useStore';
 import { SheetMetadata } from '@/lib/google/sheets';
 
@@ -56,6 +57,7 @@ const FILTER_OPTIONS: { value: OwnerFilter; label: string }[] = [
 ];
 
 export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, isCreating, isSelecting }: SheetSelectorProps) {
+  const { data: session } = useSession();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,6 +96,39 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
   useEffect(() => {
     loadSheets();
   }, [loadSheets]);
+
+  const openPicker = useCallback(() => {
+    const token = (session as any)?.accessToken as string | undefined;
+    if (!token) return;
+
+    function showPicker() {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const gp = (window as any).google.picker;
+      new gp.PickerBuilder()
+        .addView(new gp.DocsView(gp.ViewId.SPREADSHEETS))
+        .setOAuthToken(token)
+        .setDeveloperKey(process.env.NEXT_PUBLIC_GOOGLE_API_KEY!)
+        .setAppId(process.env.NEXT_PUBLIC_GOOGLE_APP_ID!)
+        .setCallback((data: any) => {
+          if (data.action === gp.Action.PICKED) {
+            onSelectSheet(data.docs[0].id);
+          }
+        })
+        .build()
+        .setVisible(true);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).gapi) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).gapi.load('picker', showPicker);
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => (window as any).gapi.load('picker', showPicker);
+      document.head.appendChild(script);
+    }
+  }, [session, onSelectSheet]);
 
   const filteredSheets = availableSheets.filter((s) => {
     if (!s.name.startsWith(LEDGER_PREFIX)) return false;
@@ -236,6 +271,32 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                   </button>
                 );
               })}
+
+              <button
+                onClick={openPicker}
+                style={{
+                  border: '1.5px dashed #d8d8d8',
+                  borderRadius: 10,
+                  padding: 16,
+                  cursor: 'pointer',
+                  background: '#fafafa',
+                  minHeight: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#888',
+                  fontSize: 13,
+                  gap: 6,
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                Open from Drive
+              </button>
 
               <button
                 onClick={openNameModal}
@@ -397,6 +458,33 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                 </button>
               );
             })}
+
+            <button
+              onClick={openPicker}
+              style={{
+                border: '1.5px dashed #d8d8d8',
+                borderRadius: 10,
+                padding: 12,
+                background: '#fafafa',
+                minHeight: 128,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#888',
+                fontSize: 12,
+                gridColumn: 'span 2',
+                cursor: 'pointer',
+                gap: 6,
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Open from Drive
+            </button>
 
             <button
               onClick={openNameModal}

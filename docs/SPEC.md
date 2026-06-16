@@ -20,7 +20,7 @@ A mobile-first web application that uses Google Sheets as a backend database for
 ### Backend
 - **API:** Next.js API Routes
 - **Authentication:** NextAuth.js v4 with Google provider (server-side OAuth 2.0 authorization code flow + PKCE)
-- **Data Storage:** Google Sheets API v4 + Google Drive API v3
+- **Data Storage:** Google Sheets API v4 + Google Drive API v3 (file access via `drive.file` scope; sheet selection via Google Picker API)
 - **Session Management:** Access token stored in NextAuth's encrypted JWT (httpOnly cookie); no localStorage
 
 ### Infrastructure
@@ -34,8 +34,8 @@ A mobile-first web application that uses Google Sheets as a backend database for
 
 ### Authentication & Setup
 - [x] Sign in with Google (NextAuth.js server-side OAuth 2.0 + PKCE)
-- [x] OAuth 2.0 consent with Sheets + Drive permissions
-- [x] Sheet selection from user's Google Drive (owned and shared)
+- [x] OAuth 2.0 consent with `drive.file` scope (access limited to sheets opened via Picker or created in-app)
+- [x] Sheet selection via Google Picker API (owned and shared sheets)
 - [x] Create new budget sheet from template (Config tab + month tabs)
 - [x] Persist selected sheet across page reloads (Zustand persist → localStorage)
 - [x] Session management via NextAuth JWT (httpOnly cookie, no manual expiry tracking)

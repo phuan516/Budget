@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-16
+
+### Added
+
+- Google Picker integration — sheet selection now uses the Google Picker API, letting you browse and select any spreadsheet in your Drive (including shared sheets) without granting broad Drive access.
+
+### Changed
+
+- OAuth scope narrowed from `drive.metadata.readonly` + `spreadsheets` to `drive.file`. `drive.file` limits access to sheets you explicitly open via the Picker or create within the app — no blanket access to your Drive. Existing users will be prompted to re-authorize once on next sign-in.
+
+---
+
 ## [1.1.0] - 2026-06-13
 
 ### Added
