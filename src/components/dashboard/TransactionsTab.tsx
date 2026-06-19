@@ -22,7 +22,7 @@ function TxnSkeletonRow() {
   );
 }
 
-type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[] };
+type MonthConfig = { income?: number; incomeNote?: string; fixedExpenses: { name: string; amount: number; note?: string }[]; incomeEntries?: { id: string; date: string; amount: number; note?: string }[] };
 
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 
