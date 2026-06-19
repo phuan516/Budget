@@ -82,8 +82,8 @@ interface Props {
   onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number, note?: string) => Promise<void>;
   onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
   onSetMonthFixedExpenses: (monthKey: string, fixedExpenses: { name: string; amount: number; note?: string }[]) => Promise<void>;
-  onAddIncomeEntry: (monthKey: string, amount: number, note?: string) => Promise<void>;
-  onEditIncomeEntry: (id: string, amount: number, note?: string) => Promise<void>;
+  onAddIncomeEntry: (monthKey: string, amount: number, note?: string, date?: string) => Promise<void>;
+  onEditIncomeEntry: (id: string, amount: number, note?: string, date?: string) => Promise<void>;
   onDeleteIncomeEntry: (id: string) => Promise<void>;
   onEdit: (id: string, updates: Omit<Transaction, 'id' | 'tab' | 'row'>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -121,9 +121,11 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   const [addingIncomeEntryMonth, setAddingIncomeEntryMonth] = useState<string | null>(null);
   const [addEntryAmountDraft, setAddEntryAmountDraft] = useState('');
   const [addEntryNoteDraft, setAddEntryNoteDraft] = useState('');
+  const [addEntryDateDraft, setAddEntryDateDraft] = useState('');
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntryAmount, setEditEntryAmount] = useState('');
   const [editEntryNote, setEditEntryNote] = useState('');
+  const [editEntryDate, setEditEntryDate] = useState('');
 
   const [editingTxnId, setEditingTxnId] = useState<string | null>(null);
   const [editTxnForm, setEditTxnForm] = useState({ date: '', amount: '', category: '', card: '', note: '' });
@@ -284,7 +286,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
 
   async function saveIncome(monthKey: string) {
     const val = parseFloat(incomeDraft);
-    if (!val || val < 0) { setEditingIncomeMonth(null); return; }
+    if (isNaN(val) || val < 0) { setEditingIncomeMonth(null); return; }
     setSavingIncome(true);
     try {
       if (val === config.monthlyIncome && !incomeNoteDraft.trim()) {
@@ -299,15 +301,16 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   async function handleAddEntry(monthKey: string) {
     const val = parseFloat(addEntryAmountDraft);
     if (!val || val <= 0) return;
-    setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft('');
-    await onAddIncomeEntry(monthKey, val, addEntryNoteDraft.trim() || undefined);
+    const date = addEntryDateDraft || undefined;
+    setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); setAddEntryDateDraft('');
+    await onAddIncomeEntry(monthKey, val, addEntryNoteDraft.trim() || undefined, date);
   }
 
   function handleSaveEntryEdit(id: string) {
     const val = parseFloat(editEntryAmount);
-    if (!val || val <= 0) return;
+    if (isNaN(val) || val <= 0) return;
     setEditingEntryId(null);
-    onEditIncomeEntry(id, val, editEntryNote.trim() || undefined);
+    onEditIncomeEntry(id, val, editEntryNote.trim() || undefined, editEntryDate || undefined);
   }
 
   function fmtEntryDate(dateStr: string) {
@@ -745,14 +748,25 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                     <span className={s.editRowLabel} style={{ color: '#aaa', fontStyle: 'italic' }}>one-time</span>
                     {editingEntryId === entry.id ? (
                       <div className={s.editInlineForm}>
-                        <span>$</span>
                         <input
-                          autoFocus type="number" min="0" step="1"
-                          value={editEntryAmount}
-                          onChange={e => setEditEntryAmount(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') handleSaveEntryEdit(entry.id); if (e.key === 'Escape') setEditingEntryId(null); }}
-                          className={s.editInput}
+                          type="date"
+                          min={`${monthKey}-01`}
+                          max={`${monthKey}-${String(new Date(+monthKey.slice(0,4), +monthKey.slice(5,7), 0).getDate()).padStart(2, '0')}`}
+                          className={s.editDateInput}
+                          value={editEntryDate}
+                          onChange={e => setEditEntryDate(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Escape') setEditingEntryId(null); }}
                         />
+                        <div className={s.amountInputWrap}>
+                          <span className={s.amountPrefix}>$</span>
+                          <input
+                            autoFocus type="number" min="0" step="1"
+                            value={editEntryAmount}
+                            onChange={e => setEditEntryAmount(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleSaveEntryEdit(entry.id); if (e.key === 'Escape') setEditingEntryId(null); }}
+                            className={s.amountInput}
+                          />
+                        </div>
                         <input
                           type="text" placeholder="Note (optional)"
                           value={editEntryNote}
@@ -768,7 +782,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                         <span style={{ color: '#0F9D58', fontWeight: 500 }}>+${entry.amount.toLocaleString()}</span>
                         <span className={s.editNote}>{fmtEntryDate(entry.date)}{entry.note ? ` · ${entry.note}` : ''}</span>
                         <button
-                          onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); }}
+                          onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); setEditEntryDate(entry.date); }}
                           className={s.editBtn} title="Edit entry"
                         >
                           <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -791,23 +805,34 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <span className={s.editRowLabel} />
                   {addingIncomeEntryMonth === monthKey ? (
                     <div className={s.editInlineForm}>
-                      <span>$</span>
                       <input
-                        autoFocus type="number" min="0" step="1" placeholder="Amount"
-                        value={addEntryAmountDraft}
-                        onChange={e => setAddEntryAmountDraft(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleAddEntry(monthKey); if (e.key === 'Escape') { setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); } }}
-                        className={s.editInput}
+                        type="date"
+                        min={`${monthKey}-01`}
+                        max={`${monthKey}-${String(new Date(+monthKey.slice(0,4), +monthKey.slice(5,7), 0).getDate()).padStart(2, '0')}`}
+                        className={s.editDateInput}
+                        value={addEntryDateDraft}
+                        onChange={e => setAddEntryDateDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Escape') { setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); setAddEntryDateDraft(''); } }}
                       />
+                      <div className={s.amountInputWrap}>
+                        <span className={s.amountPrefix}>$</span>
+                        <input
+                          autoFocus type="number" min="0" step="1" placeholder="Amount"
+                          value={addEntryAmountDraft}
+                          onChange={e => setAddEntryAmountDraft(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddEntry(monthKey); if (e.key === 'Escape') { setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); setAddEntryDateDraft(''); } }}
+                          className={s.amountInput}
+                        />
+                      </div>
                       <input
                         type="text" placeholder="Note (optional)"
                         value={addEntryNoteDraft}
                         onChange={e => setAddEntryNoteDraft(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleAddEntry(monthKey); if (e.key === 'Escape') { setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); } }}
+                        onKeyDown={e => { if (e.key === 'Enter') handleAddEntry(monthKey); if (e.key === 'Escape') { setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); setAddEntryDateDraft(''); } }}
                         className={s.editNoteInput}
                       />
                       <button onClick={() => handleAddEntry(monthKey)} disabled={!addEntryAmountDraft} className={s.editSaveBtn}>Add</button>
-                      <button onClick={() => { setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); }} className={s.editCancelBtn}>Cancel</button>
+                      <button onClick={() => { setAddingIncomeEntryMonth(null); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); setAddEntryDateDraft(''); }} className={s.editCancelBtn}>Cancel</button>
                     </div>
                   ) : (
                     <button className={s.addEntryBtn} onClick={() => { setAddingIncomeEntryMonth(monthKey); setAddEntryAmountDraft(''); setAddEntryNoteDraft(''); }}>

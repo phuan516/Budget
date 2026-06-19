@@ -30,10 +30,10 @@ export async function PATCH(req: NextRequest) {
     if ('error' in auth) return auth.error;
     const { service } = auth;
 
-    const { sheetId, tabName, rowIndex, amount, note } = await req.json();
+    const { sheetId, tabName, rowIndex, amount, note, date } = await req.json();
     if (!sheetId) return NextResponse.json({ error: 'sheetId is required' }, { status: 400 });
 
-    await service.updateMonthTabIncomeEntry(sheetId, tabName, rowIndex, amount, note ?? undefined);
+    await service.updateMonthTabIncomeEntry(sheetId, tabName, rowIndex, amount, note ?? undefined, date ?? undefined);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Income entries PATCH error:', error);

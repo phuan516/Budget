@@ -22,7 +22,7 @@ A mobile-first personal budget tracker that uses Google Sheets as a backend. Sig
 - Search, sort, and filter transactions by category, card, or keyword
 - Dashboard with monthly spending summary, category breakdown, fixed expenses, and savings progress
 - Manage categories, payment cards, fixed expenses, savings goals, and monthly income
-- **Income entries:** log one-time income additions (bonuses, freelance) alongside the base monthly amount
+- **Income entries:** log one-time dated income additions (bonuses, freelance) alongside the base monthly amount — add and edit from the Overview tab or the Monthly Config in the Everything tab
 - Transactions organized into monthly tabs (e.g. "Jun 2026") inside your sheet
 - **Per-month config:** each month tab stores its own income and fixed expense amounts, initialized from config defaults at creation time
 - **Self-contained past months:** completed months are locked — their income and fixed expenses are frozen in the sheet; only adding/editing/removing transactions can change them

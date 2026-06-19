@@ -543,21 +543,24 @@ export class SheetsService {
     });
   }
 
-  // Updates an income entry in a month tab by its 1-based row index (preserves date).
-  async updateMonthTabIncomeEntry(sheetId: string, tabName: string, rowIndex: number, amount: number, note?: string): Promise<void> {
-    const readRes = await this.sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: `${quoteSheet(tabName)}!A${rowIndex}:C${rowIndex}`,
-    });
-    const row = ((readRes.data.values || [])[0] || []) as string[];
-    const date = (row[0] ?? '').toString().trim();
-
-    await this.sheets.spreadsheets.values.update({
-      spreadsheetId: sheetId,
-      range: `${quoteSheet(tabName)}!A${rowIndex}:C${rowIndex}`,
-      valueInputOption: 'RAW',
-      requestBody: { values: [[date, amount, note ?? '']] },
-    });
+  // Updates an income entry in a month tab by its 1-based row index.
+  // If date is provided it is updated; otherwise only amount/note are touched (avoids date format corruption).
+  async updateMonthTabIncomeEntry(sheetId: string, tabName: string, rowIndex: number, amount: number, note?: string, date?: string): Promise<void> {
+    if (date) {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${quoteSheet(tabName)}!A${rowIndex}:C${rowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[date, amount, note ?? '']] },
+      });
+    } else {
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${quoteSheet(tabName)}!B${rowIndex}:C${rowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[amount, note ?? '']] },
+      });
+    }
   }
 
   // Deletes an income entry row from a month tab.

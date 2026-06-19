@@ -112,7 +112,7 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
 
   const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
   const viewMonthConfig = monthConfigs?.[monthKey];
-  const income = viewMonthConfig?.income ?? config.monthlyIncome;
+  const income = (viewMonthConfig?.income ?? config.monthlyIncome) + (viewMonthConfig?.incomeEntries ?? []).reduce((s, e) => s + e.amount, 0);
   const totalFixed = useMemo(() => {
     const monthFEs = viewMonthConfig?.fixedExpenses ?? [];
     return config.fixedExpenses.reduce((sum, fe) => {

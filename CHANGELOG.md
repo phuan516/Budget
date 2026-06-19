@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-19
+
+### Added
+
+- Date picker for one-time income entries — both the add and edit forms in the Overview tab and the Monthly Config (Everything tab) now include a date field, constrained to dates within the target month. New entries default to today's date.
+
+### Fixed
+
+- Carry-over transactions were not being written into the current month when its tab already existed (pre-created by the auto-generation logic). The sync now always starts from the previous month so the carry-over is correctly written into the current month.
+- Carry-over income calculation now includes one-time income entries, matching the leftover calculation in TransactionsTab.
+- Leftover banner in the Transactions tab now accounts for one-time income entries in the income total.
+- Setting monthly income to 0 in the Monthly Config now saves correctly — it was silently discarded due to a falsy-zero guard.
+
+### Changed
+
+- Ledger card in the Overview tab widened to match the progress bar width so the Cancel button fits alongside the Add button.
+- All three inline-edit fields in the Monthly Config (amount, note, date) share equal width on mobile.
+- Currency symbol ($) is now inside the amount input rather than a separate label.
+
+---
+
 ## [1.2.0] - 2026-06-16
 
 ### Added

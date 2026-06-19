@@ -246,39 +246,39 @@ export default function DashboardPage() {
     loadTransactions(true);
   }
 
-  async function handleAddIncomeEntry(amount: number, note?: string) {
+  async function handleAddIncomeEntry(amount: number, note?: string, date?: string) {
     if (!selectedSheet) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const monthKey = today.slice(0, 7);
-    const newEntry = { id: `tmp_${Date.now()}`, date: today, amount, note };
+    const entryDate = date ?? new Date().toISOString().slice(0, 10);
+    const monthKey = entryDate.slice(0, 7);
+    const newEntry = { id: `tmp_${Date.now()}`, date: entryDate, amount, note };
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, incomeEntries: [...(existing.incomeEntries ?? []), newEntry] } });
     await fetch('/api/config/income/entries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheetId: selectedSheet.id, amount, note }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, amount, note, date: entryDate }),
     });
     loadTransactions(true);
   }
 
-  async function handleAddIncomeEntryForMonth(monthKey: string, amount: number, note?: string) {
+  async function handleAddIncomeEntryForMonth(monthKey: string, amount: number, note?: string, date?: string) {
     if (!selectedSheet) return;
     const [yr, mo] = monthKey.split('-').map(Number);
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const tabName = `${MONTHS[mo - 1]} ${yr}`;
-    const date = `${monthKey}-01`;
-    const newEntry = { id: `tmp_${Date.now()}`, date, amount, note };
+    const entryDate = date ?? `${monthKey}-01`;
+    const newEntry = { id: `tmp_${Date.now()}`, date: entryDate, amount, note };
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, incomeEntries: [...(existing.incomeEntries ?? []), newEntry] } });
     await fetch('/api/config/income/entries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheetId: selectedSheet.id, amount, note, tabName, date }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, amount, note, tabName, date: entryDate }),
     });
     loadTransactions(true);
   }
 
-  async function handleEditIncomeEntry(id: string, amount: number, note?: string) {
+  async function handleEditIncomeEntry(id: string, amount: number, note?: string, date?: string) {
     if (!selectedSheet) return;
     const monthKey = Object.keys(monthConfigs).find(k => monthConfigs[k]?.incomeEntries?.some(e => e.id === id));
     if (!monthKey) return;
@@ -286,13 +286,13 @@ export default function DashboardPage() {
     if (!existing) return;
     setMonthConfigs({
       ...monthConfigs,
-      [monthKey]: { ...existing, incomeEntries: existing.incomeEntries?.map(e => e.id === id ? { ...e, amount, note } : e) },
+      [monthKey]: { ...existing, incomeEntries: existing.incomeEntries?.map(e => e.id === id ? { ...e, amount, note, ...(date ? { date } : {}) } : e) },
     });
     const [tabName, rowIndexStr] = id.split('|');
     await fetch('/api/config/income/entries', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheetId: selectedSheet.id, tabName, rowIndex: parseInt(rowIndexStr), amount, note }),
+      body: JSON.stringify({ sheetId: selectedSheet.id, tabName, rowIndex: parseInt(rowIndexStr), amount, note, date }),
     });
     loadTransactions(true);
   }
@@ -352,7 +352,7 @@ export default function DashboardPage() {
     let running = 0;
     for (const key of sorted) {
       if (key >= fromMonthKey) break;
-      const income = monthConfigs[key]?.income ?? config.monthlyIncome;
+      const income = (monthConfigs[key]?.income ?? config.monthlyIncome) + (monthConfigs[key]?.incomeEntries ?? []).reduce((s, e) => s + e.amount, 0);
       if (income <= 0) { running = 0; continue; }
       const fes = monthConfigs[key]?.fixedExpenses ?? [];
       const fixed = config.fixedExpenses.reduce((s, fe) => s + (fes.find(f => f.name === fe.name)?.amount ?? fe.amount), 0);
@@ -364,7 +364,7 @@ export default function DashboardPage() {
     for (const key of sorted) {
       if (key < fromMonthKey) continue;
 
-      const income = monthConfigs[key]?.income ?? config.monthlyIncome;
+      const income = (monthConfigs[key]?.income ?? config.monthlyIncome) + (monthConfigs[key]?.incomeEntries ?? []).reduce((s, e) => s + e.amount, 0);
       const nk = advanceKey(key);
 
       if (income <= 0) {
@@ -384,7 +384,8 @@ export default function DashboardPage() {
       const carryOut = Math.max(0, Math.round(deficit * 100) / 100);
       running = carryOut;
 
-      if (!tabs.includes(nk)) continue;
+      // ponytail: skip nk only if it's in the future AND has no existing tab — the add API creates the tab
+      if (!tabs.includes(nk) && carryOut <= 0.005) continue;
 
       const existing = txns.filter(t => t.date.startsWith(nk) && t.category === 'Carry Over' && !t.id.startsWith('tmp_'));
       const note = `From ${keyToLongLabel(key)}`;
@@ -420,13 +421,11 @@ export default function DashboardPage() {
     const fromMonthKey = t.date.slice(0, 7);
     const isNewTab = !monthTabKeys.includes(fromMonthKey);
     const tabs = isNewTab ? [...monthTabKeys, fromMonthKey] : monthTabKeys;
-    // When a new tab is created, sync from the previous month so the incoming
-    // carry-over transaction gets written into the new tab.
+    // Always sync from the previous month so any carry-over INTO the current month
+    // is written (ensurePastMonthTabs may have silently created the tab already).
     const [fyr, fmo] = fromMonthKey.split('-').map(Number);
-    const syncFromKey = isNewTab
-      ? (fmo === 1 ? `${fyr - 1}-12` : `${fyr}-${String(fmo - 1).padStart(2, '0')}`)
-      : fromMonthKey;
-    await syncCarryOvers(syncFromKey, updatedTxns, tabs);
+    const prevMonthKey = fmo === 1 ? `${fyr - 1}-12` : `${fyr}-${String(fmo - 1).padStart(2, '0')}`;
+    await syncCarryOvers(prevMonthKey, updatedTxns, tabs);
 
     loadTransactions(true);
     return tempId;

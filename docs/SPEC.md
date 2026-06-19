@@ -198,13 +198,17 @@ Row 3:  INCOME          (section header — bold)
 Row 4:  Amount  Note    (column headers — bold)
 Row 5:  <income value>  <optional note>
 Row 6:  (blank)
-Row 7:  FIXED EXPENSES  (section header — bold)
-Row 8:  Name  Amount  Note  (column headers — bold)
-Row 9+: <fixed expense rows with amounts and optional notes>
+Row 7:  INCOME ENTRIES  (section header — bold)
+Row 8:  Date  Amount  Note  (column headers — bold)
+Row 9+: <one-time income entry rows, e.g. "2026-04-15", 500, "freelance">
 Row N:  (blank)
-Row N+1: TRANSACTIONS   (section header — bold)
-Row N+2: Date  Amount  Category  Card  Note  (column headers — bold)
-Row N+3+: <transaction rows>
+Row N+1: FIXED EXPENSES  (section header — bold)
+Row N+2: Name  Amount  Note  (column headers — bold)
+Row N+3+: <fixed expense rows with amounts and optional notes>
+Row M:  (blank)
+Row M+1: TRANSACTIONS   (section header — bold)
+Row M+2: Date  Amount  Category  Card  Note  (column headers — bold)
+Row M+3+: <transaction rows>
 ```
 
 - **Date:** `YYYY-MM-DD`
@@ -220,7 +224,7 @@ Row N+3+: <transaction rows>
 Auth is handled server-side via **NextAuth.js v4** with the Google provider. The flow uses the OAuth 2.0 authorization code flow with PKCE — there is no client-side token handling or localStorage involvement.
 
 - **Callback route:** `GET/POST /api/auth/[...nextauth]` — NextAuth's catch-all handler
-- **Config:** `src/lib/auth.ts` — GoogleProvider with `access_type: offline`, `prompt: consent`, and scopes for `spreadsheets` + `drive.metadata.readonly`
+- **Config:** `src/lib/auth.ts` — GoogleProvider with `access_type: offline`, `prompt: consent`, and scopes for `drive.file`
 - **Session:** The access token is stored in NextAuth's encrypted JWT (httpOnly cookie). The JWT callback saves `account.access_token` into the token; the session callback exposes it as `session.accessToken`.
 - **Client auth state:** `src/context/AuthContext.tsx` — wraps `SessionProvider` and exposes a `useAuth()` hook with `{ user, loading, signIn, signOut }`. `signIn` calls `nextSignIn('google', { callbackUrl })` and `signOut` redirects to `/`.
 - **Server auth:** `src/lib/api/auth.ts` — `buildSheetsService()` calls `getServerSession(authOptions)` to retrieve the token, then instantiates an `OAuth2Client` for Google API calls. No `Authorization` header is read from requests.
@@ -292,7 +296,7 @@ When the `type` is `fixed_expense`, all three endpoints sync the change to the c
 
 **PATCH /api/config/income/entries**
 - Updates an existing income entry by tab + row
-- Body: `{ sheetId, tabName, rowIndex, amount, note? }`
+- Body: `{ sheetId, tabName, rowIndex, amount, note?, date? }` — omitting `date` leaves the existing date unchanged
 
 **DELETE /api/config/income/entries**
 - Removes an income entry by tab + row
@@ -651,7 +655,7 @@ vercel --prod
 - Server-side session lookup via `getServerSession` on each API request; no bearer token passed from client
 - `NEXTAUTH_SECRET` must be a strong random value — used to sign/encrypt the JWT cookie
 - User data stays in their own Google Sheet; the app never stores transactions server-side
-- Minimal OAuth scopes requested: `spreadsheets` (read/write all sheets the user has access to) + `drive.metadata.readonly` (list Drive files including shared) + `userinfo` + `openid`
+- Minimal OAuth scopes requested: `drive.file` (limited to sheets opened via Picker or created in-app) + `userinfo` + `openid`
 - All user input is passed through the Google Sheets API which handles its own injection protection; no direct SQL or shell execution
 
 ---
@@ -678,6 +682,6 @@ vercel --prod
 
 ## Project Metadata
 
-- **Version:** 1.0.0
+- **Version:** 1.3.0
 - **Created:** April 2026
 - **Status:** Active development (Phase 1–3 complete)

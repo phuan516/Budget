@@ -46,8 +46,8 @@ interface Props {
   onDeleteMonthlyIncomeOverride: (monthKey: string) => Promise<void>;
   onSetFixedExpenseOverride: (monthKey: string, expenseName: string, amount: number, note?: string) => Promise<void>;
   onDeleteFixedExpenseOverride: (monthKey: string, expenseName: string) => Promise<void>;
-  onAddIncomeEntry: (amount: number, note?: string) => Promise<void>;
-  onEditIncomeEntry: (id: string, amount: number, note?: string) => Promise<void>;
+  onAddIncomeEntry: (amount: number, note?: string, date?: string) => Promise<void>;
+  onEditIncomeEntry: (id: string, amount: number, note?: string, date?: string) => Promise<void>;
   onDeleteIncomeEntry: (id: string) => Promise<void>;
 }
 
@@ -220,9 +220,11 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   const [addingIncome, setAddingIncome] = useState(false);
   const [addAmountDraft, setAddAmountDraft] = useState('');
   const [addNoteDraft, setAddNoteDraft] = useState('');
+  const [addDateDraft, setAddDateDraft] = useState('');
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [editEntryAmount, setEditEntryAmount] = useState('');
   const [editEntryNote, setEditEntryNote] = useState('');
+  const [editEntryDate, setEditEntryDate] = useState('');
   const [editingFixedItem, setEditingFixedItem] = useState<string | null>(null);
   const [fixedItemDraft, setFixedItemDraft] = useState('');
   const [fixedItemNoteDraft, setFixedItemNoteDraft] = useState('');
@@ -257,15 +259,16 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
   async function handleAddIncomeEntry() {
     const val = parseFloat(addAmountDraft);
     if (!val || val <= 0) return;
-    setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft('');
-    onAddIncomeEntry(val, addNoteDraft.trim() || undefined);
+    const date = addDateDraft || undefined;
+    setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); setAddDateDraft('');
+    onAddIncomeEntry(val, addNoteDraft.trim() || undefined, date);
   }
 
   function handleSaveEntryEdit(id: string) {
     const val = parseFloat(editEntryAmount);
-    if (!val || val <= 0) return;
+    if (isNaN(val) || val <= 0) return;
     setEditingEntryId(null);
-    onEditIncomeEntry(id, val, editEntryNote.trim() || undefined);
+    onEditIncomeEntry(id, val, editEntryNote.trim() || undefined, editEntryDate || undefined);
   }
 
   function handleDeleteEntry(id: string) {
@@ -393,6 +396,15 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
               <div key={entry.id} className={`${s.ledgerRow} ${s.ledgerBorderTop}`}>
                 {editingEntryId === entry.id ? (
                   <div className={s.ledgerEditRow}>
+                    <input
+                      type="date"
+                      min={`${thisMonthKey}-01`}
+                      max={`${thisMonthKey}-${String(daysInMonth).padStart(2, '0')}`}
+                      value={editEntryDate}
+                      onChange={e => setEditEntryDate(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Escape') setEditingEntryId(null); }}
+                      className={s.noteInput}
+                    />
                     <div className={s.moneyInputWrap}>
                       <span className={s.moneyPrefix}>$</span>
                       <input
@@ -418,7 +430,7 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
                     <span className={s.ledgerEntryMeta}>{fmtEntryDate(entry.date)}{entry.note ? ` · ${entry.note}` : ''}</span>
                     <span className={s.ledgerRowRight}>
                       <span className={s.ledgerAmount}>+{fmt(entry.amount)}</span>
-                      <button className={s.ledgerPencilBtn} onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); }} title="Edit entry" aria-label="Edit entry">
+                      <button className={s.ledgerPencilBtn} onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); setEditEntryDate(entry.date); }} title="Edit entry" aria-label="Edit entry">
                         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6L4 10z"/></svg>
                       </button>
                       <button className={s.ledgerCloseBtn} onClick={() => handleDeleteEntry(entry.id)} title="Remove entry" aria-label="Remove entry">
@@ -434,13 +446,22 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
             <div className={`${s.ledgerAddRow} ${s.ledgerBorderTop}`}>
               {addingIncome ? (
                 <div className={s.ledgerEditRow}>
+                  <input
+                    type="date"
+                    min={`${thisMonthKey}-01`}
+                    max={`${thisMonthKey}-${String(daysInMonth).padStart(2, '0')}`}
+                    value={addDateDraft}
+                    onChange={e => setAddDateDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Escape') { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); setAddDateDraft(''); } }}
+                    className={s.noteInput}
+                  />
                   <div className={s.moneyInputWrap}>
                     <span className={s.moneyPrefix}>$</span>
                     <input
                       autoFocus type="number" min="0" step="1" placeholder="Amount"
                       value={addAmountDraft}
                       onChange={e => setAddAmountDraft(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleAddIncomeEntry(); if (e.key === 'Escape') { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); } }}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddIncomeEntry(); if (e.key === 'Escape') { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); setAddDateDraft(''); } }}
                       className={s.moneyInput}
                     />
                   </div>
@@ -448,14 +469,14 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
                     type="text" placeholder="Note (optional)"
                     value={addNoteDraft}
                     onChange={e => setAddNoteDraft(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddIncomeEntry(); if (e.key === 'Escape') { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); } }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleAddIncomeEntry(); if (e.key === 'Escape') { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); setAddDateDraft(''); } }}
                     className={s.noteInput}
                   />
                   <button onClick={handleAddIncomeEntry} disabled={!addAmountDraft} className={s.ledgerSaveBtn}>Add</button>
-                  <button onClick={() => { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); }} className={s.ledgerCancelBtn}>Cancel</button>
+                  <button onClick={() => { setAddingIncome(false); setAddAmountDraft(''); setAddNoteDraft(''); setAddDateDraft(''); }} className={s.ledgerCancelBtn}>Cancel</button>
                 </div>
               ) : (
-                <button className={s.dashedChip} onClick={() => setAddingIncome(true)}>
+                <button className={s.dashedChip} onClick={() => { setAddingIncome(true); setAddDateDraft(new Date().toISOString().slice(0, 10)); }}>
                   <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M8 3v10M3 8h10"/></svg>
                   Add one-off income
                 </button>

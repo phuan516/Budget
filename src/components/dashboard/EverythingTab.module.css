@@ -484,6 +484,51 @@
   outline: none;
 }
 
+.editDateInput {
+  composes: editInput;
+  width: 130px;
+}
+
+.amountInputWrap {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border-strong, #c8c8c8);
+  border-radius: 6px;
+  padding: 4px 8px;
+  gap: 3px;
+  background: #fff;
+  transition: border-color var(--duration-base, 150ms);
+}
+
+@media (max-width: 640px) {
+  .editInlineForm .editDateInput,
+  .editInlineForm .amountInputWrap,
+  .editInlineForm .editNoteInput {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .editInlineForm .amountInputWrap { display: flex; }
+  .editInlineForm .amountInput { flex: 1; min-width: 0; }
+}
+
+.amountInputWrap:focus-within {
+  border-color: #5B3FFF;
+  box-shadow: 0 0 0 3px rgba(91, 63, 255, 0.18);
+}
+
+.amountPrefix {
+  color: var(--color-ink-secondary, #888);
+  font-size: 12px;
+}
+
+.amountInput {
+  border: none;
+  outline: none;
+  font-size: 12px;
+  width: 70px;
+  background: transparent;
+}
+
 .editNoteInput {
   border: 1px solid var(--color-border-strong, #c8c8c8);
   border-radius: 6px;
