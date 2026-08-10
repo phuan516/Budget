@@ -1001,7 +1001,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => yAxisFmt(Number(v))} />
-                  <Tooltip formatter={(val) => fmt(Number(val))} />
+                  <Tooltip formatter={(val) => fmt(Number(val))} wrapperStyle={{ zIndex: 10 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="income" name="Income" fill="#888888" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="spendingBase" name="Spending" stackId="spending" fill="#1a1a1a" />
@@ -1025,7 +1025,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={v => `$${v}`} />
                   <YAxis type="category" dataKey="category" tick={{ fontSize: 11 }} width={90} />
-                  <Tooltip formatter={(val) => fmt(Number(val))} />
+                  <Tooltip formatter={(val) => fmt(Number(val))} wrapperStyle={{ zIndex: 10 }} />
                   <Bar dataKey="amount" name="Spending" fill="#1a1a1a" radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -1042,7 +1042,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => yAxisFmt(Number(v))} />
-                  <Tooltip formatter={(val) => fmt(Number(val))} />
+                  <Tooltip formatter={(val) => fmt(Number(val))} wrapperStyle={{ zIndex: 10 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   {config.fixedExpenses.map((fe, i) => {
                     const style = LINE_STYLES[i % LINE_STYLES.length];
@@ -1073,7 +1073,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => yAxisFmt(Number(v))} />
-                  <Tooltip formatter={(val) => fmt(Number(val))} />
+                  <Tooltip formatter={(val) => fmt(Number(val))} wrapperStyle={{ zIndex: 10 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Line type="monotone" dataKey="variable" name="Variable" stroke="#1a1a1a" strokeWidth={2} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="fixed" name="Fixed" stroke="#888" strokeWidth={2} strokeDasharray="4 2" dot={{ r: 3 }} />

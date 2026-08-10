@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Income vs Spending chart (Everything tab) could undercount fixed expenses for months without an explicit override, disagreeing with the Fixed Expenses Over Time chart for the same months. Both now compute the monthly fixed-expense total the same way.
+- Chart hover tooltips on the Everything tab's Charts view could render behind the next chart section when hovering near the bottom of a chart, since none of the four charts set an explicit stacking order.
 - Disabled "Add"/"Save" buttons in Config rendered white text on a light gray background (1.7:1 contrast — effectively unreadable).
 - Changelog's "New" and "Fixed" tag badges measured 2.2–2.6:1 text contrast against their tinted backgrounds.
 - Low-contrast gray trust/legal copy on the landing page and the Privacy/Terms pages, most of it under WCAG AA at its rendered size.
