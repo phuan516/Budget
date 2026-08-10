@@ -77,6 +77,7 @@
 }
 
 .search {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -105,25 +106,14 @@
   color: #888;
 }
 
-.searchKbd {
-  font-size: 10px;
-  font-family: var(--font-jetbrains-mono, 'JetBrains Mono', monospace);
-  color: #888;
-  border: 1px solid #d8d8d8;
-  border-radius: 3px;
-  padding: 1px 5px;
-  line-height: 1.6;
-  flex-shrink: 0;
-}
-
 .navGroup {
   margin-bottom: 18px;
 }
 
 .navGroupLabel {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  color: #888;
+  color: var(--color-ink-secondary-readable, #5c5c5c);
   letter-spacing: 0.4px;
   margin-bottom: 8px;
 }
@@ -153,8 +143,8 @@
 .navItemActive {
   color: #1a1a1a;
   font-weight: 600;
-  background: oklch(0.94 0.04 150);
-  border-left-color: oklch(0.65 0.13 150);
+  background: var(--color-primary-50, #f4f3ff);
+  border-left-color: var(--color-primary-600, #5B3FFF);
 }
 
 /* ── Search results overlay ── */
@@ -243,7 +233,7 @@
 
 .articleLede {
   font-size: 14px;
-  color: #888;
+  color: var(--color-ink-secondary-readable, #5c5c5c);
   line-height: 1.5;
   margin-bottom: 28px;
 }
@@ -263,7 +253,7 @@
 }
 
 .articleP a {
-  color: oklch(0.55 0.13 150);
+  color: var(--color-primary-600, #5B3FFF);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -435,33 +425,6 @@
   border-top: 1px solid #ececec;
 }
 
-.feedbackLabel {
-  font-size: 12px;
-  color: #888;
-}
-
-.feedbackBtn {
-  font-size: 12px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid #d8d8d8;
-  background: #fff;
-  cursor: pointer;
-  color: #444;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.feedbackBtn:hover {
-  border-color: #888;
-  background: #fafafa;
-}
-
-.feedbackThanks {
-  font-size: 12px;
-  color: oklch(0.55 0.13 150);
-  font-weight: 500;
-}
-
 .editLink {
   margin-left: auto;
   font-size: 11px;
@@ -484,9 +447,9 @@
 }
 
 .tocEyebrow {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  color: #888;
+  color: var(--color-ink-secondary-readable, #5c5c5c);
   letter-spacing: 0.4px;
   margin-bottom: 12px;
 }
@@ -515,7 +478,7 @@
 .tocItemActive {
   color: #1a1a1a;
   font-weight: 600;
-  border-left-color: oklch(0.65 0.13 150);
+  border-left-color: var(--color-primary-600, #5B3FFF);
 }
 
 /* ── Welcome state (no article) ── */
@@ -575,6 +538,7 @@
 }
 
 .mobileSearch {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -608,9 +572,9 @@
 }
 
 .mobileGroupLabel {
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
-  color: #888;
+  color: var(--color-ink-secondary-readable, #5c5c5c);
   letter-spacing: 0.4px;
   margin-bottom: 10px;
 }

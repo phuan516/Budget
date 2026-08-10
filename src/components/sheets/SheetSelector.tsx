@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
+import { formatDistanceToNow } from 'date-fns';
 import { useStore } from '@/lib/store/useStore';
 import { SheetMetadata } from '@/lib/google/sheets';
+import s from './SheetSelector.module.css';
 
 interface SheetSelectorProps {
   onSelectSheet: (sheetId: string) => void;
   onCreateSheet: (name: string) => void;
   onCancel?: () => void;
+  onLoadError?: (message: string | null) => void;
   isCreating?: boolean;
   isSelecting?: boolean;
 }
@@ -40,13 +43,20 @@ function MiniSheetPreview({ height }: { height: number }) {
   );
 }
 
-const ACCENT = 'oklch(0.65 0.13 150)';
+const ACCENT = '#5B3FFF';
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 const FILTER_KEY = 'budget_sheet_filter';
 const LEDGER_PREFIX = 'Ledger — ';
 
 function autoSheetSuffix() {
   return new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+}
+
+function editedLabel(modifiedTime?: string) {
+  if (!modifiedTime) return null;
+  const date = new Date(modifiedTime);
+  if (isNaN(date.getTime())) return null;
+  return `Edited ${formatDistanceToNow(date, { addSuffix: true })}`;
 }
 
 type OwnerFilter = 'all' | 'mine' | 'shared';
@@ -56,7 +66,7 @@ const FILTER_OPTIONS: { value: OwnerFilter; label: string }[] = [
   { value: 'shared', label: 'Shared' },
 ];
 
-export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, isCreating, isSelecting }: SheetSelectorProps) {
+export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, onLoadError, isCreating, isSelecting }: SheetSelectorProps) {
   const { data: session } = useSession();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -78,20 +88,23 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
 
   const loadSheets = useCallback(async () => {
     setIsLoading(true);
+    onLoadError?.(null);
     try {
       const response = await fetch('/api/sheets/list');
       if (!response.ok) {
         console.error('Failed to load sheets:', await response.json());
+        onLoadError?.("Couldn't load your sheets — check your connection and try the refresh button.");
         return;
       }
       const sheets: SheetMetadata[] = await response.json();
       setAvailableSheets(sheets);
     } catch (error) {
       console.error('Failed to load sheets:', error);
+      onLoadError?.("Couldn't load your sheets — check your connection and try the refresh button.");
     } finally {
       setIsLoading(false);
     }
-  }, [setAvailableSheets]);
+  }, [setAvailableSheets, onLoadError]);
 
   useEffect(() => {
     loadSheets();
@@ -174,7 +187,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
             <h1 style={{ fontSize: 28, fontWeight: 600, letterSpacing: -0.5, margin: '0 0 4px', color: '#1a1a1a' }}>
               Where should we write?
             </h1>
-            <p style={{ fontSize: 13, color: '#888', margin: 0 }}>
+            <p style={{ fontSize: 13, color: '#5c5c5c', margin: 0 }}>
               Pick an existing sheet or start fresh.
             </p>
           </div>
@@ -183,6 +196,8 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
               onClick={loadSheets}
               disabled={isLoading}
               title="Refresh sheets"
+              aria-label="Refresh sheets"
+              className={s.focusRing}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, border: '1px solid #d8d8d8', borderRadius: 10, background: 'transparent', cursor: isLoading ? 'not-allowed' : 'pointer', color: '#888', flexShrink: 0 }}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'animate-spin' : ''} aria-hidden="true">
@@ -199,9 +214,11 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
               </svg>
               <input
                 type="text"
+                aria-label="Search sheets"
                 placeholder="Search sheets…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className={s.focusRing}
                 style={{ fontSize: 13, color: '#1a1a1a', flex: 1, border: 'none', outline: 'none', background: 'transparent' }}
               />
             </div>
@@ -210,6 +227,8 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                 <button
                   key={opt.value}
                   onClick={() => handleFilterChange(opt.value)}
+                  aria-pressed={ownerFilter === opt.value}
+                  className={s.focusRing}
                   style={{
                     padding: '8px 14px',
                     fontSize: 12,
@@ -238,6 +257,8 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                   <button
                     key={sheet.id}
                     onClick={() => !isSelecting && setPendingId(sheet.id)}
+                    aria-pressed={selected}
+                    className={s.focusRing}
                     style={{
                       border: selected ? '1.5px solid #1a1a1a' : '1px solid #d8d8d8',
                       borderRadius: 10,
@@ -253,7 +274,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                       <SheetsIcon size={15} />
-                      <span style={{ fontSize: 10, color: '#888', fontFamily: MONO }}>
+                      <span style={{ fontSize: 10, color: '#5c5c5c', fontFamily: MONO }}>
                         {sheet.ownedByMe ? 'Me' : (sheet.ownerName ?? '—')}
                       </span>
                       {selected && (
@@ -268,12 +289,16 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                     </div>
                     <MiniSheetPreview height={52} />
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a' }}>{sheet.name}</div>
+                    {editedLabel(sheet.modifiedTime) && (
+                      <div style={{ fontSize: 11, color: '#5c5c5c', marginTop: 3 }}>{editedLabel(sheet.modifiedTime)}</div>
+                    )}
                   </button>
                 );
               })}
 
               <button
                 onClick={openPicker}
+                className={s.focusRing}
                 style={{
                   border: '1.5px dashed #d8d8d8',
                   borderRadius: 10,
@@ -285,7 +310,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#888',
+                  color: '#5c5c5c',
                   fontSize: 13,
                   gap: 6,
                 }}
@@ -301,6 +326,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
               <button
                 onClick={openNameModal}
                 disabled={isCreating}
+                className={s.focusRing}
                 style={{
                   border: '1.5px dashed #d8d8d8',
                   borderRadius: 10,
@@ -312,7 +338,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#888',
+                  color: '#5c5c5c',
                   fontSize: 13,
                 }}
               >
@@ -330,6 +356,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 32, paddingBottom: 48 }}>
           <button
             onClick={() => { if (!isSelecting) { setPendingId(null); onCancel?.(); } }}
+            className={s.focusRing}
             style={{ border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: isSelecting ? 'not-allowed' : 'pointer' }}
           >
             Cancel
@@ -337,6 +364,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
           <button
             onClick={handleConfirm}
             disabled={!pendingId || isSelecting}
+            className={s.focusRing}
             style={{
               border: 'none',
               background: pendingId ? '#1a1a1a' : '#d8d8d8',
@@ -364,13 +392,15 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
           <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.4, margin: '0 0 2px', color: '#1a1a1a' }}>
             Where should we write?
           </h1>
-          <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>Pick an existing sheet or start fresh.</p>
+          <p style={{ fontSize: 12, color: '#5c5c5c', margin: '0 0 12px' }}>Pick an existing sheet or start fresh.</p>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <button
               onClick={loadSheets}
               disabled={isLoading}
               title="Refresh sheets"
+              aria-label="Refresh sheets"
+              className={s.focusRing}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, border: '1px solid #d8d8d8', borderRadius: 10, background: 'transparent', cursor: isLoading ? 'not-allowed' : 'pointer', color: '#888', flexShrink: 0 }}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isLoading ? 'animate-spin' : ''} aria-hidden="true">
@@ -387,9 +417,11 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
               </svg>
               <input
                 type="text"
-                placeholder="Search your Drive…"
+                aria-label="Search sheets"
+                placeholder="Search sheets…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className={s.focusRing}
                 style={{ fontSize: 12, color: '#1a1a1a', flex: 1, border: 'none', outline: 'none', background: 'transparent' }}
               />
             </div>
@@ -400,6 +432,8 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
               <button
                 key={opt.value}
                 onClick={() => handleFilterChange(opt.value)}
+                aria-pressed={ownerFilter === opt.value}
+                className={s.focusRing}
                 style={{
                   flex: 1,
                   padding: '7px 0',
@@ -427,6 +461,8 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                 <button
                   key={sheet.id}
                   onClick={() => !isSelecting && setPendingId(sheet.id)}
+                  aria-pressed={selected}
+                  className={s.focusRing}
                   style={{
                     border: selected ? '1.5px solid #1a1a1a' : '1px solid #d8d8d8',
                     borderRadius: 10,
@@ -442,12 +478,15 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                     <SheetsIcon size={13} />
-                    <span style={{ fontSize: 9, color: '#888', fontFamily: MONO }}>
+                    <span style={{ fontSize: 9, color: '#5c5c5c', fontFamily: MONO }}>
                       {sheet.ownedByMe ? 'Me' : (sheet.ownerName ?? '—')}
                     </span>
                   </div>
                   <MiniSheetPreview height={42} />
                   <div style={{ fontSize: 12, fontWeight: 500, color: '#1a1a1a', lineHeight: 1.2 }}>{sheet.name}</div>
+                  {editedLabel(sheet.modifiedTime) && (
+                    <div style={{ fontSize: 10, color: '#5c5c5c', marginTop: 3 }}>{editedLabel(sheet.modifiedTime)}</div>
+                  )}
                   {selected && (
                     isSelecting ? (
                       <div className="absolute top-2 right-2 w-3 h-3 border-[1.5px] border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
@@ -461,6 +500,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
 
             <button
               onClick={openPicker}
+              className={s.focusRing}
               style={{
                 border: '1.5px dashed #d8d8d8',
                 borderRadius: 10,
@@ -471,7 +511,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#888',
+                color: '#5c5c5c',
                 fontSize: 12,
                 gridColumn: 'span 2',
                 cursor: 'pointer',
@@ -489,6 +529,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
             <button
               onClick={openNameModal}
               disabled={isCreating}
+              className={s.focusRing}
               style={{
                 border: '1.5px dashed #d8d8d8',
                 borderRadius: 10,
@@ -499,7 +540,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#888',
+                color: '#5c5c5c',
                 fontSize: 12,
                 gridColumn: 'span 2',
                 cursor: isCreating ? 'not-allowed' : 'pointer',
@@ -518,6 +559,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
         <div style={{ flexShrink: 0, padding: '12px 16px 20px', borderTop: '1px solid #ececec', display: 'flex', gap: 8 }}>
           <button
             onClick={() => { if (!isSelecting) { setPendingId(null); onCancel?.(); } }}
+            className={s.focusRing}
             style={{ flex: 1, padding: 12, border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: isSelecting ? 'not-allowed' : 'pointer' }}
           >
             Cancel
@@ -525,6 +567,7 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
           <button
             onClick={handleConfirm}
             disabled={!pendingId || isSelecting}
+            className={s.focusRing}
             style={{
               flex: 2,
               padding: 12,
@@ -559,40 +602,47 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              style={{ background: '#fff', borderRadius: 14, padding: '28px 24px 24px', width: '100%', maxWidth: 400, boxShadow: '0 16px 48px rgba(0,0,0,0.14)' }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="name-sheet-modal-title"
+              style={{ background: '#fff', borderRadius: 12, padding: '28px 24px 24px', width: '100%', maxWidth: 400, boxShadow: 'var(--shadow-lg, 0 16px 48px rgba(0,0,0,0.16))' }}
               initial={{ opacity: 0, scale: 0.97, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: 8 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             >
-              <h2 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 4px', color: '#1a1a1a' }}>Name your budget sheet</h2>
-              <p style={{ fontSize: 12, color: '#888', margin: '0 0 18px' }}>You can edit or keep the auto-generated name.</p>
+              <h2 id="name-sheet-modal-title" style={{ fontSize: 16, fontWeight: 600, margin: '0 0 4px', color: '#1a1a1a' }}>Name your budget sheet</h2>
+              <p style={{ fontSize: 12, color: '#5c5c5c', margin: '0 0 18px' }}>You can edit or keep the auto-generated name.</p>
 
-              <div style={{ position: 'relative', marginBottom: 6, display: 'flex', alignItems: 'center', border: nameError ? '1.5px solid #e53e3e' : '1.5px solid #d8d8d8', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', marginBottom: 6, display: 'flex', alignItems: 'center', border: nameError ? '1.5px solid #c0392b' : '1.5px solid #d8d8d8', borderRadius: 8, overflow: 'hidden' }}>
                 <span style={{ padding: '10px 0 10px 12px', fontSize: 14, color: '#888', whiteSpace: 'nowrap', flexShrink: 0, userSelect: 'none' }}>Ledger —</span>
                 <input
                   autoFocus
                   type="text"
+                  aria-label="Sheet name"
                   value={newSheetName}
                   onChange={(e) => { setNewSheetName(e.target.value); setNameError(null); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleCreateConfirm(); if (e.key === 'Escape') setShowNameModal(false); }}
+                  className={s.focusRing}
                   style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 40px 10px 6px', fontSize: 14, color: '#1a1a1a', background: 'transparent' }}
                   placeholder={`${autoSheetSuffix()}…`}
                 />
                 {newSheetName && (
                   <button
                     onClick={() => { setNewSheetName(''); setNameError(null); }}
+                    className={s.focusRing}
                     style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 16, lineHeight: 1, padding: 2 }}
                     aria-label="Clear"
                   >×</button>
                 )}
               </div>
 
-              {nameError && <p style={{ fontSize: 12, color: '#e53e3e', margin: '0 0 10px' }}>{nameError}</p>}
+              {nameError && <p style={{ fontSize: 12, color: '#c0392b', margin: '0 0 10px' }}>{nameError}</p>}
 
               <button
                 onClick={() => { setNewSheetName(autoSheetSuffix()); setNameError(null); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', padding: '0 0 18px', textDecoration: 'underline', textUnderlineOffset: 2 }}
+                className={s.focusRing}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#5c5c5c', padding: '0 0 18px', textDecoration: 'underline', textUnderlineOffset: 2 }}
               >
                 Use auto-generated name
               </button>
@@ -600,12 +650,14 @@ export default function SheetSelector({ onSelectSheet, onCreateSheet, onCancel, 
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   onClick={() => setShowNameModal(false)}
+                  className={s.focusRing}
                   style={{ flex: 1, padding: '10px 0', border: '1.5px solid #d8d8d8', background: 'transparent', color: '#1a1a1a', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
                 <motion.button
                   onClick={handleCreateConfirm}
+                  className={s.focusRing}
                   style={{ flex: 2, padding: '10px 0', border: 'none', background: '#1a1a1a', color: '#fff', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ duration: 0.1 }}

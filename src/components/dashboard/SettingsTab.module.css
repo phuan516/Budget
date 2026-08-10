@@ -19,7 +19,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: var(--color-ink-secondary, #888);
+  color: var(--color-ink-secondary-readable, #5c5c5c);
   margin-bottom: 12px;
 }
 
@@ -62,6 +62,7 @@
 
 .btnPrimaryDisabled {
   background: var(--color-border-strong, #c8c8c8);
+  color: var(--color-ink-primary, #1a1a1a);
   cursor: not-allowed;
 }
 
@@ -72,7 +73,7 @@
 .btnGhost {
   border: none;
   background: none;
-  color: var(--color-ink-secondary, #888);
+  color: var(--color-ink-secondary-readable, #5c5c5c);
   font-size: 12px;
   cursor: pointer;
   padding: 5px 8px;
@@ -269,6 +270,6 @@
 
 .goalViewMeta {
   font-size: 12px;
-  color: var(--color-ink-secondary, #888);
+  color: var(--color-ink-secondary-readable, #5c5c5c);
   font-family: var(--font-jetbrains-mono, "JetBrains Mono", monospace);
 }

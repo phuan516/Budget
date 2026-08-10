@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/lib/store/useStore';
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  AccessDenied: 'Google sign-in was cancelled or access was denied. You can try again anytime.',
+  OAuthCallback: "Something went wrong completing Google sign-in — that's on us. Please try again.",
+  OAuthSignin: "Couldn't start Google sign-in. Please try again.",
+  OAuthAccountNotLinked: 'This Google account is already linked to a different sign-in method.',
+  Configuration: 'Sign-in is temporarily unavailable. Please try again shortly.',
+};
+const DEFAULT_AUTH_ERROR = "Sign-in didn't complete. Please try again.";
 
 function GoogleG({ size = 16 }: { size?: number }) {
   return (
@@ -20,10 +29,26 @@ function GoogleG({ size = 16 }: { size?: number }) {
 
 
 export default function LandingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-5 h-5 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <LandingPageContent />
+    </Suspense>
+  );
+}
+
+function LandingPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { loading, signIn, user } = useAuth();
   const selectedSheet = useStore((s) => s.selectedSheet);
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const authError = searchParams.get('error');
+  const authErrorMessage = authError ? (AUTH_ERROR_MESSAGES[authError] ?? DEFAULT_AUTH_ERROR) : null;
 
   useEffect(() => {
     if (!loading && user) {
@@ -47,95 +72,124 @@ export default function LandingPage() {
   const spinner = (
     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
   );
+  const spinnerDark = (
+    <div className="w-3 h-3 border-2 border-[#1a1a1a] border-t-transparent rounded-full animate-spin shrink-0" />
+  );
 
   return (
-    <div className="min-h-[100svh] bg-white text-[#1a1a1a] relative overflow-hidden flex flex-col">
+    <div className="bg-white text-[#1a1a1a]">
 
-      <header className="flex justify-between items-center shrink-0 px-14 py-8 max-sm:px-[22px] max-sm:py-3">
-        <div className="flex items-center gap-[10px]">
-          <Image src="/ledger-A-512.png" alt="Ledger" width={22} height={22} className="rounded-full shrink-0 max-sm:w-[18px] max-sm:h-[18px]" />
-          <span className="text-[15px] font-semibold tracking-[-0.2px] max-sm:text-[13px]">Ledger</span>
-        </div>
-        <button
-          onClick={handleLogin}
-          disabled={isSigningIn}
-          className="border border-[#d8d8d8] bg-transparent text-[#1a1a1a] px-4 py-[9px] rounded-full text-[13px] font-medium cursor-pointer transition-colors hover:bg-[#f5f5f5] hover:border-[#1a1a1a] disabled:opacity-50 max-sm:text-[11px] max-sm:px-3 max-sm:py-[6px]"
-        >
-          Sign in
-        </button>
-      </header>
-
-      {/* ── MOBILE LAYOUT (< 640px) ── */}
-      <div className="sm:hidden flex-1 flex flex-col px-[22px] pb-5">
-        <div className="flex-1 pt-[48px]">
-          <p className="text-[10px] text-[#888] mb-[18px] uppercase tracking-[0.3px]">
-            Budget tracking · Your spreadsheet
-          </p>
-          <h1 className="font-semibold leading-[0.95] tracking-[-1.6px] mb-5 mt-0" style={{ fontSize: 52 }}>
-            Your money,<br /><span style={{ color: '#0F9D58' }}>your sheet.</span>
-          </h1>
-          <p className="text-[14px] text-[#444] leading-[1.45] mb-8 max-w-[260px]">
-            Connect a Google Sheet. Track spending. Own your data.
-          </p>
-        </div>
-
-        <div>
+      {/* ── HERO (fills the first viewport) ── */}
+      <div className="min-h-[100svh] flex flex-col">
+        <header className="flex justify-between items-center shrink-0 px-14 py-8 max-sm:px-[22px] max-sm:py-3">
+          <div className="flex items-center gap-[10px]">
+            <Image src="/ledger-A-512.png" alt="Ledger" width={22} height={22} className="rounded-full shrink-0 max-sm:w-[18px] max-sm:h-[18px]" />
+            <span className="text-[15px] font-semibold tracking-[-0.2px] max-sm:text-[13px]">Ledger</span>
+          </div>
           <button
             onClick={handleLogin}
             disabled={isSigningIn}
-            className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
+            aria-busy={isSigningIn}
+            className="inline-flex items-center gap-[6px] border border-[#d8d8d8] bg-transparent text-[#1a1a1a] px-4 py-[9px] rounded-full text-[13px] font-medium cursor-pointer transition-colors hover:bg-[#f5f5f5] hover:border-[#1a1a1a] disabled:opacity-70 max-sm:text-[11px] max-sm:px-3 max-sm:py-[6px]"
           >
-            {isSigningIn ? spinner : <GoogleG size={16} />}
-            Continue with Google
+            {isSigningIn && spinnerDark}
+            {isSigningIn ? 'Signing in…' : 'Sign in with Google'}
           </button>
-          <p className="text-[11px] text-[#888] text-center mt-[10px]">
-            or{' '}
-            <Link href="/demo" className="underline underline-offset-2 hover:text-[#555]">
-              try the demo
-            </Link>
-          </p>
-          <p className="text-[10px] text-[#888] text-center mt-[6px]">
-            We only request access to sheets you pick.
-          </p>
-          <p className="text-[10px] text-[#888] text-center mt-[6px]">
-            No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2">Privacy</a> · <a href="/terms" className="underline underline-offset-2">Terms</a> · <a href="/changelog" className="underline underline-offset-2">What's new</a> · <a href="/wiki" className="underline underline-offset-2">Docs</a>
+        </header>
+        <span role="status" aria-live="polite" className="sr-only">
+          {isSigningIn ? 'Signing in with Google…' : ''}
+        </span>
+
+        {/* ── MOBILE LAYOUT (< 640px) ── */}
+        <div className="sm:hidden flex-1 flex flex-col px-[22px] pb-5">
+          <div className="flex-1 pt-[48px]">
+            <p className="text-[10px] text-[#888] mb-[18px] uppercase tracking-[0.3px]">
+              Budget tracking · Your spreadsheet
+            </p>
+            <h1 className="font-semibold leading-[0.95] tracking-[-1.6px] mb-5 mt-0" style={{ fontSize: 52 }}>
+              Your money,<br /><span style={{ color: '#0F9D58' }}>your sheet.</span>
+            </h1>
+            <p className="text-[14px] text-[#444] leading-[1.45] mb-8 max-w-[260px]">
+              Connect a Google Sheet. Track spending. Own your data.
+            </p>
+          </div>
+
+          <div>
+            {authErrorMessage && (
+              <p role="status" aria-live="polite" className="text-[12px] text-center mb-3" style={{ color: 'var(--color-danger-text)' }}>
+                {authErrorMessage}
+              </p>
+            )}
+            <button
+              onClick={handleLogin}
+              disabled={isSigningIn}
+              aria-busy={isSigningIn}
+              className="w-full flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
+            >
+              {isSigningIn ? spinner : <GoogleG size={16} />}
+              Continue with Google
+            </button>
+            <p className="text-[12px] text-[#5c5c5c] text-center mt-[10px]">
+              We only request access to sheets you pick.
+            </p>
+            <p className="text-[12px] font-medium text-[#5c5c5c] text-center mt-2">
+              No server storage · End-to-end with your Drive
+            </p>
+            <p className="text-[12px] text-[#5c5c5c] text-center mt-[6px]">
+              or <Link href="/demo" className="underline underline-offset-2 hover:text-[#333]">try the demo</Link>
+            </p>
+            <p className="text-[12px] text-[#5c5c5c] text-center mt-[6px]">
+              <a href="/privacy" className="underline underline-offset-2">Privacy</a> · <a href="/terms" className="underline underline-offset-2">Terms</a> · <a href="/changelog" className="underline underline-offset-2">What's new</a> · <a href="/wiki" className="underline underline-offset-2">Docs</a>
+            </p>
+          </div>
+        </div>
+
+        {/* ── DESKTOP HERO (640px+) ── */}
+        <div className="hidden sm:flex sm:flex-col sm:flex-1 px-14">
+          <div className="pt-[60px] max-w-[900px]">
+            <p className="text-[13px] text-[#888] mb-7 uppercase tracking-[0.3px]">
+              Budget tracking · Your spreadsheet
+            </p>
+            <h1
+              className="font-semibold leading-[0.95] mb-7 mt-0"
+              style={{ fontSize: 'clamp(52px, 7vw, 88px)', letterSpacing: '-2.5px' }}
+            >
+              Your money,<br /><span style={{ color: '#0F9D58' }}>your sheet.</span>
+            </h1>
+            <p className="text-[17px] text-[#444] max-w-[420px] leading-[1.4] mb-11">
+              Connect a Google Sheet. Track spending. Own your data.
+            </p>
+            {authErrorMessage && (
+              <p role="status" aria-live="polite" className="text-[13px] mb-4" style={{ color: 'var(--color-danger-text)' }}>
+                {authErrorMessage}
+              </p>
+            )}
+            <button
+              onClick={handleLogin}
+              disabled={isSigningIn}
+              aria-busy={isSigningIn}
+              className="inline-flex items-center gap-2 bg-[#1a1a1a] text-white px-[22px] py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
+            >
+              {isSigningIn ? spinner : <GoogleG size={16} />}
+              Continue with Google
+            </button>
+            <p className="text-[13px] text-[#5c5c5c] mt-[14px]">
+              We only request access to the sheets you pick.
+            </p>
+            <p className="text-[13px] font-medium text-[#5c5c5c] mt-[6px]">
+              No server storage · End-to-end with your Drive
+            </p>
+            <p className="text-[13px] text-[#5c5c5c] mt-[6px]">
+              or <Link href="/demo" className="underline underline-offset-2 hover:text-[#333]">try the demo</Link>
+            </p>
+          </div>
+
+          <p className="mt-auto pb-8 text-[12px] text-[#5c5c5c]">
+            <a href="/privacy" className="underline underline-offset-2 hover:text-[#333]">Privacy</a> · <a href="/terms" className="underline underline-offset-2 hover:text-[#333]">Terms</a> · <a href="/changelog" className="underline underline-offset-2 hover:text-[#333]">What's new</a> · <a href="/wiki" className="underline underline-offset-2 hover:text-[#333]">Docs</a>
           </p>
         </div>
       </div>
 
-      {/* ── DESKTOP HERO (640px+) ── */}
-      <div className="hidden sm:block pt-[60px] px-14 max-w-[900px]">
-        <p className="text-[13px] text-[#888] mb-7 uppercase tracking-[0.3px]">
-          Budget tracking · Your spreadsheet
-        </p>
-        <h1
-          className="font-semibold leading-[0.95] mb-7 mt-0"
-          style={{ fontSize: 'clamp(52px, 7vw, 88px)', letterSpacing: '-2.5px' }}
-        >
-          Your money,<br /><span style={{ color: '#0F9D58' }}>your sheet.</span>
-        </h1>
-        <p className="text-[17px] text-[#444] max-w-[420px] leading-[1.4] mb-11">
-          Connect a Google Sheet. Track spending. Own your data.
-        </p>
-        <button
-          onClick={handleLogin}
-          disabled={isSigningIn}
-          className="inline-flex items-center gap-2 bg-[#1a1a1a] text-white px-[22px] py-[14px] rounded-full text-[14px] font-medium cursor-pointer disabled:opacity-70"
-        >
-          {isSigningIn ? spinner : <GoogleG size={16} />}
-          Continue with Google
-        </button>
-        <p className="text-[12px] text-[#888] mt-[14px]">
-          We only request access to the sheets you pick.{' '}
-          <Link href="/demo" className="underline underline-offset-2 hover:text-[#555]">
-            Try the demo.
-          </Link>
-        </p>
-      </div>
-
-      <p className="hidden sm:block absolute left-14 bottom-8 text-[11px] text-[#888]">
-        No server storage · End-to-end with your Drive · <a href="/privacy" className="underline underline-offset-2 hover:text-[#555]">Privacy</a> · <a href="/terms" className="underline underline-offset-2 hover:text-[#555]">Terms</a> · <a href="/changelog" className="underline underline-offset-2 hover:text-[#555]">What's new</a> · <a href="/wiki" className="underline underline-offset-2 hover:text-[#555]">Docs</a>
-      </p>
     </div>
   );
 }

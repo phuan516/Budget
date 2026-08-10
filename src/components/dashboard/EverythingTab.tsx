@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { AnimatePresence, motion } from 'framer-motion';
 import CustomSelect from '@/components/ui/CustomSelect';
+import ConfirmDeleteButton from '@/components/ui/ConfirmDeleteButton';
 import s from './EverythingTab.module.css';
 
 function ChartsSkeleton() {
@@ -49,7 +50,16 @@ function EverythingSkeleton() {
 
 const MONO = 'var(--font-jetbrains-mono, "JetBrains Mono", monospace)';
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const LINE_COLORS = ['#1a1a1a', '#6b7280', '#3b82f6', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6'];
+// Grayscale-only line styles (color + dash pattern) so a variable number of fixed-expense
+// lines stay distinguishable without breaking the Two-Color Rule (DESIGN.md).
+const LINE_STYLES: { stroke: string; dash?: string }[] = [
+  { stroke: '#1a1a1a' },
+  { stroke: '#5c5c5c', dash: '5 3' },
+  { stroke: '#1a1a1a', dash: '2 2' },
+  { stroke: '#5c5c5c' },
+  { stroke: '#aaaaaa', dash: '5 3' },
+  { stroke: '#aaaaaa' },
+];
 
 function fmt(n: number): string {
   return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -215,10 +225,14 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
         const baseIncome = mc?.income ?? config.monthlyIncome;
         const entriesTotal = mc?.incomeEntries?.reduce((s, e) => s + e.amount, 0) ?? 0;
         const income = baseIncome + entriesTotal;
+        // Per-item fallback to the current default, matching syncCarryOvers (page.tsx) and
+        // fixedExpenseChartData below — an empty/partial monthConfigs array must not be read
+        // as "this month has $0 fixed expenses," or this total silently disagrees with them.
         const monthFEs = mc?.fixedExpenses;
-        const fixed = monthFEs
-          ? monthFEs.reduce((sum, fe) => sum + fe.amount, 0)
-          : config.fixedExpenses.reduce((sum, fe) => sum + fe.amount, 0);
+        const fixed = config.fixedExpenses.reduce(
+          (sum, fe) => sum + (monthFEs?.find(mfe => mfe.name === fe.name)?.amount ?? fe.amount),
+          0
+        );
         const variable = transactions
           .filter(t => t.date.startsWith(key) && t.amount > 0 && t.category !== 'Carry Over')
           .reduce((sum, t) => sum + t.amount, 0);
@@ -411,10 +425,12 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
     <div className={s.root}>
-      <div className={s.subNav}>
+      <div className={s.subNav} role="tablist" aria-label="Everything sections">
         {(['transactions', 'charts', 'edit-months'] as const).map(t => (
           <button
             key={t}
+            role="tab"
+            aria-selected={subTab === t}
             onClick={() => setSubTab(t)}
             className={`${s.subNavBtn} ${subTab === t ? s.subNavBtnActive : ''}`}
           >
@@ -593,18 +609,11 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                           </div>
                           <div>
                             <label className={s.filterLabel}>Category</label>
-                            <select value={editTxnForm.category} onChange={e => setEditTxnForm(f => ({ ...f, category: e.target.value }))} className={s.input} style={{ width: '100%', boxSizing: 'border-box' }}>
-                              <option value="">— none —</option>
-                              {config.categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                              {config.savingGoals.length > 0 && config.savingGoals.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
-                            </select>
+                            <CustomSelect value={editTxnForm.category} onChange={v => setEditTxnForm(f => ({ ...f, category: v }))} options={[{ label: '— none —', value: '' }, ...config.categories.map(c => ({ label: c.name, value: c.name })), ...(config.savingGoals.length > 0 ? [{ label: 'Saving goals', value: '', divider: true }, ...config.savingGoals.map(g => ({ label: g.name, value: g.name }))] : [])]} />
                           </div>
                           <div>
                             <label className={s.filterLabel}>Card / Payment</label>
-                            <select value={editTxnForm.card} onChange={e => setEditTxnForm(f => ({ ...f, card: e.target.value }))} className={s.input} style={{ width: '100%', boxSizing: 'border-box' }}>
-                              <option value="">— none —</option>
-                              {config.cards.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                            </select>
+                            <CustomSelect value={editTxnForm.card} onChange={v => setEditTxnForm(f => ({ ...f, card: v }))} options={[{ label: '— none —', value: '' }, ...config.cards.map(c => ({ label: c.name, value: c.name }))]} />
                           </div>
                         </div>
                         <div style={{ marginBottom: 10 }}>
@@ -646,14 +655,20 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                         >
                           {isRefund ? `−${fmt(Math.abs(t.amount))}` : fmt(t.amount)}
                         </div>
-                        <button onClick={() => openEditTxn(t)} className={s.txnEditBtn} title="Edit">
+                        <button onClick={() => openEditTxn(t)} className={s.txnEditBtn} title="Edit" aria-label={`Edit transaction: ${t.category || 'uncategorized'}, ${fmt(Math.abs(t.amount))}, ${t.date}`}>
                           <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
                           </svg>
                         </button>
-                        <button onClick={() => handleDeleteTxn(t.id)} disabled={deletingTxnId === t.id} className={s.txnDeleteBtn} title="Delete">
+                        <ConfirmDeleteButton
+                          onDelete={() => handleDeleteTxn(t.id)}
+                          disabled={deletingTxnId === t.id}
+                          className={s.txnDeleteBtn}
+                          title="Delete"
+                          ariaLabel={`Delete transaction: ${t.category || 'uncategorized'}, ${fmt(Math.abs(t.amount))}, ${t.date}`}
+                        >
                           {deletingTxnId === t.id ? '…' : '×'}
-                        </button>
+                        </ConfirmDeleteButton>
                       </div>
                     )}
                   </div>
@@ -789,17 +804,20 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                         <button
                           onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); setEditEntryDate(entry.date); }}
                           className={s.editBtn} title="Edit entry"
+                          aria-label={`Edit income entry: $${entry.amount.toLocaleString()}${entry.note ? `, ${entry.note}` : ''}`}
                         >
                           <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
                           </svg>
                         </button>
-                        <button
-                          onClick={() => onDeleteIncomeEntry(entry.id)}
-                          className={s.editBtn} title="Remove entry" style={{ color: '#ccc' }}
+                        <ConfirmDeleteButton
+                          onDelete={() => onDeleteIncomeEntry(entry.id)}
+                          className={s.editBtn}
+                          title="Remove entry"
+                          ariaLabel={`Remove income entry: $${entry.amount.toLocaleString()}${entry.note ? `, ${entry.note}` : ''}`}
                         >
-                          <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2 2l10 10M12 2L2 12"/></svg>
-                        </button>
+                          <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ color: '#ccc' }}><path d="M2 2l10 10M12 2L2 12"/></svg>
+                        </ConfirmDeleteButton>
                       </div>
                     )}
                   </div>
@@ -900,18 +918,19 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                               <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
                             </svg>
                           </button>
-                          <button
-                            onClick={() => removeExpense(monthKey, fe.name)}
+                          <ConfirmDeleteButton
+                            onDelete={() => removeExpense(monthKey, fe.name)}
                             disabled={removingFixed === fKey}
                             className={s.editRemoveBtn}
                             title={`Remove ${fe.name}`}
+                            ariaLabel={`Remove fixed expense: ${fe.name}, $${fe.amount.toLocaleString()}`}
                           >
                             {removingFixed === fKey ? '…' : (
                               <svg viewBox="0 0 14 14" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="2" y1="2" x2="12" y2="12" /><line x1="12" y1="2" x2="2" y2="12" />
                               </svg>
                             )}
-                          </button>
+                          </ConfirmDeleteButton>
                         </div>
                       )}
                     </div>
@@ -984,7 +1003,7 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => yAxisFmt(Number(v))} />
                   <Tooltip formatter={(val) => fmt(Number(val))} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="income" name="Income" fill="#d4d4d4" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="income" name="Income" fill="#888888" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="spendingBase" name="Spending" stackId="spending" fill="#1a1a1a" />
                   <Bar dataKey="carryOver" name="Carry Over Debt" stackId="spending" fill="var(--color-danger)" radius={[3, 3, 0, 0]} />
                 </BarChart>
@@ -1025,16 +1044,20 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={v => yAxisFmt(Number(v))} />
                   <Tooltip formatter={(val) => fmt(Number(val))} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  {config.fixedExpenses.map((fe, i) => (
-                    <Line
-                      key={fe.id}
-                      type="monotone"
-                      dataKey={fe.name}
-                      stroke={LINE_COLORS[i % LINE_COLORS.length]}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                    />
-                  ))}
+                  {config.fixedExpenses.map((fe, i) => {
+                    const style = LINE_STYLES[i % LINE_STYLES.length];
+                    return (
+                      <Line
+                        key={fe.id}
+                        type="monotone"
+                        dataKey={fe.name}
+                        stroke={style.stroke}
+                        strokeDasharray={style.dash}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    );
+                  })}
                 </LineChart>
               </ResponsiveContainer>
             )}

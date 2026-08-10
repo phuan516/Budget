@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Config } from '@/lib/store/useStore';
 import { motion } from 'framer-motion';
+import ConfirmDeleteButton from '@/components/ui/ConfirmDeleteButton';
 import s from './SettingsTab.module.css';
 
 function SettingsSkeleton() {
@@ -41,9 +42,9 @@ interface Props {
   onSetIncome: (amount: number) => Promise<void>;
 }
 
-function PencilBtn({ onClick }: { onClick: () => void }) {
+function PencilBtn({ onClick, name }: { onClick: () => void; name: string }) {
   return (
-    <button onClick={onClick} className={s.pencilBtn} title="Edit" aria-label="Edit">
+    <button onClick={onClick} className={s.pencilBtn} title="Edit" aria-label={`Edit ${name}`}>
       <svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
       </svg>
@@ -67,11 +68,11 @@ function AddButton({ onClick, disabled }: { onClick: () => void; disabled?: bool
   );
 }
 
-function DeleteBtn({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
+function DeleteBtn({ onClick, loading, name }: { onClick: () => void; loading?: boolean; name: string }) {
   return (
-    <button onClick={onClick} disabled={loading} className={s.deleteBtn} title="Remove" aria-label="Remove">
+    <ConfirmDeleteButton onDelete={onClick} disabled={loading} className={s.deleteBtn} title="Remove" ariaLabel={`Remove ${name}`}>
       {loading ? '…' : '×'}
-    </button>
+    </ConfirmDeleteButton>
   );
 }
 
@@ -149,8 +150,8 @@ function NameListSection({
               ) : (
                 <>
                   <span className={s.itemName}>{item.name}</span>
-                  <PencilBtn onClick={() => startEdit(item)} />
-                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+                  <PencilBtn onClick={() => startEdit(item)} name={item.name} />
+                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} name={item.name} />
                 </>
               )}
             </div>
@@ -283,8 +284,8 @@ function FixedExpenseSection({
                   {toPct(item.amount) && (
                     <span className={s.fixedViewPct}>· {toPct(item.amount)}</span>
                   )}
-                  <PencilBtn onClick={() => startEdit(item)} />
-                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+                  <PencilBtn onClick={() => startEdit(item)} name={item.name} />
+                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} name={item.name} />
                 </div>
               )}
             </div>
@@ -414,8 +415,8 @@ function SavingGoalSection({
                     target {fmtAmt(item.amount)}
                     {item.initialAmount > 0 && <> · saved {fmtAmt(item.initialAmount)}</>}
                   </span>
-                  <PencilBtn onClick={() => startEdit(item)} />
-                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} />
+                  <PencilBtn onClick={() => startEdit(item)} name={item.name} />
+                  <DeleteBtn onClick={() => handleDelete(item.id)} loading={deletingId === item.id} name={item.name} />
                 </div>
               )}
             </div>

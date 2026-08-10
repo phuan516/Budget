@@ -399,7 +399,7 @@
 }
 
 .summaryRefund {
-  color: #16a34a;
+  color: var(--color-saved, #0F9D58);
 }
 
 /* ── Transaction list ── */

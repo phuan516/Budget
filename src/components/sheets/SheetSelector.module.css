@@ -1,0 +1,4 @@
+.focusRing:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #5B3FFF, inset 0 0 0 4px rgba(91, 63, 255, 0.18);
+}

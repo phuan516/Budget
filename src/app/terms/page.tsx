@@ -7,14 +7,31 @@ export const metadata: Metadata = {
   description: 'Terms of service for Ledger, a personal budget tracking app.',
 };
 
+function slugify(title: string) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-10">
+    <section className="mb-10 scroll-mt-8" id={slugify(title)}>
       <h2 className="text-[15px] font-semibold text-[#1a1a1a] mb-3 tracking-[-0.2px]">{title}</h2>
       <div className="text-[14px] text-[#444] leading-[1.7] space-y-3">{children}</div>
     </section>
   );
 }
+
+const SECTION_TITLES = [
+  'Acceptance of Terms',
+  'Description of Service',
+  'Google Account and Permissions',
+  'Your Data',
+  'Acceptable Use',
+  'Disclaimer of Warranties',
+  'Limitation of Liability',
+  'Changes to the Service',
+  'Changes to These Terms',
+  'Contact',
+];
 
 export default function TermsPage() {
   return (
@@ -34,7 +51,19 @@ export default function TermsPage() {
         >
           Terms of Service
         </h1>
-        <p className="text-[13px] text-[#888] mb-12">Last updated: June 1, 2026</p>
+        <p className="text-[13px] text-[#5c5c5c] mb-6">Last updated: June 1, 2026</p>
+
+        <nav aria-label="Jump to section" className="flex flex-wrap gap-x-4 gap-y-1.5 mb-12 pb-6 border-b border-[#f0f0f0]">
+          {SECTION_TITLES.map((title) => (
+            <a
+              key={title}
+              href={`#${slugify(title)}`}
+              className="text-[12px] text-[#5c5c5c] underline underline-offset-2 hover:text-[#1a1a1a]"
+            >
+              {title}
+            </a>
+          ))}
+        </nav>
 
         <Section title="Acceptance of Terms">
           <p>

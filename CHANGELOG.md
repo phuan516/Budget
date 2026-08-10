@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-08-10
+
+### Added
+
+- Confirmation step before deleting a transaction, category, card, fixed expense, or saving goal. First click arms the delete button (red outline, "click again" tooltip); a second click within a few seconds confirms. Previously every delete fired instantly with no way to undo.
+- Inline error message with a retry path when a save fails, or when the sheet list fails to load in the sheet picker. Both previously failed silently — a failed save looked identical to a successful one, and a failed sheet-list load looked identical to having zero sheets.
+- Real search on the Wiki, filtering articles by title and summary as you type. Previously a fully-styled search box existed but wasn't wired to anything.
+- "Edit this page" link on every wiki article, linking to the source file on GitHub.
+- "Edited X ago" timestamp on each sheet tile in the sheet picker, so sheets with similar names (e.g. monthly copies) can be told apart at a glance.
+- Jump-links to every section on the Privacy and Terms pages.
+- Keyboard focus is now visible on every control in the sheet picker (tiles, filters, search, the create-sheet dialog) — previously the one screen in the app missing the focus ring used everywhere else.
+
+### Fixed
+
+- Income vs Spending chart (Everything tab) could undercount fixed expenses for months without an explicit override, disagreeing with the Fixed Expenses Over Time chart for the same months. Both now compute the monthly fixed-expense total the same way.
+- Disabled "Add"/"Save" buttons in Config rendered white text on a light gray background (1.7:1 contrast — effectively unreadable).
+- Changelog's "New" and "Fixed" tag badges measured 2.2–2.6:1 text contrast against their tinted backgrounds.
+- Low-contrast gray trust/legal copy on the landing page and the Privacy/Terms pages, most of it under WCAG AA at its rendered size.
+- Landing page didn't handle a cancelled or failed Google sign-in — the page just sat there with no feedback either way.
+- Landing page briefly flashed white for visitors using system dark mode: the root shell claimed dark-mode support that nothing underneath it actually implemented.
+- A wiki article titled "Categories" was still living at the `/wiki/tracking/smart-parse` URL from an earlier rename; moved to `/wiki/tracking/categories`.
+
+### Changed
+
+- Fixed-expense chart lines (Everything tab) now use grayscale tones with dash patterns instead of a 10-color palette; the chart's Income bar changed from a near-invisible pale gray to a legible mid-gray.
+- Selected-sheet indicator in the sheet picker changed from green to violet, matching the interactive-state color used everywhere else in the app.
+- Wiki's active nav item, active table-of-contents entry, and inline article links changed from green to violet for the same reason.
+- Header "Sign in" button on the landing page relabeled "Sign in with Google" to make clear it's the same action as the main button, not a separate sign-in method.
+- Everything tab's inline transaction-edit form now uses the app's styled dropdown instead of a native `<select>`, matching the equivalent form in the Transactions tab.
+- Removed the non-functional "Subscribe" form and its CSS from the changelog page. It had no backend and never collected anything.
+
 ## [1.3.0] - 2026-06-19
 
 ### Added

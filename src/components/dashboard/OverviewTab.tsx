@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 import { AnimatePresence, motion } from 'framer-motion';
 
+import ConfirmDeleteButton from '@/components/ui/ConfirmDeleteButton';
 import s from './OverviewTab.module.css';
 
 function OverviewSkeleton() {
@@ -433,9 +434,14 @@ export default function OverviewTab({ transactions, config, monthConfigs, isLoad
                       <button className={s.ledgerPencilBtn} onClick={() => { setEditingEntryId(entry.id); setEditEntryAmount(String(entry.amount)); setEditEntryNote(entry.note ?? ''); setEditEntryDate(entry.date); }} title="Edit entry" aria-label="Edit entry">
                         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 2.5l2 2L6 12l-2.6.6L4 10z"/></svg>
                       </button>
-                      <button className={s.ledgerCloseBtn} onClick={() => handleDeleteEntry(entry.id)} title="Remove entry" aria-label="Remove entry">
+                      <ConfirmDeleteButton
+                        onDelete={() => handleDeleteEntry(entry.id)}
+                        className={s.ledgerCloseBtn}
+                        title="Remove entry"
+                        ariaLabel={`Remove income entry: ${fmt(entry.amount)}${entry.note ? `, ${entry.note}` : ''}`}
+                      >
                         <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
-                      </button>
+                      </ConfirmDeleteButton>
                     </span>
                   </>
                 )}

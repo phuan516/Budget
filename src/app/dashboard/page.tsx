@@ -128,6 +128,27 @@ export default function DashboardPage() {
     }
   }, [loading, user, selectedSheet, syncSheetName, loadConfig, loadTransactions]);
 
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Wraps every mutating request. On failure, tells the user their change may not have
+  // saved and re-pulls the sheet's real state so the UI can't silently drift from it.
+  const apiCall = useCallback(async (url: string, options: RequestInit) => {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        setSyncError("That change may not have saved. We've refreshed to match what's actually in your sheet.");
+        loadConfig(true);
+        loadTransactions(true);
+      }
+      return res;
+    } catch {
+      setSyncError("That change may not have saved — check your connection. We've refreshed to match what's actually in your sheet.");
+      loadConfig(true);
+      loadTransactions(true);
+      return null;
+    }
+  }, [loadConfig, loadTransactions]);
+
   async function handleConfigAdd(type: string, name: string, value?: string, extra?: string) {
     if (!selectedSheet) return;
     const tempId = `tmp_${Date.now()}`;
@@ -135,7 +156,7 @@ export default function DashboardPage() {
     else if (type === 'card') updateConfig({ cards: [...config.cards, { id: tempId, name }] });
     else if (type === 'fixed_expense') updateConfig({ fixedExpenses: [...config.fixedExpenses, { id: tempId, name, amount: parseFloat(value ?? '0') || 0 }] });
     else if (type === 'saving_goal') updateConfig({ savingGoals: [...config.savingGoals, { id: tempId, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 }] });
-    await fetch('/api/config/items', {
+    await apiCall('/api/config/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, name, value: value ?? '', extra: extra ?? '' }),
@@ -151,7 +172,7 @@ export default function DashboardPage() {
     else if (type === 'card') updateConfig({ cards: config.cards.map((i) => i.id === id ? { ...i, name } : i) });
     else if (type === 'fixed_expense') updateConfig({ fixedExpenses: config.fixedExpenses.map((i) => i.id === id ? { ...i, name, amount: parseFloat(value ?? '0') || 0 } : i) });
     else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.map((i) => i.id === id ? { ...i, name, amount: parseFloat(value ?? '0') || 0, initialAmount: parseFloat(extra ?? '0') || 0 } : i) });
-    await fetch('/api/config/items', {
+    await apiCall('/api/config/items', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex, name, value: value ?? '', extra: extra ?? '' }),
@@ -166,7 +187,7 @@ export default function DashboardPage() {
     else if (type === 'card') updateConfig({ cards: config.cards.filter((i) => i.id !== id) });
     else if (type === 'fixed_expense') updateConfig({ fixedExpenses: config.fixedExpenses.filter((i) => i.id !== id) });
     else if (type === 'saving_goal') updateConfig({ savingGoals: config.savingGoals.filter((i) => i.id !== id) });
-    await fetch('/api/config/items', {
+    await apiCall('/api/config/items', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, type, rowIndex: parseInt(id) }),
@@ -185,7 +206,7 @@ export default function DashboardPage() {
       const { income: _i, incomeNote: _n, incomeEntries: _e, ...rest } = existingMonthConfig;
       setMonthConfigs({ ...monthConfigs, [currentMonthKey]: rest });
     }
-    await fetch('/api/config/income', {
+    await apiCall('/api/config/income', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, income: amount }),
@@ -198,7 +219,7 @@ export default function DashboardPage() {
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     const { incomeEntries: _e, ...rest } = existing;
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...rest, income: amount, incomeNote: note } });
-    await fetch('/api/config/income/override', {
+    await apiCall('/api/config/income/override', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, income: amount, note }),
@@ -212,7 +233,7 @@ export default function DashboardPage() {
       const { income: _i, incomeNote: _n, ...rest } = existing;
       setMonthConfigs({ ...monthConfigs, [monthKey]: rest });
     }
-    await fetch('/api/config/income/override', {
+    await apiCall('/api/config/income/override', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey }),
@@ -226,7 +247,7 @@ export default function DashboardPage() {
       ? existing.fixedExpenses.map((fe) => fe.name === expenseName ? { ...fe, amount, note } : fe)
       : [...existing.fixedExpenses, { name: expenseName, amount, note }];
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
-    await fetch('/api/config/fixed-expense/override', {
+    await apiCall('/api/config/fixed-expense/override', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName, income: amount, note }),
@@ -238,7 +259,7 @@ export default function DashboardPage() {
     if (!selectedSheet) return;
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses } });
-    await fetch('/api/config/fixed-expense/month-list', {
+    await apiCall('/api/config/fixed-expense/month-list', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, fixedExpenses }),
@@ -253,7 +274,7 @@ export default function DashboardPage() {
     const newEntry = { id: `tmp_${Date.now()}`, date: entryDate, amount, note };
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, incomeEntries: [...(existing.incomeEntries ?? []), newEntry] } });
-    await fetch('/api/config/income/entries', {
+    await apiCall('/api/config/income/entries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, amount, note, date: entryDate }),
@@ -270,7 +291,7 @@ export default function DashboardPage() {
     const newEntry = { id: `tmp_${Date.now()}`, date: entryDate, amount, note };
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, incomeEntries: [...(existing.incomeEntries ?? []), newEntry] } });
-    await fetch('/api/config/income/entries', {
+    await apiCall('/api/config/income/entries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, amount, note, tabName, date: entryDate }),
@@ -289,7 +310,7 @@ export default function DashboardPage() {
       [monthKey]: { ...existing, incomeEntries: existing.incomeEntries?.map(e => e.id === id ? { ...e, amount, note, ...(date ? { date } : {}) } : e) },
     });
     const [tabName, rowIndexStr] = id.split('|');
-    await fetch('/api/config/income/entries', {
+    await apiCall('/api/config/income/entries', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, tabName, rowIndex: parseInt(rowIndexStr), amount, note, date }),
@@ -308,7 +329,7 @@ export default function DashboardPage() {
       [monthKey]: { ...existing, incomeEntries: existing.incomeEntries?.filter(e => e.id !== id) },
     });
     const [tabName, rowIndexStr] = id.split('|');
-    await fetch('/api/config/income/entries', {
+    await apiCall('/api/config/income/entries', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, tabName, rowIndex: parseInt(rowIndexStr) }),
@@ -322,7 +343,7 @@ export default function DashboardPage() {
     const existing = monthConfigs[monthKey] ?? { fixedExpenses: [] };
     const fes = existing.fixedExpenses.map((fe) => fe.name === expenseName ? { name: fe.name, amount: defaultAmount } : fe);
     setMonthConfigs({ ...monthConfigs, [monthKey]: { ...existing, fixedExpenses: fes } });
-    await fetch('/api/config/fixed-expense/override', {
+    await apiCall('/api/config/fixed-expense/override', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, monthKey, expenseName }),
@@ -371,7 +392,7 @@ export default function DashboardPage() {
         running = 0;
         if (tabs.includes(nk)) {
           for (const e of txns.filter(t => t.date.startsWith(nk) && t.category === 'Carry Over' && !t.id.startsWith('tmp_'))) {
-            await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
+            await apiCall('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
           }
         }
         continue;
@@ -395,12 +416,12 @@ export default function DashboardPage() {
       if (carryOut > 0.005) {
         if (existing.length === 1 && Math.abs(existing[0].amount - carryOut) < 0.01 && existing[0].note === note) continue;
         for (const e of existing) {
-          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
+          await apiCall('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
         }
-        await fetch('/api/transactions/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, date, amount: carryOut, category: 'Carry Over', card: '', note }) });
+        await apiCall('/api/transactions/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, date, amount: carryOut, category: 'Carry Over', card: '', note }) });
       } else {
         for (const e of existing) {
-          await fetch('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
+          await apiCall('/api/transactions/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sheetId: selectedSheet.id, tab: e.tab, row: e.row }) });
         }
       }
     }
@@ -412,7 +433,7 @@ export default function DashboardPage() {
     const updatedTxns = [...transactions, { ...t, id: tempId, tab: '', row: 0 }];
     setTransactions(updatedTxns);
 
-    await fetch('/api/transactions/add', {
+    await apiCall('/api/transactions/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, ...t }),
@@ -444,18 +465,18 @@ export default function DashboardPage() {
     setTransactions(updatedTxns);
 
     if (oldMonthKey === newMonthKey) {
-      await fetch('/api/transactions/update', {
+      await apiCall('/api/transactions/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn.tab, row: txn.row, ...updates }),
       });
     } else {
-      await fetch('/api/transactions/delete', {
+      await apiCall('/api/transactions/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn.tab, row: txn.row }),
       });
-      await fetch('/api/transactions/add', {
+      await apiCall('/api/transactions/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sheetId: selectedSheet.id, ...updates }),
@@ -477,7 +498,7 @@ export default function DashboardPage() {
     const updatedTxns = transactions.filter((t) => t.id !== id);
     setTransactions(updatedTxns);
 
-    await fetch('/api/transactions/delete', {
+    await apiCall('/api/transactions/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sheetId: selectedSheet.id, tab: txn?.tab, row: txn?.row }),
@@ -617,10 +638,14 @@ export default function DashboardPage() {
       </header>
 
       <nav style={{ borderBottom: '1px solid #ececec', flexShrink: 0 }}>
-        <div className="px-12 max-sm:px-5" style={{ display: 'flex', gap: 0 }}>
+        <div role="tablist" aria-label="Dashboard sections" className="px-12 max-sm:px-5" style={{ display: 'flex', gap: 0 }}>
           {TABS.map((tab) => (
             <button
               key={tab.id}
+              role="tab"
+              id={`dashboard-tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls="dashboard-tabpanel"
               onClick={() => setActiveTab(tab.id)}
               style={{
                 background: 'none',
@@ -641,7 +666,37 @@ export default function DashboardPage() {
         </div>
       </nav>
 
-      <main className="flex-1 px-12 max-sm:px-5" style={{ overflowY: 'auto' }}>
+      <main
+        id="dashboard-tabpanel"
+        role="tabpanel"
+        aria-labelledby={`dashboard-tab-${activeTab}`}
+        className="flex-1 px-12 max-sm:px-5" style={{ overflowY: 'auto' }}>
+        {syncError && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              marginTop: 16,
+              padding: '10px 14px',
+              background: 'var(--color-danger-bg)',
+              border: '1px solid var(--color-danger-border)',
+              borderRadius: 8,
+              fontSize: 13,
+              color: 'var(--color-danger-text)',
+            }}
+          >
+            <span>{syncError}</span>
+            <button
+              onClick={() => setSyncError(null)}
+              aria-label="Dismiss"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-danger-text)', fontSize: 16, lineHeight: 1, padding: 2, flexShrink: 0 }}
+            >×</button>
+          </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

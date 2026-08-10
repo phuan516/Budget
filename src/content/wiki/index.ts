@@ -23,7 +23,7 @@ export const NAV: NavGroup[] = [
     group: 'Tracking',
     items: [
       { title: 'Adding transactions',  slug: 'adding-transactions',  section: 'tracking', order: 1 },
-      { title: 'Categories',           slug: 'smart-parse',          section: 'tracking', order: 2 },
+      { title: 'Categories',           slug: 'categories',           section: 'tracking', order: 2 },
       { title: 'Editing transactions', slug: 'editing-transactions', section: 'tracking', order: 3 },
     ],
   },

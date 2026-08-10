@@ -209,106 +209,9 @@
   max-width: 480px;
 }
 
-/* ── Subscribe rail ── */
-.subscribeRail {
-  width: 220px;
-  flex-shrink: 0;
-  border-left: 1px solid #ececec;
-  padding: 36px 24px;
-  overflow-y: auto;
-}
-
-.subscribeCard {
-  border: 1px solid #d8d8d8;
-  border-radius: 10px;
-  padding: 16px;
-}
-
-.subscribeTitle {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.subscribeSub {
-  font-size: 11px;
-  color: #888;
-  margin-bottom: 12px;
-}
-
-.subscribeForm {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.subscribeInput {
-  height: 32px;
-  border: 1px solid #d8d8d8;
-  border-radius: 6px;
-  padding: 0 10px;
-  font-size: 12px;
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
-  transition: border-color 0.15s;
-}
-
-.subscribeInput:focus {
-  border-color: #1a1a1a;
-}
-
-.subscribeBtn {
-  height: 32px;
-  background: #1a1a1a;
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  width: 100%;
-  transition: opacity 0.15s;
-}
-
-.subscribeBtn:hover {
-  opacity: 0.85;
-}
-
-.subscribeSuccess {
-  font-size: 12px;
-  color: oklch(0.55 0.13 150);
-  font-weight: 500;
-  padding: 4px 0;
-}
-
-.subscribeLinks {
-  margin-top: 20px;
-  font-size: 11px;
-  color: #888;
-  line-height: 1.6;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.subscribeLinksLabel {
-  color: #888;
-}
-
-.subscribeLink {
-  color: #888;
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.subscribeLink:hover {
-  color: #1a1a1a;
-}
-
 /* ── Tag ── */
 .tag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -442,12 +345,12 @@
   font-weight: 600;
   font-family: var(--font-jetbrains-mono, 'JetBrains Mono', monospace);
   font-variant-numeric: tabular-nums;
-  color: #444;
+  color: var(--color-ink-primary, #1a1a1a);
 }
 
 .mobileDateStr {
-  font-size: 10px;
-  color: #888;
+  font-size: 11px;
+  color: var(--color-ink-secondary-readable, #5c5c5c);
 }
 
 .mobileReleaseTitle {

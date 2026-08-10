@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-10T22:12:45Z",
+  "title": "Design System: Ledger",
+  "extensions": {
+    "colorMeta": {
+      "ink-primary": { "role": "neutral", "displayName": "Ink Primary", "canonical": "#1a1a1a" },
+      "ink-secondary": { "role": "neutral", "displayName": "Ink Secondary", "canonical": "#888888" },
+      "ink-secondary-readable": { "role": "neutral", "displayName": "Ink Secondary Readable", "canonical": "#5c5c5c" },
+      "ink-tertiary": { "role": "neutral", "displayName": "Ink Tertiary", "canonical": "#aaaaaa" },
+      "surface-0": { "role": "neutral", "displayName": "Surface 0 (Paper)", "canonical": "#ffffff" },
+      "surface-1": { "role": "neutral", "displayName": "Surface 1 (Recessed)", "canonical": "#fafafa" },
+      "surface-2": { "role": "neutral", "displayName": "Surface 2 (Hover)", "canonical": "#f5f5f5" },
+      "border-subtle": { "role": "neutral", "displayName": "Border Subtle", "canonical": "#e8e8e8" },
+      "border-strong": { "role": "neutral", "displayName": "Border Strong", "canonical": "#c8c8c8" },
+      "accent-interactive": { "role": "primary", "displayName": "Interactive Violet", "canonical": "#5B3FFF", "tonalRamp": ["#1c0f63", "#2d1899", "#3b21c4", "#4A2FE8", "#5B3FFF", "#7c56f8", "#a387fa", "#c4b5fc", "#ddd6fd", "#ece9fe", "#f4f3ff"] },
+      "saved": { "role": "secondary", "displayName": "Savings Green", "canonical": "#0F9D58" },
+      "saved-bg": { "role": "secondary", "displayName": "Savings Green Tint", "canonical": "#e8f5e9" },
+      "success": { "role": "secondary", "displayName": "Success", "canonical": "oklch(0.65 0.13 150)" },
+      "success-text": { "role": "secondary", "displayName": "Success Text", "canonical": "oklch(0.42 0.13 150)" },
+      "danger": { "role": "secondary", "displayName": "Danger", "canonical": "oklch(0.58 0.18 25)" },
+      "danger-text": { "role": "secondary", "displayName": "Danger Text", "canonical": "#c0392b" },
+      "warn": { "role": "secondary", "displayName": "Warn", "canonical": "oklch(0.72 0.12 55)" },
+      "warn-text": { "role": "secondary", "displayName": "Warn Text", "canonical": "oklch(0.45 0.12 55)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero numerals and marketing headline only." },
+      "headline": { "displayName": "Headline", "purpose": "Page-level section headings." },
+      "title": { "displayName": "Title", "purpose": "Modal and card titles." },
+      "body": { "displayName": "Body", "purpose": "The dominant UI text size — labels, buttons, values." },
+      "label": { "displayName": "Label", "purpose": "Uppercase eyebrows and stat labels." },
+      "mono": { "displayName": "Mono / Money", "purpose": "Every rendered monetary amount, tabular-nums." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 4px 14px rgba(0,0,0,0.18)", "purpose": "Reserved for small floating elements (tooltips/popovers) if introduced; not yet used." },
+      { "name": "shadow-md", "value": "0 8px 24px rgba(0,0,0,0.09)", "purpose": "Dropdown/listbox panels." },
+      { "name": "shadow-lg", "value": "0 16px 48px rgba(0,0,0,0.16)", "purpose": "Modal panels — the only components that float above page flow." }
+    ],
+    "motion": [
+      { "name": "duration-fast", "value": "100ms", "purpose": "Micro-interactions (hover color shifts)." },
+      { "name": "duration-base", "value": "150ms", "purpose": "Default transition duration (input border-color, tab underline)." },
+      { "name": "duration-slow", "value": "300ms", "purpose": "Larger surface transitions." },
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Standard easing; used for modal entrance motion." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The default solid CTA — black pill, white text.",
+      "html": "<button class=\"ds-btn-primary\">Continue with Google</button>",
+      "css": ".ds-btn-primary { background: #1a1a1a; color: #ffffff; padding: 9px 18px; border-radius: 999px; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: background 150ms; } .ds-btn-primary:hover { background: #333333; } .ds-btn-primary:focus-visible { outline: 2px solid #5B3FFF; outline-offset: 2px; } .ds-btn-primary:disabled { background: #c8c8c8; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outline pill — used for lower-emphasis actions alongside a primary button.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: #1a1a1a; border: 1.5px solid #d8d8d8; padding: 9px 16px; border-radius: 999px; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color 150ms, background 150ms; } .ds-btn-secondary:hover { background: #f5f5f5; border-color: #1a1a1a; } .ds-btn-secondary:focus-visible { outline: 2px solid #5B3FFF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "No border, no fill — low-emphasis inline actions (cancel inside a form row, icon-only edit/delete).",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { background: none; border: none; color: #888888; padding: 5px 8px; font-family: Inter, system-ui, sans-serif; font-size: 12px; cursor: pointer; transition: color 150ms; } .ds-btn-ghost:hover { color: #1a1a1a; } .ds-btn-ghost:focus-visible { outline: 2px solid #5B3FFF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard field — also the base style for native <select> and the custom listbox trigger.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Category name\" />",
+      "css": ".ds-input { border: 1px solid #c8c8c8; border-radius: 8px; padding: 9px 11px; font-family: Inter, system-ui, sans-serif; font-size: 13px; color: #1a1a1a; background: #ffffff; outline: none; transition: border-color 150ms, box-shadow 150ms; width: 100%; box-sizing: border-box; } .ds-input:focus { border-color: #5B3FFF; box-shadow: 0 0 0 3px rgba(91, 63, 255, 0.18); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat, bordered container — no shadow at rest.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-label\">Saving goals</div><div class=\"ds-card-title\">Emergency Fund</div></div>",
+      "css": ".ds-card { background: #fafafa; border: 1px solid #e8e8e8; border-radius: 12px; padding: 18px 20px; } .ds-card-label { font-size: 11px; font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; color: #888888; margin-bottom: 6px; } .ds-card-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }"
+    },
+    {
+      "name": "Modal Panel",
+      "kind": "card",
+      "refersTo": "modal",
+      "description": "The only elevated surface in the system — floats above a dark scrim.",
+      "html": "<div class=\"ds-modal-scrim\"><div class=\"ds-modal-panel\"><div class=\"ds-modal-title\">Share this sheet</div></div></div>",
+      "css": ".ds-modal-scrim { position: relative; background: rgba(0,0,0,0.4); padding: 40px; border-radius: 8px; } .ds-modal-panel { background: #ffffff; border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,0.16); padding: 28px 24px 24px; max-width: 360px; } .ds-modal-title { font-family: Inter, system-ui, sans-serif; font-size: 15px; font-weight: 600; color: #1a1a1a; }"
+    },
+    {
+      "name": "Navigation Tabs",
+      "kind": "nav",
+      "description": "Underline tabs — the only navigation pattern in the system. Active state: black text/underline, weight 600.",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-tab-active\">Overview</button><button class=\"ds-tab\">Transactions</button><button class=\"ds-tab\">Config</button></nav>",
+      "css": ".ds-tabs { display: flex; } .ds-tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 14px 0; margin-right: 28px; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-weight: 400; color: #888888; cursor: pointer; transition: color 150ms, border-color 150ms; } .ds-tab-active { border-bottom-color: #1a1a1a; font-weight: 600; color: #1a1a1a; }"
+    },
+    {
+      "name": "Segmented Toggle",
+      "kind": "chip",
+      "description": "Pill-shaped, no-gap segmented control for binary/ternary filters (not navigation) — active segment gets a solid fill.",
+      "html": "<div class=\"ds-segmented\"><button class=\"ds-segment ds-segment-active\">All</button><button class=\"ds-segment\">Mine</button><button class=\"ds-segment\">Shared</button></div>",
+      "css": ".ds-segmented { display: inline-flex; border: 1px solid #d8d8d8; border-radius: 999px; overflow: hidden; } .ds-segment { background: transparent; border: none; padding: 7px 14px; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 500; color: #1a1a1a; cursor: pointer; } .ds-segment-active { background: #1a1a1a; color: #ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Ledger",
+    "overview": "Ledger looks like what it is: a precise, personal financial record, not a SaaS product performing enthusiasm. The system is grayscale-first — ink, surface, and border tones do almost all of the work — with exactly two colors allowed to speak: an electric violet (#5B3FFF) reserved for interactive/focus states, and a settled green (#0F9D58) reserved for savings and positive money. Every other surface stays black, white, and gray on purpose. Money itself gets the one typographic flourish in the system — tabular monospace numerals — while everything else stays in a plain, restrained sans-serif.\n\nThe system did not arrive fully tokenized: dashboard components are built with CSS Modules that consistently reference globals.css custom properties, while the app shell and marketing surfaces use Tailwind utilities plus inline style objects with hand-typed hex values that happen to match the same palette. Both are legitimate, coexisting conventions in this codebase.",
+    "keyCharacteristics": [
+      "Grayscale-dominant surface; color is earned, not decorative",
+      "Black pill buttons and underline tabs, not filled/rounded-rect tabs",
+      "One purple accent for all interactive/focus states; one green accent for savings/positive money",
+      "Tabular monospace numerals for money; plain sans-serif for everything else",
+      "Flat by default; shadows appear only on things that float above the page (modals)",
+      "No icon library in use — every icon is a hand-authored inline SVG"
+    ],
+    "rules": [
+      { "name": "The Two-Color Rule", "body": "Only violet and green are allowed to be color in an otherwise grayscale interface. Violet means interactive/focus. Green means savings/positive money. A new UI color is a decision, not a default.", "section": "colors" },
+      { "name": "The Mono-Money Rule", "body": "Any rendered monetary amount uses JetBrains Mono with tabular-nums. Never render a dollar figure in Inter.", "section": "typography" },
+      { "name": "The Overlay-Only Shadow Rule", "body": "A shadow means this is floating above the page. Anything still in normal document flow stays flat and uses border + background for separation instead.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep color to exactly two jobs: violet for interactive/focus, green for savings/positive money.",
+      "Do render every monetary amount in JetBrains Mono with tabular-nums.",
+      "Do use pill radius for buttons/toggles, 8-12px rounded rectangles for cards/inputs/modals.",
+      "Do use borders and background, not shadows, for depth on anything still in page flow.",
+      "Do use underline tabs for primary navigation; reserve filled/pill segments for filters.",
+      "Do match the established focus treatment exactly on any new interactive control.",
+      "Do follow whichever authoring convention the surrounding code already uses."
+    ],
+    "donts": [
+      "Don't introduce a third UI color without treating it as a deliberate decision.",
+      "Don't use ink-secondary (#888) for small (<14px) must-read text — it fails contrast at that size.",
+      "Don't add a drop shadow to a card, button, or tile that's still in normal page flow.",
+      "Don't invent a new destructive-red — converge on --color-danger-text (#c0392b).",
+      "Don't hardcode #5B3FFF as a fresh literal if it can reference --color-primary-600 instead.",
+      "Don't add lucide-react icons alongside hand-authored SVGs without deciding to migrate the whole icon set.",
+      "Don't use @headlessui/react for a new modal — the established pattern is a hand-rolled overlay + Framer Motion AnimatePresence."
+    ]
+  }
+}

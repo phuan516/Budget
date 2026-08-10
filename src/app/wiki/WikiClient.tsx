@@ -154,7 +154,46 @@ function ArticleContent({
         <ArticleBlock key={i} block={block} mobile={mobile} />
       ))}
 
+      {article.editUrl && (
+        <div className={s.articleFooter}>
+          <a href={article.editUrl} target="_blank" rel="noopener noreferrer" className={s.editLink}>
+            Edit this page
+          </a>
+        </div>
+      )}
     </>
+  );
+}
+
+// ── Search: filters allArticles client-side, no backend needed ──
+function useWikiSearch(allArticles: WikiArticle[]) {
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const results = q === '' ? [] : allArticles
+    .filter(a => a.title.toLowerCase().includes(q) || a.lede.toLowerCase().includes(q))
+    .slice(0, 6);
+  return { query, setQuery, results, open: q !== '' };
+}
+
+function SearchResults({ results, query, onNavigate }: { results: WikiArticle[]; query: string; onNavigate: () => void }) {
+  return (
+    <div className={s.searchResults} role="listbox">
+      {results.length === 0 ? (
+        <div className={s.searchEmpty}>No results for &quot;{query}&quot;</div>
+      ) : (
+        results.map(a => (
+          <Link
+            key={a.slug}
+            href={`/wiki/${a.section}/${a.slug}`}
+            className={s.searchResultItem}
+            onClick={onNavigate}
+          >
+            <div className={s.searchResultTitle}>{a.title}</div>
+            <div className={s.searchResultSection}>{SECTION_LABELS[a.section] ?? a.section}</div>
+          </Link>
+        ))
+      )}
+    </div>
   );
 }
 
@@ -170,6 +209,8 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
 
   const [activeTocIds, setActiveTocIds] = useState<Set<string>>(new Set());
   const articleRef = useRef<HTMLDivElement>(null);
+  const search = useWikiSearch(allArticles);
+  const mobileSearch = useWikiSearch(allArticles);
 
   // Reset mobile view when article changes
   useEffect(() => {
@@ -208,7 +249,25 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
 
   // ── Shared nav tree ──────────────────────────────────────────
   const NavTree = (
-    <div className={s.navTree}>
+    <nav className={s.navTree} aria-label="Wiki navigation">
+      <div className={s.search}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
+          <circle cx="6" cy="6" r="4.5" />
+          <path d="M10 10l3 3" />
+        </svg>
+        <input
+          type="text"
+          value={search.query}
+          onChange={(e) => search.setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Escape') search.setQuery(''); }}
+          placeholder="Search docs…"
+          aria-label="Search docs"
+          className={s.searchInput}
+        />
+        {search.open && (
+          <SearchResults results={search.results} query={search.query} onNavigate={() => search.setQuery('')} />
+        )}
+      </div>
       {nav.map((group) => (
         <div key={group.group} className={s.navGroup}>
           <div className={s.navGroupLabel}>{group.group}</div>
@@ -225,7 +284,7 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
           </div>
         </div>
       ))}
-    </div>
+    </nav>
   );
 
   // ── Desktop three-pane ───────────────────────────────────────
@@ -244,7 +303,7 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
       <div className={s.body}>
         {NavTree}
 
-        <div className={s.article} ref={articleRef}>
+        <main className={s.article} ref={articleRef}>
           {desktopArticle ? (
             <div className={s.articleInner}>
               <ArticleContent article={desktopArticle} activeTocId="" />
@@ -252,7 +311,7 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
           ) : (
             <div className={s.welcome}>Select an article from the navigation.</div>
           )}
-        </div>
+        </main>
 
         {desktopArticle && desktopArticle.toc.length > 0 && (
           <div className={s.toc}>
@@ -283,12 +342,30 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
     <div className={s.mobileShell}>
       <div className={s.mobileHeader}>
         <div className={s.mobileHeaderTop}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', color: '#888', marginRight: 2 }}>
+          <Link href="/" aria-label="Back to Ledger" style={{ display: 'flex', alignItems: 'center', color: '#888', marginRight: 2 }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
               <path d="M10 3 5 8l5 5" />
             </svg>
           </Link>
           <span className={s.mobileTitle}>Help &amp; docs</span>
+        </div>
+        <div className={s.mobileSearch}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#888" strokeWidth="1.5" aria-hidden="true">
+            <circle cx="6" cy="6" r="4.5" />
+            <path d="M10 10l3 3" />
+          </svg>
+          <input
+            type="text"
+            value={mobileSearch.query}
+            onChange={(e) => mobileSearch.setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') mobileSearch.setQuery(''); }}
+            placeholder="Search docs…"
+            aria-label="Search docs"
+            className={s.mobileSearchInput}
+          />
+          {mobileSearch.open && (
+            <SearchResults results={mobileSearch.results} query={mobileSearch.query} onNavigate={() => mobileSearch.setQuery('')} />
+          )}
         </div>
       </div>
       <div className={s.mobileScroll}>
@@ -319,16 +396,16 @@ export default function WikiClient({ nav, article, allArticles }: Props) {
   const MobileArticle = article ? (
     <div className={s.mobileArticleShell}>
       <div className={s.mobileBar}>
-        <Link href="/wiki" className={s.mobileBarBack}>
+        <Link href="/wiki" aria-label="Back to Wiki index" className={s.mobileBarBack}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
             <path d="M10 3 5 8l5 5" />
           </svg>
         </Link>
         <span className={s.mobileBarSection}>{SECTION_LABELS[article.section] ?? article.section}</span>
       </div>
-      <div className={s.mobileArticleScroll}>
+      <main className={s.mobileArticleScroll}>
         <ArticleContent article={article} activeTocId="" mobile />
-      </div>
+      </main>
     </div>
   ) : null;
 

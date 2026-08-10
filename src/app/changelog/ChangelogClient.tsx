@@ -9,9 +9,9 @@ import s from './page.module.css';
 const ACCENT = 'oklch(0.65 0.13 150)';
 
 const TAG_CONFIG: Record<ChangeKind, { color: string; bg: string; label: string }> = {
-  new:      { color: 'oklch(0.65 0.13 150)', bg: 'oklch(0.94 0.04 150)', label: 'New' },
-  improved: { color: '#444',                  bg: '#fafafa',               label: 'Improved' },
-  fixed:    { color: 'oklch(0.72 0.12 55)',  bg: 'oklch(0.95 0.03 55)',  label: 'Fixed' },
+  new:      { color: 'var(--color-success-text, oklch(0.42 0.13 150))', bg: 'oklch(0.94 0.04 150)', label: 'New' },
+  improved: { color: 'var(--color-ink-primary, #1a1a1a)',               bg: '#fafafa',              label: 'Improved' },
+  fixed:    { color: 'var(--color-warn-text, oklch(0.45 0.12 55))',     bg: 'oklch(0.95 0.03 55)',  label: 'Fixed' },
 };
 
 function Tag({ kind }: { kind: ChangeKind }) {
@@ -44,28 +44,6 @@ function useFiltered(releases: Release[], filter: Filter) {
       visible: filter === 'all' ? r.items : r.items.filter(i => i.kind === filter),
     }))
     .filter(r => r.visible.length > 0);
-}
-
-function SubscribeForm() {
-  const [email, setEmail] = useState('');
-  const [done, setDone] = useState(false);
-
-  if (done) return <p className={s.subscribeSuccess}>You&apos;re in — thanks!</p>;
-
-  return (
-    <form onSubmit={e => { e.preventDefault(); setDone(true); }} className={s.subscribeForm}>
-      <input
-        type="email"
-        placeholder="email@you.com"
-        value={email}
-        onChange={e => setEmail(e.target.value)}
-        required
-        className={s.subscribeInput}
-        aria-label="Email address"
-      />
-      <button type="submit" className={s.subscribeBtn}>Subscribe</button>
-    </form>
-  );
 }
 
 /* ── Desktop ── */
@@ -136,7 +114,7 @@ function DesktopChangelog({ releases }: { releases: Release[] }) {
       </aside>
 
       {/* Timeline */}
-      <div className={s.timeline} ref={timelineRef}>
+      <main className={s.timeline} ref={timelineRef}>
         <div className={s.timelineHeader}>
           <h1 className={s.h1}>What&apos;s new</h1>
           <p className={s.sub}>Product updates and fixes, newest first.</p>
@@ -167,7 +145,7 @@ function DesktopChangelog({ releases }: { releases: Release[] }) {
             </div>
           ))}
         </div>
-      </div>
+      </main>
 
     </div>
   );
@@ -203,7 +181,7 @@ function MobileChangelog({ releases }: { releases: Release[] }) {
         </div>
       </header>
 
-      <div className={s.mobileScroll}>
+      <main className={s.mobileScroll}>
         <div className={s.mobileTimelineList}>
           <div className={s.mobileRule} />
           {filtered.map((r, i) => (
@@ -226,7 +204,7 @@ function MobileChangelog({ releases }: { releases: Release[] }) {
           ))}
         </div>
 
-      </div>
+      </main>
     </div>
   );
 }

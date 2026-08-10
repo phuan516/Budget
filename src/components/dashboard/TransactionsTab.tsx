@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 import { AnimatePresence, motion } from 'framer-motion';
 import CustomSelect from '@/components/ui/CustomSelect';
+import ConfirmDeleteButton from '@/components/ui/ConfirmDeleteButton';
 import ShareModal from './ShareModal';
 
 import s from './TransactionsTab.module.css';
@@ -667,15 +668,15 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
                     <path d="M9.5 1.5l3 3L4 13H1v-3L9.5 1.5z" />
                   </svg>
                 </button>
-                <button
-                  onClick={() => handleDelete(t.id)}
+                <ConfirmDeleteButton
+                  onDelete={() => handleDelete(t.id)}
                   disabled={deletingId === t.id}
                   className={s.txnDeleteBtn}
                   title="Delete"
-                  aria-label="Delete transaction"
+                  ariaLabel={`Delete transaction: ${t.category || 'uncategorized'}, ${fmt(Math.abs(t.amount))}, ${t.date}`}
                 >
                   {deletingId === t.id ? '…' : '×'}
-                </button>
+                </ConfirmDeleteButton>
               </div>
             );
           })}
