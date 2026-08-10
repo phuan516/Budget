@@ -225,10 +225,15 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
         const refunds = transactions
           .filter(t => t.date.startsWith(key) && t.amount < 0)
           .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        const carryOver = transactions
+          .filter(t => t.date.startsWith(key) && t.category === 'Carry Over')
+          .reduce((sum, t) => sum + t.amount, 0);
         return {
           month: keyToShortLabel(key),
           income: Math.round(income * 100) / 100,
-          spending: Math.round((variable + fixed - refunds) * 100) / 100,
+          spending: Math.round((variable + fixed - refunds + carryOver) * 100) / 100,
+          spendingBase: Math.round((variable + fixed - refunds) * 100) / 100,
+          carryOver: Math.round(carryOver * 100) / 100,
           variable: Math.round(variable * 100) / 100,
           fixed: Math.round(fixed * 100) / 100,
         };
@@ -980,7 +985,8 @@ export default function EverythingTab({ transactions, config, monthConfigs, isLo
                   <Tooltip formatter={(val) => fmt(Number(val))} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="income" name="Income" fill="#d4d4d4" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="spending" name="Spending" fill="#1a1a1a" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="spendingBase" name="Spending" stackId="spending" fill="#1a1a1a" />
+                  <Bar dataKey="carryOver" name="Carry Over Debt" stackId="spending" fill="var(--color-danger)" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
