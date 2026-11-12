@@ -50,6 +50,12 @@ export default function CustomSelect({ value, onChange, options }: Props) {
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (!open) {
+      const form = (e.currentTarget as HTMLButtonElement).form;
+      if (e.key === 'Enter' && form) {
+        e.preventDefault();
+        form.requestSubmit();
+        return;
+      }
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         openDropdown();
@@ -139,6 +145,7 @@ export default function CustomSelect({ value, onChange, options }: Props) {
             className={s.selectDropdown}
             role="listbox"
             aria-label="Options"
+            onMouseDown={(e) => e.preventDefault()}
             initial={{ y: -4 }}
             animate={{ y: 0 }}
             exit={{ y: -4 }}

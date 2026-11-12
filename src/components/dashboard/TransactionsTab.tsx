@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Transaction, Config } from '@/lib/store/useStore';
 import { AnimatePresence, motion } from 'framer-motion';
 import CustomSelect from '@/components/ui/CustomSelect';
@@ -74,6 +74,7 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [newId, setNewId] = useState<string | null>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('date-desc');
@@ -247,8 +248,9 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
       const rawAmount = parseFloat(form.amount);
       const amount = isRefund ? -rawAmount : rawAmount;
       const tempId = await onAdd({ date: form.date, amount, category: form.category, card: form.card, note: form.note });
-      setForm({ date: todayISO(), amount: '', category: '', card: '', note: '' });
+      setForm((f) => ({ ...f, amount: '', category: '', note: '' }));
       setIsRefund(false);
+      amountRef.current?.focus();
       setNewId(tempId);
       setTimeout(() => setNewId(null), 600);
     } finally {
@@ -326,6 +328,7 @@ export default function TransactionsTab({ transactions, config, monthConfigs, is
           <div className={s.formField}>
             <label className={s.formLabel}>Amount</label>
             <input
+              ref={amountRef}
               type="number"
               placeholder="0.00"
               min="0"
