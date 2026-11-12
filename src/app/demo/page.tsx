@@ -118,33 +118,45 @@ const INITIAL_CONFIG: Config = {
   ],
 };
 
+const now = new Date();
+const DEMO_MONTHS = [2, 1, 0].map((back) => {
+  const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+});
+
+function demoDate(monthIndex: number, day: number) {
+  const key = DEMO_MONTHS[monthIndex];
+  const [yr, mo] = key.split('-');
+  return { tab: `${LONG_MONTHS[Number(mo) - 1]} ${yr}`, date: `${key}-${String(day).padStart(2, '0')}` };
+}
+
 const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: 'd1', tab: 'March 2026', row: 2, date: '2026-03-02', amount: 87.42, category: 'Groceries', card: 'Debit', note: 'Whole Foods' },
-  { id: 'd2', tab: 'March 2026', row: 3, date: '2026-03-05', amount: 34.80, category: 'Dining', card: 'Amex Gold', note: 'Pasta Palace' },
-  { id: 'd3', tab: 'March 2026', row: 4, date: '2026-03-09', amount: 12.50, category: 'Transport', card: 'Chase Sapphire', note: 'Metro pass' },
-  { id: 'd4', tab: 'March 2026', row: 5, date: '2026-03-12', amount: 62.00, category: 'Shopping', card: 'Chase Sapphire', note: 'Amazon order' },
-  { id: 'd5', tab: 'March 2026', row: 6, date: '2026-03-18', amount: 29.99, category: 'Entertainment', card: 'Amex Gold', note: 'Concert ticket' },
-  { id: 'd6', tab: 'March 2026', row: 7, date: '2026-03-22', amount: 74.15, category: 'Groceries', card: 'Debit', note: 'Trader Joes' },
-  { id: 'd7', tab: 'March 2026', row: 8, date: '2026-03-27', amount: 45.00, category: 'Healthcare', card: 'Debit', note: 'Co-pay' },
-  { id: 'd8', tab: 'April 2026', row: 2, date: '2026-04-03', amount: 91.20, category: 'Groceries', card: 'Debit', note: 'Costco run' },
-  { id: 'd9', tab: 'April 2026', row: 3, date: '2026-04-06', amount: 58.40, category: 'Dining', card: 'Amex Gold', note: 'Sushi night' },
-  { id: 'd10', tab: 'April 2026', row: 4, date: '2026-04-10', amount: 22.00, category: 'Transport', card: 'Chase Sapphire', note: 'Uber rides' },
-  { id: 'd11', tab: 'April 2026', row: 5, date: '2026-04-14', amount: 135.00, category: 'Shopping', card: 'Chase Sapphire', note: 'New shoes' },
-  { id: 'd12', tab: 'April 2026', row: 6, date: '2026-04-19', amount: 18.99, category: 'Entertainment', card: 'Amex Gold', note: 'Movie streaming' },
-  { id: 'd13', tab: 'April 2026', row: 7, date: '2026-04-24', amount: 66.75, category: 'Groceries', card: 'Debit', note: 'Whole Foods' },
-  { id: 'd14', tab: 'April 2026', row: 8, date: '2026-04-28', amount: 150.00, category: 'Healthcare', card: 'Debit', note: 'Dental cleaning' },
-  { id: 'd15', tab: 'May 2026', row: 2, date: '2026-05-02', amount: 79.80, category: 'Groceries', card: 'Debit', note: 'Trader Joes' },
-  { id: 'd16', tab: 'May 2026', row: 3, date: '2026-05-07', amount: 42.60, category: 'Dining', card: 'Amex Gold', note: 'Brunch with friends' },
-  { id: 'd17', tab: 'May 2026', row: 4, date: '2026-05-12', amount: 18.00, category: 'Transport', card: 'Chase Sapphire', note: 'Subway card' },
-  { id: 'd18', tab: 'May 2026', row: 5, date: '2026-05-16', amount: 89.99, category: 'Shopping', card: 'Chase Sapphire', note: 'Nordstrom Rack' },
-  { id: 'd19', tab: 'May 2026', row: 6, date: '2026-05-20', amount: 35.00, category: 'Entertainment', card: 'Amex Gold', note: 'Museum tickets' },
-  { id: 'd20', tab: 'May 2026', row: 7, date: '2026-05-22', amount: 83.40, category: 'Groceries', card: 'Debit', note: 'Weekly shop' },
+  { id: 'd1', ...demoDate(0, 2), row: 2, amount: 87.42, category: 'Groceries', card: 'Debit', note: 'Whole Foods' },
+  { id: 'd2', ...demoDate(0, 5), row: 3, amount: 34.80, category: 'Dining', card: 'Amex Gold', note: 'Pasta Palace' },
+  { id: 'd3', ...demoDate(0, 9), row: 4, amount: 12.50, category: 'Transport', card: 'Chase Sapphire', note: 'Metro pass' },
+  { id: 'd4', ...demoDate(0, 12), row: 5, amount: 62.00, category: 'Shopping', card: 'Chase Sapphire', note: 'Amazon order' },
+  { id: 'd5', ...demoDate(0, 18), row: 6, amount: 29.99, category: 'Entertainment', card: 'Amex Gold', note: 'Concert ticket' },
+  { id: 'd6', ...demoDate(0, 22), row: 7, amount: 74.15, category: 'Groceries', card: 'Debit', note: 'Trader Joes' },
+  { id: 'd7', ...demoDate(0, 27), row: 8, amount: 45.00, category: 'Healthcare', card: 'Debit', note: 'Co-pay' },
+  { id: 'd8', ...demoDate(1, 3), row: 2, amount: 91.20, category: 'Groceries', card: 'Debit', note: 'Costco run' },
+  { id: 'd9', ...demoDate(1, 6), row: 3, amount: 58.40, category: 'Dining', card: 'Amex Gold', note: 'Sushi night' },
+  { id: 'd10', ...demoDate(1, 10), row: 4, amount: 22.00, category: 'Transport', card: 'Chase Sapphire', note: 'Uber rides' },
+  { id: 'd11', ...demoDate(1, 14), row: 5, amount: 135.00, category: 'Shopping', card: 'Chase Sapphire', note: 'New shoes' },
+  { id: 'd12', ...demoDate(1, 19), row: 6, amount: 18.99, category: 'Entertainment', card: 'Amex Gold', note: 'Movie streaming' },
+  { id: 'd13', ...demoDate(1, 24), row: 7, amount: 66.75, category: 'Groceries', card: 'Debit', note: 'Whole Foods' },
+  { id: 'd14', ...demoDate(1, 28), row: 8, amount: 150.00, category: 'Healthcare', card: 'Debit', note: 'Dental cleaning' },
+  { id: 'd15', ...demoDate(2, 2), row: 2, amount: 79.80, category: 'Groceries', card: 'Debit', note: 'Trader Joes' },
+  { id: 'd16', ...demoDate(2, 7), row: 3, amount: 42.60, category: 'Dining', card: 'Amex Gold', note: 'Brunch with friends' },
+  { id: 'd17', ...demoDate(2, 12), row: 4, amount: 18.00, category: 'Transport', card: 'Chase Sapphire', note: 'Subway card' },
+  { id: 'd18', ...demoDate(2, 16), row: 5, amount: 89.99, category: 'Shopping', card: 'Chase Sapphire', note: 'Nordstrom Rack' },
+  { id: 'd19', ...demoDate(2, 20), row: 6, amount: 35.00, category: 'Entertainment', card: 'Amex Gold', note: 'Museum tickets' },
+  { id: 'd20', ...demoDate(2, 22), row: 7, amount: 83.40, category: 'Groceries', card: 'Debit', note: 'Weekly shop' },
 ];
 
 export default function DemoPage() {
   const [config, setConfig] = useState<Config>(INITIAL_CONFIG);
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
-  const [monthTabKeys, setMonthTabKeys] = useState<string[]>(['2026-03', '2026-04', '2026-05']);
+  const [monthTabKeys, setMonthTabKeys] = useState<string[]>(DEMO_MONTHS);
   const [monthConfigs, setMonthConfigs] = useState<Record<string, MonthConfig>>({});
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [menuOpen, setMenuOpen] = useState(false);
