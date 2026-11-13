@@ -141,6 +141,9 @@ function LandingPageContent() {
             <p className="text-[12px] text-[#5c5c5c] text-center mt-[6px]">
               <a href="/privacy" className="underline underline-offset-2">Privacy</a> · <a href="/terms" className="underline underline-offset-2">Terms</a> · <a href="/changelog" className="underline underline-offset-2">What's new</a> · <a href="/wiki" className="underline underline-offset-2">Docs</a>
             </p>
+            <p className="text-[12px] text-[#5c5c5c] text-center mt-[6px]">
+              Made by <a href="https://wizardindustries.app" className="underline underline-offset-2">Wizard Industries</a>
+            </p>
           </div>
         </div>
 
@@ -185,7 +188,7 @@ function LandingPageContent() {
           </div>
 
           <p className="mt-auto pb-8 text-[12px] text-[#5c5c5c]">
-            <a href="/privacy" className="underline underline-offset-2 hover:text-[#333]">Privacy</a> · <a href="/terms" className="underline underline-offset-2 hover:text-[#333]">Terms</a> · <a href="/changelog" className="underline underline-offset-2 hover:text-[#333]">What's new</a> · <a href="/wiki" className="underline underline-offset-2 hover:text-[#333]">Docs</a>
+            <a href="/privacy" className="underline underline-offset-2 hover:text-[#333]">Privacy</a> · <a href="/terms" className="underline underline-offset-2 hover:text-[#333]">Terms</a> · <a href="/changelog" className="underline underline-offset-2 hover:text-[#333]">What's new</a> · <a href="/wiki" className="underline underline-offset-2 hover:text-[#333]">Docs</a> · Made by <a href="https://wizardindustries.app" className="underline underline-offset-2 hover:text-[#333]">Wizard Industries</a>
           </p>
         </div>
       </div>

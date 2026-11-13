@@ -195,6 +195,10 @@ export default function PrivacyPage() {
           <Link href="/" className="text-[#888] underline underline-offset-2">
             Home
           </Link>
+          {' '}·{' '}
+          <a href="https://wizardindustries.app" className="text-[#888] underline underline-offset-2">
+            Made by Wizard Industries
+          </a>
         </p>
       </footer>
     </div>
